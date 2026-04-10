@@ -1,0 +1,95 @@
+# ══════════════════════════════════════════════════════════
+#  Baby Pets — Configuration
+# ══════════════════════════════════════════════════════════
+config_version: 2
+
+database:
+  file: "pets.db"
+
+# ══════════════════════════════════════════════════════════
+#  Egg Configuration
+# ══════════════════════════════════════════════════════════
+eggs:
+  texture: "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1cmUvYmM4YjE1ZTg1ZWQyMjVjMjFjMzIzNjdkYTdiZTI0NDc3OWUzNmFmZTdmNzU2M2E2YTU3MGE3MTdjYjViZTFiMSJ9fX0="
+  rarity_weights:
+    COMMON: 50.0
+    UNCOMMON: 25.0
+    RARE: 15.0
+    EPIC: 8.0
+    LEGENDARY: 2.0
+  loot_injection:
+    enabled: true
+    base_chance: 8.0
+    common_threshold: 50.0
+    uncommon_threshold: 75.0
+    rare_threshold: 90.0
+    epic_threshold: 98.0
+
+# ══════════════════════════════════════════════════════════
+#  Incubation
+# ══════════════════════════════════════════════════════════
+incubation:
+  duration_minutes: 20
+  require_simulation_distance: true
+
+# ══════════════════════════════════════════════════════════
+#  Pet Behavior
+# ══════════════════════════════════════════════════════════
+pets:
+  max_active: 1
+  follow_distance: 3.0
+  teleport_distance: 20.0
+  cross_dimension_teleport: true
+  respawn_on_join: true
+
+# ══════════════════════════════════════════════════════════
+#  Leveling (time-based)
+# ══════════════════════════════════════════════════════════
+leveling:
+  max_level: 10
+  base_xp: 50               # XP needed for level 2
+  exponent: 1.3              # Scaling exponent per level
+  xp_per_interval: 2.0       # XP gained per interval tick
+  xp_interval_ticks: 1200    # Ticks between XP grants (1200 = 60 seconds)
+
+# ══════════════════════════════════════════════════════════
+#  Status & Feeding
+# ══════════════════════════════════════════════════════════
+status:
+  feed_cooldown_seconds: 3
+  pet_cooldown_seconds: 5
+  # Items that can be fed to the pet to improve status
+  food_items:
+    - WHEAT_SEEDS
+    - MELON_SEEDS
+    - PUMPKIN_SEEDS
+    - BEETROOT_SEEDS
+    - TORCHFLOWER_SEEDS
+    - PITCHER_POD
+    - APPLE
+    - BREAD
+    - CARROT
+
+# ══════════════════════════════════════════════════════════
+#  Fish Rework Integration
+# ══════════════════════════════════════════════════════════
+integration:
+  fish_rework:
+    use_display_case_as_incubator: true
+
+# ══════════════════════════════════════════════════════════
+#  Messages (supports & color codes)
+# ══════════════════════════════════════════════════════════
+messages:
+  pet_spawned: "&a%pet_name% &7has appeared by your side!"
+  pet_despawned: "&7%pet_name% &7has returned to rest."
+  pet_selected: "&aYou selected &e%pet_name%&a!"
+  pet_deselected: "&7You deselected &e%pet_name%&7."
+  pet_fed: "&a%pet_name% &7enjoyed the treat! Status: &e%status%"
+  pet_petted: "&d%pet_name% &7loves the attention! Status: &e%status%"
+  pet_level_up: "&b&lLEVEL UP! &e%pet_name% &7is now level &e%level%&7!"
+  egg_hatched: "&a&lHATCH! &7Your egg hatched into a &e%pet_name%&7!"
+  egg_placed: "&7Egg placed in incubator. Hatching in &e%time%&7..."
+  incubator_busy: "&cThis incubator already has an egg!"
+  no_pet_selected: "&cYou don't have a pet selected!"
+  feed_cooldown: "&cYou can feed again in %seconds%s."

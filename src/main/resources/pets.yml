@@ -1,0 +1,94 @@
+# ═══════════════════════════════════════════════════════════
+#  Baby Pets — Pet Definitions
+# ═══════════════════════════════════════════════════════════
+# Each pet gives the PLAYER an attribute bonus that scales with level (max 10).
+# Rarity is communicated via item name color — no explicit label needed.
+
+pets:
+
+  chicken:
+    display_name: "Chicken"
+    entity_type: CHICKEN
+    rarity: COMMON
+    baby: true
+    icon: CHICKEN_SPAWN_EGG
+    description: "A feathery little friend."
+    player_attribute:
+      type: ARMOR
+      value_per_level: 0.5
+      display: "♦ Armor"
+
+  pig:
+    display_name: "Pig"
+    entity_type: PIG
+    rarity: COMMON
+    baby: true
+    icon: PIG_SPAWN_EGG
+    description: "A chubby pink companion."
+    player_attribute:
+      type: MAX_HEALTH
+      value_per_level: 0.5
+      display: "♥ Max Health"
+
+  bee:
+    display_name: "Bee"
+    entity_type: BEE
+    rarity: UNCOMMON
+    baby: true
+    flying: true
+    icon: BEE_SPAWN_EGG
+    description: "A tiny buzzing buddy."
+    player_attribute:
+      type: KNOCKBACK_RESISTANCE
+      value_per_level: 0.02
+      display: "⛨ Knockback Resist"
+
+  dolphin:
+    display_name: "Dolphin"
+    entity_type: DOLPHIN
+    rarity: RARE
+    baby: false
+    aquatic: true
+    icon: DOLPHIN_SPAWN_EGG
+    description: "A playful aquatic companion."
+    player_attribute:
+      type: OXYGEN_BONUS
+      value_per_level: 1.0
+      display: "◎ Oxygen Bonus"
+
+  nautilus:
+    display_name: "Nautilus"
+    entity_type: NAUTILUS
+    rarity: RARE
+    baby: false
+    aquatic: true
+    icon: NAUTILUS_SPAWN_EGG
+    description: "An ancient ocean dweller."
+    player_attribute:
+      type: LUCK
+      value_per_level: 0.5
+      display: "☆ Luck"
+
+  fox:
+    display_name: "Fox"
+    entity_type: FOX
+    rarity: EPIC
+    baby: true
+    icon: FOX_SPAWN_EGG
+    description: "A cunning, swift companion."
+    player_attribute:
+      type: MOVEMENT_SPEED
+      value_per_level: 0.005
+      display: "⚡ Movement Speed"
+
+  goat:
+    display_name: "Goat"
+    entity_type: GOAT
+    rarity: LEGENDARY
+    baby: true
+    icon: GOAT_SPAWN_EGG
+    description: "A stubborn powerhouse."
+    player_attribute:
+      type: ATTACK_DAMAGE
+      value_per_level: 0.25
+      display: "⚔ Attack Damage"

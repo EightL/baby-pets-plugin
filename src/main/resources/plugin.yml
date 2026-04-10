@@ -1,0 +1,24 @@
+name: BabyPets
+version: ${version}
+main: com.petsplugin.PetsPlugin
+api-version: '1.21'
+authors: [EightL]
+description: Baby animal pet companions for Paper servers.
+softdepend: [FishRework]
+libraries:
+  - org.xerial:sqlite-jdbc:3.46.0.0
+
+commands:
+  pets:
+    description: Opens the pets menu
+    usage: /pets [subcommand]
+    permission: pets.use
+    permission-message: You do not have permission to use this command.
+
+permissions:
+  pets.use:
+    description: Allows use of pets commands
+    default: true
+  pets.admin:
+    description: Allows admin management of pets
+    default: op
