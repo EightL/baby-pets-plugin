@@ -6,7 +6,9 @@ import com.petsplugin.integration.FishReworkHook;
 import com.petsplugin.listener.*;
 import com.petsplugin.manager.EggManager;
 import com.petsplugin.manager.IncubatorManager;
+import com.petsplugin.manager.PetAdvancementManager;
 import com.petsplugin.manager.PetManager;
+import com.petsplugin.manager.PetSettingsManager;
 import com.petsplugin.model.PetType;
 import com.petsplugin.storage.PetDatabaseManager;
 import org.bukkit.configuration.ConfigurationSection;
@@ -29,6 +31,8 @@ public class PetsPlugin extends JavaPlugin {
     private EggManager eggManager;
     private IncubatorManager incubatorManager;
     private PetManager petManager;
+    private PetSettingsManager settingsManager;
+    private PetAdvancementManager advancementManager;
     private FishReworkHook fishReworkHook;
 
     private Map<String, PetType> petTypes = new LinkedHashMap<>();
@@ -48,7 +52,9 @@ public class PetsPlugin extends JavaPlugin {
 
         eggManager = new EggManager(this);
         incubatorManager = new IncubatorManager(this);
+        settingsManager = new PetSettingsManager(this);
         petManager = new PetManager(this);
+        advancementManager = new PetAdvancementManager(this);
 
         // Initialize integration
         fishReworkHook = new FishReworkHook(this);
@@ -57,6 +63,7 @@ public class PetsPlugin extends JavaPlugin {
         // Start managers
         incubatorManager.initialize();
         petManager.initialize();
+        advancementManager.loadAdvancements();
 
         // Register listeners
         getServer().getPluginManager().registerEvents(new GuiListener(), this);
@@ -75,6 +82,7 @@ public class PetsPlugin extends JavaPlugin {
 
     @Override
     public void onDisable() {
+        if (advancementManager != null) advancementManager.unloadAdvancements();
         // Shutdown managers
         if (petManager != null) petManager.shutdown();
         if (incubatorManager != null) incubatorManager.shutdown();
@@ -89,6 +97,9 @@ public class PetsPlugin extends JavaPlugin {
     public void reload() {
         reloadConfig();
         loadPetTypes();
+        if (advancementManager != null) {
+            advancementManager.loadAdvancements();
+        }
         getLogger().info("Configuration reloaded. " + petTypes.size() + " pet types loaded.");
     }
 
@@ -130,6 +141,8 @@ public class PetsPlugin extends JavaPlugin {
     public EggManager getEggManager() { return eggManager; }
     public IncubatorManager getIncubatorManager() { return incubatorManager; }
     public PetManager getPetManager() { return petManager; }
+    public PetSettingsManager getSettingsManager() { return settingsManager; }
+    public PetAdvancementManager getAdvancementManager() { return advancementManager; }
     public FishReworkHook getFishReworkHook() { return fishReworkHook; }
     public Map<String, PetType> getPetTypes() { return petTypes; }
 }

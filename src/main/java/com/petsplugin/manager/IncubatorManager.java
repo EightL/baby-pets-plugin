@@ -10,6 +10,7 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
 import org.bukkit.*;
 import org.bukkit.block.Block;
+import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.*;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -22,7 +23,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Manages pet incubators — placement, tracking, hatching timers, particle effects.
- * Incubator = smoker base + iron block mask + glass dome + egg display.
+ * Incubator = iron trapdoor anchor + display-entity shell + egg display.
  */
 public class IncubatorManager {
 
@@ -34,11 +35,13 @@ public class IncubatorManager {
 
     public final NamespacedKey INCUBATOR_KEY;
     public final NamespacedKey INCUBATOR_ENTITY_KEY;
+    public final NamespacedKey INCUBATOR_ANCHOR_KEY;
 
     public IncubatorManager(PetsPlugin plugin) {
         this.plugin = plugin;
         this.INCUBATOR_KEY = new NamespacedKey(plugin, "pet_incubator");
         this.INCUBATOR_ENTITY_KEY = new NamespacedKey(plugin, "incubator_entity");
+        this.INCUBATOR_ANCHOR_KEY = new NamespacedKey(plugin, "incubator_anchor");
     }
 
     public void initialize() {
@@ -91,10 +94,9 @@ public class IncubatorManager {
     }
 
     public boolean isIncubatorBlock(Block block) {
-        if (block.getType() != Material.SMOKER) return false;
         Location center = block.getLocation().add(0.5, 0.5, 0.5);
-        for (Entity entity : block.getWorld().getNearbyEntities(center, 1.5, 2.0, 1.5)) {
-            if (entity.getPersistentDataContainer().has(INCUBATOR_ENTITY_KEY, PersistentDataType.BYTE)) {
+        for (Entity entity : block.getWorld().getNearbyEntities(center, 2.0, 2.0, 2.0)) {
+            if (isIncubatorEntityForBlock(entity, block)) {
                 return true;
             }
         }
@@ -102,53 +104,75 @@ public class IncubatorManager {
     }
 
     /**
-     * Create the incubator furniture at a location.
-     * Design: iron block masking lower half of smoker + glass dome on top + egg display inside.
+     * Create the incubator furniture at a location using the exported Axiom shell.
      */
     public void createIncubatorFurniture(Location location, float yaw) {
         Location center = location.clone().add(0.5, 0, 0.5);
+        String anchorKey = locationKey(location.getBlock());
         float snappedYaw = (Math.round(yaw / 90f) * 90f + 180f) % 360f;
 
-        // Iron block base — covers bottom half of the smoker for an industrial look
-        BlockDisplay ironBase = (BlockDisplay) location.getWorld().spawnEntity(
-                center.clone().add(0, 0, 0), EntityType.BLOCK_DISPLAY);
-        ironBase.setBlock(Bukkit.createBlockData(Material.IRON_BLOCK));
-        ironBase.setRotation(snappedYaw, 0);
+        // Axiom export translated from block-corner space into center-pivot space.
+        spawnPart(center, snappedYaw, Bukkit.createBlockData(Material.GLASS),
+                0.875f, 0.865f, 0.875f,
+            -0.4375f, 0.01625f, -0.4375f,
+            anchorKey);
+        spawnPart(center, snappedYaw, Bukkit.createBlockData(Material.IRON_BLOCK),
+                0.1155f, 0.88f, 0.1175f,
+            -0.498125f, 0.01f, -0.49625f,
+            anchorKey);
+        spawnPart(center, snappedYaw, Bukkit.createBlockData(Material.IRON_BLOCK),
+                0.1155f, 0.88f, 0.1175f,
+            -0.498125f, 0.00625f, 0.375f,
+            anchorKey);
+        spawnPart(center, snappedYaw, Bukkit.createBlockData(Material.IRON_BLOCK),
+                0.1155f, 0.88f, 0.1175f,
+            0.375f, 0.001875f, 0.375f,
+            anchorKey);
+        spawnPart(center, snappedYaw, Bukkit.createBlockData(Material.IRON_BLOCK),
+                0.1155f, 0.88f, 0.1175f,
+            0.375f, 0.001875f, -0.498125f,
+            anchorKey);
+        spawnPart(center, snappedYaw, Bukkit.createBlockData(Material.WAXED_CUT_COPPER),
+                1.0f, 0.125f, 1.0f,
+            -0.506875f, 0.875f, -0.5f,
+            anchorKey);
+        spawnPart(center, snappedYaw, Bukkit.createBlockData("minecraft:lightning_rod[facing=down,powered=false]"),
+                -0.625f, -0.5625f, 0.625f,
+            0.293125f, 1.5625f, -0.321875f,
+            anchorKey);
 
-        Transformation ironTrans = ironBase.getTransformation();
-        ironTrans.getScale().set(1.02f, 0.5f, 1.02f);
-        ironTrans.getTranslation().set(-0.51f, 0.0f, -0.51f);
-        ironBase.setTransformation(ironTrans);
-        configureDisplay(ironBase);
-
-        // Glass dome — sits on top of the smoker, short and wide
-        BlockDisplay glass = (BlockDisplay) location.getWorld().spawnEntity(
-                center.clone().add(0, 1.0, 0), EntityType.BLOCK_DISPLAY);
-        glass.setBlock(Bukkit.createBlockData(Material.GLASS));
-        glass.setRotation(snappedYaw, 0);
-
-        Transformation glassTrans = glass.getTransformation();
-        glassTrans.getScale().set(0.6f, 0.55f, 0.6f);
-        glassTrans.getTranslation().set(-0.3f, 0.0f, -0.3f);
-        glass.setTransformation(glassTrans);
-        configureDisplay(glass);
-
-        // Egg item display (inside the glass, shown when an egg is placed)
+        // Egg item display (inside the shell, shown when an egg is placed)
         ItemDisplay eggDisplay = (ItemDisplay) location.getWorld().spawnEntity(
-                center.clone().add(0, 1.15, 0), EntityType.ITEM_DISPLAY);
+            center.clone().add(0, 0.42, 0), EntityType.ITEM_DISPLAY);
         eggDisplay.setItemStack(new ItemStack(Material.AIR));
         eggDisplay.setRotation(snappedYaw, 0);
 
         Transformation eggTrans = eggDisplay.getTransformation();
-        eggTrans.getScale().set(0.35f, 0.35f, 0.35f);
+        eggTrans.getScale().set(0.8f, 0.8f, 0.8f);
         eggDisplay.setTransformation(eggTrans);
         eggDisplay.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.FIXED);
-        configureDisplay(eggDisplay);
+        configureDisplay(eggDisplay, anchorKey);
     }
 
-    private void configureDisplay(Display display) {
+    private void spawnPart(Location center, float yaw, BlockData blockData,
+                           float sx, float sy, float sz,
+                           float tx, float ty, float tz,
+                           String anchorKey) {
+        BlockDisplay part = (BlockDisplay) center.getWorld().spawnEntity(center.clone(), EntityType.BLOCK_DISPLAY);
+        part.setBlock(blockData);
+        part.setRotation(yaw, 0f);
+
+        Transformation transformation = part.getTransformation();
+        transformation.getScale().set(sx, sy, sz);
+        transformation.getTranslation().set(tx, ty, tz);
+        part.setTransformation(transformation);
+        configureDisplay(part, anchorKey);
+    }
+
+    private void configureDisplay(Display display, String anchorKey) {
         display.setPersistent(true);
         display.getPersistentDataContainer().set(INCUBATOR_ENTITY_KEY, PersistentDataType.BYTE, (byte) 1);
+        display.getPersistentDataContainer().set(INCUBATOR_ANCHOR_KEY, PersistentDataType.STRING, anchorKey);
         display.setInvulnerable(true);
         display.setViewRange(1.0f);
         display.setBillboard(Display.Billboard.FIXED);
@@ -157,17 +181,24 @@ public class IncubatorManager {
     }
 
     public void removeIncubatorFurniture(Block block) {
+        String key = locationKey(block);
         Location center = block.getLocation().add(0.5, 0.5, 0.5);
         for (Entity entity : block.getWorld().getNearbyEntities(center, 2.0, 2.0, 2.0)) {
-            if (entity.getPersistentDataContainer().has(INCUBATOR_ENTITY_KEY, PersistentDataType.BYTE)) {
+            if (isIncubatorEntityForBlock(entity, block)) {
                 entity.remove();
             }
         }
 
-        String key = locationKey(block);
+        // Remove the hidden anchor block used for interaction/breaking.
+        if (block.getType() != Material.AIR) {
+            block.setType(Material.AIR, false);
+        }
+
         IncubatorState state = activeIncubators.remove(key);
         if (state != null) {
             plugin.getDatabaseManager().deleteIncubator(state.getDatabaseId());
+            // Return the incubating egg when the incubator is broken mid-cycle.
+            block.getWorld().dropItemNaturally(block.getLocation(), plugin.getEggManager().createEgg(state.getEggRarity()));
         }
 
         block.getWorld().dropItemNaturally(block.getLocation(), createIncubatorItem());
@@ -202,7 +233,7 @@ public class IncubatorManager {
         Location center = block.getLocation().add(0.5, 0.5, 0.5);
         for (Entity entity : block.getWorld().getNearbyEntities(center, 2.0, 2.0, 2.0)) {
             if (entity instanceof ItemDisplay itemDisplay
-                    && entity.getPersistentDataContainer().has(INCUBATOR_ENTITY_KEY, PersistentDataType.BYTE)) {
+                    && isIncubatorEntityForBlock(entity, block)) {
                 if (rarity != null) {
                     itemDisplay.setItemStack(plugin.getEggManager().createEgg(rarity));
                 } else {
@@ -296,6 +327,7 @@ public class IncubatorManager {
             msg = msg.replace("%pet_name%", type.getDisplayName());
             owner.sendMessage(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
                     .legacyAmpersand().deserialize(msg));
+            plugin.getAdvancementManager().handlePetHatched(owner, pet, type);
         }
     }
 
@@ -325,6 +357,7 @@ public class IncubatorManager {
                     msg = msg.replace("%pet_name%", type.getDisplayName());
                     owner.sendMessage(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
                             .legacyAmpersand().deserialize(msg));
+                    plugin.getAdvancementManager().handlePetHatched(owner, pet, type);
                 }
             }
             it.remove();
@@ -343,5 +376,24 @@ public class IncubatorManager {
 
     private String locationKey(Block block) {
         return block.getWorld().getName() + ":" + block.getX() + ":" + block.getY() + ":" + block.getZ();
+    }
+
+    private boolean isIncubatorEntityForBlock(Entity entity, Block block) {
+        if (!entity.getPersistentDataContainer().has(INCUBATOR_ENTITY_KEY, PersistentDataType.BYTE)) {
+            return false;
+        }
+
+        String key = locationKey(block);
+        String anchor = entity.getPersistentDataContainer().get(INCUBATOR_ANCHOR_KEY, PersistentDataType.STRING);
+        if (anchor != null) {
+            return key.equals(anchor);
+        }
+
+        // Backward-compat: older incubator entities may not have an anchor key.
+        Location root = entity.getLocation();
+        return root.getWorld().equals(block.getWorld())
+                && root.getBlockX() == block.getX()
+                && root.getBlockY() == block.getY()
+                && root.getBlockZ() == block.getZ();
     }
 }

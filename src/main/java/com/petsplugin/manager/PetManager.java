@@ -2,6 +2,7 @@ package com.petsplugin.manager;
 
 import com.petsplugin.PetsPlugin;
 import com.petsplugin.model.PetInstance;
+import com.petsplugin.model.PetFollowMode;
 import com.petsplugin.model.PetStatus;
 import com.petsplugin.model.PetType;
 import net.kyori.adventure.text.Component;
@@ -23,27 +24,35 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class PetManager {
 
+    private static final int MAX_NICKNAME_LENGTH = 64;
+
     private final PetsPlugin plugin;
 
     private final Map<UUID, UUID> activePetEntities = new ConcurrentHashMap<>();
     private final Map<UUID, PetInstance> activePets = new ConcurrentHashMap<>();
     private final Map<UUID, List<PetInstance>> playerPetsCache = new ConcurrentHashMap<>();
+    private final Map<UUID, UUID> hoverNameDisplays = new ConcurrentHashMap<>();
+    private final Map<UUID, UUID> viewerHoverTargets = new ConcurrentHashMap<>();
+    private final Map<UUID, Long> idleEmoteAt = new ConcurrentHashMap<>();
 
     public final NamespacedKey PET_ENTITY_KEY;
     public final NamespacedKey PET_OWNER_KEY;
     public final NamespacedKey PET_TYPE_KEY;
+    public final NamespacedKey PET_NAME_DISPLAY_KEY;
 
     /** NamespacedKey used for player attribute modifiers applied by pets. */
     public final NamespacedKey PET_ATTRIBUTE_KEY;
 
     private BukkitTask followTask;
     private BukkitTask xpTask;
+    private BukkitTask hoverNameTask;
 
     public PetManager(PetsPlugin plugin) {
         this.plugin = plugin;
         this.PET_ENTITY_KEY = new NamespacedKey(plugin, "pet_entity");
         this.PET_OWNER_KEY = new NamespacedKey(plugin, "pet_owner");
         this.PET_TYPE_KEY = new NamespacedKey(plugin, "pet_type");
+        this.PET_NAME_DISPLAY_KEY = new NamespacedKey(plugin, "pet_name_display");
         this.PET_ATTRIBUTE_KEY = new NamespacedKey(plugin, "pet_attribute_bonus");
     }
 
@@ -52,14 +61,20 @@ public class PetManager {
         // XP task: every 60 seconds
         long xpInterval = plugin.getConfig().getLong("leveling.xp_interval_ticks", 1200L);
         xpTask = Bukkit.getScheduler().runTaskTimer(plugin, this::xpTick, xpInterval, xpInterval);
+        hoverNameTask = Bukkit.getScheduler().runTaskTimer(plugin, this::hoverNameTick, 10L, 4L);
     }
 
     public void shutdown() {
         if (followTask != null) followTask.cancel();
         if (xpTask != null) xpTask.cancel();
+        if (hoverNameTask != null) hoverNameTask.cancel();
 
         for (UUID playerUuid : new ArrayList<>(activePetEntities.keySet())) {
             despawnPet(playerUuid, false);
+        }
+
+        for (UUID viewerUuid : new ArrayList<>(viewerHoverTargets.keySet())) {
+            clearViewerHoverTarget(viewerUuid);
         }
     }
 
@@ -151,6 +166,41 @@ public class PetManager {
         return null;
     }
 
+    public void setFollowMode(Player player, PetFollowMode mode) {
+        PetFollowMode resolved = mode == null ? PetFollowMode.FOLLOW : mode;
+        plugin.getSettingsManager().setFollowMode(player.getUniqueId(), resolved);
+
+        Entity entity = findActivePetEntity(player.getUniqueId());
+        if (entity != null) {
+            applyPetModePosture(player.getUniqueId(), entity);
+        }
+
+        String path = resolved == PetFollowMode.FOLLOW
+                ? "messages.pet_mode_follow"
+                : "messages.pet_mode_stay";
+        String fallback = resolved == PetFollowMode.FOLLOW
+                ? "&aYour pet will follow you again."
+                : "&eYour pet is staying put.";
+        String msg = plugin.getConfig().getString(path, fallback);
+        player.sendMessage(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
+                .legacyAmpersand().deserialize(msg));
+    }
+
+    public void setHideOtherPets(Player player, boolean enabled) {
+        plugin.getSettingsManager().setHideOtherPetsEnabled(player.getUniqueId(), enabled);
+        refreshPetVisibility(player);
+
+        String path = enabled
+                ? "messages.hide_other_pets_enabled"
+                : "messages.hide_other_pets_disabled";
+        String fallback = enabled
+                ? "&aOther players' pets are now hidden."
+                : "&eOther players' pets are visible again.";
+        String msg = plugin.getConfig().getString(path, fallback);
+        player.sendMessage(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
+                .legacyAmpersand().deserialize(msg));
+    }
+
     // ══════════════════════════════════════════════════════════
     //  Spawning & Despawning
     // ══════════════════════════════════════════════════════════
@@ -182,10 +232,6 @@ public class PetManager {
                 ageable.setAgeLock(true);
             }
 
-            // No custom name tag
-            mob.setCustomNameVisible(false);
-            mob.customName(null);
-
             // PDC tags
             mob.getPersistentDataContainer().set(PET_ENTITY_KEY, PersistentDataType.BYTE, (byte) 1);
             mob.getPersistentDataContainer().set(PET_OWNER_KEY, PersistentDataType.STRING,
@@ -195,17 +241,20 @@ public class PetManager {
             // Mob-specific config
             if (mob instanceof Fox fox) {
                 fox.setFirstTrustedPlayer(player);
-                fox.setSitting(false);
             }
             if (mob instanceof Bee bee) {
                 bee.setHasNectar(false);
                 bee.setHasStung(false);
                 bee.setAnger(0);
+                bee.setTarget(null);
             }
             if (mob instanceof Goat goat) {
                 goat.setScreaming(false);
             }
         }
+
+        applyPetName(entity, pet);
+        applyPetModePosture(player.getUniqueId(), entity);
 
         pet.setEntityUuid(entity.getUniqueId());
         activePetEntities.put(player.getUniqueId(), entity.getUniqueId());
@@ -223,11 +272,16 @@ public class PetManager {
         msg = msg.replace("%pet_name%", pet.getDisplayName(type));
         player.sendMessage(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
                 .legacyAmpersand().deserialize(msg));
+
+        refreshPetVisibilityForAll();
     }
 
     public void despawnPet(UUID playerUuid, boolean notify) {
         UUID entityUuid = activePetEntities.remove(playerUuid);
         if (entityUuid == null) return;
+
+        removeHoverNameDisplay(entityUuid);
+        clearHoverTargetsForPet(entityUuid);
 
         for (World world : Bukkit.getWorlds()) {
             for (Entity entity : world.getEntities()) {
@@ -259,6 +313,8 @@ public class PetManager {
                 }
             }
         }
+
+        refreshPetVisibilityForAll();
     }
 
     public boolean isPetEntity(Entity entity) {
@@ -268,6 +324,31 @@ public class PetManager {
     public UUID getPetOwner(Entity entity) {
         String uuid = entity.getPersistentDataContainer().get(PET_OWNER_KEY, PersistentDataType.STRING);
         return uuid != null ? UUID.fromString(uuid) : null;
+    }
+
+    public void renamePet(Player player, PetInstance pet, String requestedNickname) {
+        String nickname = sanitizeNickname(requestedNickname);
+        if (nickname == null) return;
+
+        pet.setNickname(nickname);
+        syncCachedNickname(pet);
+        plugin.getDatabaseManager().updatePet(pet);
+
+        Entity entity = findActivePetEntity(player.getUniqueId());
+        if (entity != null) {
+            applyPetName(entity, pet);
+            entity.getWorld().spawnParticle(Particle.HAPPY_VILLAGER,
+                    entity.getLocation().add(0, 1, 0), 6, 0.3, 0.3, 0.3);
+        }
+
+        PetType type = plugin.getPetTypes().get(pet.getPetTypeId());
+        String displayName = type != null ? pet.getDisplayName(type) : nickname;
+        String msg = plugin.getConfig().getString("messages.pet_renamed",
+                "&aYour pet is now named &e%pet_name%&a!");
+        msg = msg.replace("%pet_name%", displayName);
+        player.sendMessage(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
+                .legacyAmpersand().deserialize(msg));
+        plugin.getAdvancementManager().handlePetRenamed(player);
     }
 
     // ══════════════════════════════════════════════════════════
@@ -338,6 +419,21 @@ public class PetManager {
                 continue;
             }
 
+            if (petEntity instanceof Bee bee) {
+                if (bee.getTarget() != null || bee.getAnger() > 0 || bee.hasStung()) {
+                    bee.setTarget(null);
+                    bee.setAnger(0);
+                    bee.setHasStung(false);
+                }
+            }
+
+            syncHoverNamePosition(petEntity);
+
+            if (plugin.getSettingsManager().isStayMode(playerUuid)) {
+                applyPetModePosture(playerUuid, petEntity);
+                continue;
+            }
+
             double distance = petEntity.getLocation().distance(player.getLocation());
 
             if (distance > teleportDist) {
@@ -350,6 +446,8 @@ public class PetManager {
 
             if (distance > followDist && petEntity instanceof Mob mob) {
                 mob.getPathfinder().moveTo(player.getLocation(), 1.2);
+            } else if (distance <= followDist) {
+                maybePlayIdleEmote(player, petEntity);
             }
         }
     }
@@ -393,6 +491,7 @@ public class PetManager {
 
                         // Refresh player attribute
                         refreshPlayerAttribute(player, pet);
+                        plugin.getAdvancementManager().handlePetLevel(player, pet);
                     }
                 } else {
                     break;
@@ -440,6 +539,7 @@ public class PetManager {
                 .replace("%status%", pet.getStatus().getDisplay());
         player.sendMessage(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
                 .legacyAmpersand().deserialize(msg));
+        plugin.getAdvancementManager().handlePetFed(player);
     }
 
     // ══════════════════════════════════════════════════════════
@@ -477,6 +577,7 @@ public class PetManager {
                 .replace("%status%", pet.getStatus().getDisplay());
         player.sendMessage(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
                 .legacyAmpersand().deserialize(msg));
+        plugin.getAdvancementManager().handlePetPetted(player);
     }
 
     private void playMobSound(Entity entity, PetType type) {
@@ -502,6 +603,7 @@ public class PetManager {
         pet.setXp(0);
         plugin.getDatabaseManager().updatePet(pet);
         refreshPlayerAttribute(player, pet);
+        plugin.getAdvancementManager().handlePetLevel(player, pet);
     }
 
     // ══════════════════════════════════════════════════════════
@@ -537,5 +639,269 @@ public class PetManager {
             loc = playerLoc.clone().add(1, 0, 1);
         }
         return loc;
+    }
+
+    public void refreshPetVisibility(Player viewer) {
+        clearViewerHoverTarget(viewer.getUniqueId());
+
+        for (Map.Entry<UUID, UUID> entry : activePetEntities.entrySet()) {
+            UUID ownerUuid = entry.getKey();
+            Entity petEntity = findEntityByUuid(entry.getValue());
+            if (petEntity == null) continue;
+
+            if (shouldHidePetFromViewer(viewer, ownerUuid)) {
+                viewer.hideEntity(plugin, petEntity);
+            } else {
+                viewer.showEntity(plugin, petEntity);
+            }
+
+            UUID displayUuid = hoverNameDisplays.get(petEntity.getUniqueId());
+            if (displayUuid != null) {
+                Entity display = findEntityByUuid(displayUuid);
+                if (display != null) {
+                    viewer.hideEntity(plugin, display);
+                }
+            }
+        }
+    }
+
+    public void refreshPetVisibilityForAll() {
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            refreshPetVisibility(player);
+        }
+    }
+
+    public void clearViewerHoverTarget(UUID viewerUuid) {
+        Player viewer = Bukkit.getPlayer(viewerUuid);
+        UUID previousTarget = viewerHoverTargets.remove(viewerUuid);
+        if (viewer == null || previousTarget == null) return;
+        hideHoverName(viewer, previousTarget);
+    }
+
+    private void applyPetName(Entity entity, PetInstance pet) {
+        String nickname = sanitizeNickname(pet.getNickname());
+        entity.setCustomNameVisible(false);
+        entity.customName(null);
+        if (nickname == null) {
+            removeHoverNameDisplay(entity.getUniqueId());
+            return;
+        }
+
+        ensureHoverNameDisplay(entity, nickname);
+    }
+
+    private String sanitizeNickname(String nickname) {
+        if (nickname == null) return null;
+
+        String sanitized = nickname.trim();
+        if (sanitized.isEmpty()) return null;
+
+        if (sanitized.length() > MAX_NICKNAME_LENGTH) {
+            sanitized = sanitized.substring(0, MAX_NICKNAME_LENGTH);
+        }
+        return sanitized;
+    }
+
+    private void syncCachedNickname(PetInstance pet) {
+        List<PetInstance> pets = playerPetsCache.get(pet.getOwnerUuid());
+        if (pets == null) return;
+
+        for (PetInstance cachedPet : pets) {
+            if (cachedPet.getDatabaseId() == pet.getDatabaseId()) {
+                cachedPet.setNickname(pet.getNickname());
+                break;
+            }
+        }
+    }
+
+    private Entity findActivePetEntity(UUID playerUuid) {
+        UUID entityUuid = activePetEntities.get(playerUuid);
+        return findEntityByUuid(entityUuid);
+    }
+
+    private Entity findEntityByUuid(UUID entityUuid) {
+        if (entityUuid == null) return null;
+        for (World world : Bukkit.getWorlds()) {
+            for (Entity entity : world.getEntities()) {
+                if (entity.getUniqueId().equals(entityUuid)) {
+                    return entity;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private boolean shouldHidePetFromViewer(Player viewer, UUID ownerUuid) {
+        return !viewer.getUniqueId().equals(ownerUuid)
+                && plugin.getSettingsManager().isHideOtherPetsEnabled(viewer.getUniqueId());
+    }
+
+    private void applyPetModePosture(UUID playerUuid, Entity entity) {
+        boolean stayMode = plugin.getSettingsManager().isStayMode(playerUuid);
+
+        if (entity instanceof Fox fox) {
+            fox.setSitting(stayMode);
+        }
+
+        if (stayMode && entity instanceof Mob mob) {
+            try {
+                mob.getPathfinder().stopPathfinding();
+            } catch (Exception ignored) {
+            }
+        }
+    }
+
+    private void maybePlayIdleEmote(Player player, Entity entity) {
+        PetInstance pet = activePets.get(player.getUniqueId());
+        if (pet == null) return;
+
+        long now = System.currentTimeMillis();
+        Long lastAt = idleEmoteAt.get(entity.getUniqueId());
+        if (lastAt != null && now - lastAt < 20000L) return;
+        if (Math.random() > 0.03) return;
+
+        idleEmoteAt.put(entity.getUniqueId(), now);
+        if (entity instanceof Mob mob) {
+            mob.lookAt(player);
+        }
+        entity.getWorld().spawnParticle(
+                Math.random() < 0.5 ? Particle.HEART : Particle.HAPPY_VILLAGER,
+                entity.getLocation().add(0, 1, 0),
+                3, 0.25, 0.2, 0.25, 0.02
+        );
+
+        PetType type = plugin.getPetTypes().get(pet.getPetTypeId());
+        if (type != null && Math.random() < 0.35) {
+            playMobSound(entity, type);
+        }
+    }
+
+    private void hoverNameTick() {
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            Entity target = resolveHoverTarget(player.getTargetEntity(8, false));
+            UUID nextTarget = null;
+            if (target != null && isPetEntity(target)) {
+                UUID ownerUuid = getPetOwner(target);
+                PetInstance pet = ownerUuid == null ? null : activePets.get(ownerUuid);
+                if (ownerUuid != null
+                        && pet != null
+                        && sanitizeNickname(pet.getNickname()) != null
+                        && !shouldHidePetFromViewer(player, ownerUuid)) {
+                    nextTarget = target.getUniqueId();
+                }
+            }
+
+            UUID previousTarget = viewerHoverTargets.get(player.getUniqueId());
+            if (Objects.equals(previousTarget, nextTarget)) continue;
+
+            if (previousTarget != null) {
+                hideHoverName(player, previousTarget);
+            }
+
+            if (nextTarget != null) {
+                showHoverName(player, nextTarget);
+                viewerHoverTargets.put(player.getUniqueId(), nextTarget);
+            } else {
+                viewerHoverTargets.remove(player.getUniqueId());
+            }
+        }
+    }
+
+    private Entity resolveHoverTarget(Entity target) {
+        if (target == null) return null;
+        if (isPetEntity(target)) return target;
+
+        String parentUuid = target.getPersistentDataContainer().get(PET_NAME_DISPLAY_KEY, PersistentDataType.STRING);
+        if (parentUuid == null) return null;
+
+        try {
+            return findEntityByUuid(UUID.fromString(parentUuid));
+        } catch (IllegalArgumentException ignored) {
+            return null;
+        }
+    }
+
+    private void ensureHoverNameDisplay(Entity entity, String nickname) {
+        Entity existing = findEntityByUuid(hoverNameDisplays.get(entity.getUniqueId()));
+        TextDisplay display;
+        if (existing instanceof TextDisplay textDisplay) {
+            display = textDisplay;
+        } else {
+            display = (TextDisplay) entity.getWorld().spawnEntity(getHoverNameLocation(entity), EntityType.TEXT_DISPLAY);
+            display.setGravity(false);
+            display.setInvulnerable(true);
+            display.setPersistent(false);
+            display.setBillboard(Display.Billboard.CENTER);
+            display.setSeeThrough(true);
+            display.setViewRange(24f);
+            display.getPersistentDataContainer().set(
+                    PET_NAME_DISPLAY_KEY,
+                    PersistentDataType.STRING,
+                    entity.getUniqueId().toString()
+            );
+            hoverNameDisplays.put(entity.getUniqueId(), display.getUniqueId());
+
+            for (Player viewer : Bukkit.getOnlinePlayers()) {
+                viewer.hideEntity(plugin, display);
+            }
+        }
+
+        display.text(Component.text(nickname).color(NamedTextColor.WHITE));
+        syncHoverNamePosition(entity);
+    }
+
+    private void removeHoverNameDisplay(UUID petEntityUuid) {
+        UUID displayUuid = hoverNameDisplays.remove(petEntityUuid);
+        if (displayUuid == null) return;
+
+        Entity display = findEntityByUuid(displayUuid);
+        if (display != null) {
+            display.remove();
+        }
+    }
+
+    private void syncHoverNamePosition(Entity petEntity) {
+        UUID displayUuid = hoverNameDisplays.get(petEntity.getUniqueId());
+        if (displayUuid == null) return;
+
+        Entity display = findEntityByUuid(displayUuid);
+        if (display == null) {
+            hoverNameDisplays.remove(petEntity.getUniqueId());
+            return;
+        }
+
+        display.teleport(getHoverNameLocation(petEntity));
+    }
+
+    private Location getHoverNameLocation(Entity entity) {
+        return entity.getLocation().add(0, entity.getHeight() + 0.55, 0);
+    }
+
+    private void clearHoverTargetsForPet(UUID petEntityUuid) {
+        for (Map.Entry<UUID, UUID> entry : new ArrayList<>(viewerHoverTargets.entrySet())) {
+            if (!petEntityUuid.equals(entry.getValue())) continue;
+            clearViewerHoverTarget(entry.getKey());
+        }
+    }
+
+    private void showHoverName(Player viewer, UUID petEntityUuid) {
+        UUID displayUuid = hoverNameDisplays.get(petEntityUuid);
+        if (displayUuid == null) return;
+
+        Entity display = findEntityByUuid(displayUuid);
+        if (display != null) {
+            viewer.showEntity(plugin, display);
+        }
+    }
+
+    private void hideHoverName(Player viewer, UUID petEntityUuid) {
+        UUID displayUuid = hoverNameDisplays.get(petEntityUuid);
+        if (displayUuid == null) return;
+
+        Entity display = findEntityByUuid(displayUuid);
+        if (display != null) {
+            viewer.hideEntity(plugin, display);
+        }
     }
 }

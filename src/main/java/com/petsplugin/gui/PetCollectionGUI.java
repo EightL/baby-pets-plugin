@@ -202,6 +202,23 @@ public class PetCollectionGUI extends BaseGUI {
         ));
         deleteBtn.setItemMeta(deleteMeta);
         inventory.setItem(50, deleteBtn);
+
+        ItemStack settingsBtn = new ItemStack(Material.COMPARATOR);
+        ItemMeta settingsMeta = settingsBtn.getItemMeta();
+        settingsMeta.displayName(Component.text("Pet Settings").color(NamedTextColor.AQUA)
+                .decoration(TextDecoration.ITALIC, false));
+        settingsMeta.lore(List.of(
+                Component.empty(),
+                Component.text("Follow or stay, hide other pets,").color(NamedTextColor.GRAY)
+                        .decoration(TextDecoration.ITALIC, false),
+                Component.text("and review naming controls.").color(NamedTextColor.GRAY)
+                        .decoration(TextDecoration.ITALIC, false),
+                Component.empty(),
+                Component.text("Click to open settings.").color(NamedTextColor.YELLOW)
+                        .decoration(TextDecoration.ITALIC, false)
+        ));
+        settingsBtn.setItemMeta(settingsMeta);
+        inventory.setItem(51, settingsBtn);
     }
 
     @Override
@@ -244,6 +261,12 @@ public class PetCollectionGUI extends BaseGUI {
                 return;
             }
             new DeleteConfirmGUI(plugin, player, selected, page).open(player);
+            return;
+        }
+
+        if (slot == 51) {
+            new PetSettingsGUI(plugin, player, page).open(player);
+            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1f);
             return;
         }
 

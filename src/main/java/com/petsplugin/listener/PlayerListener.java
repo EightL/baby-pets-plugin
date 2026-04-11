@@ -27,6 +27,9 @@ public class PlayerListener implements Listener {
 
         // Load pet data into cache
         plugin.getPetManager().loadPlayerPets(player.getUniqueId());
+        plugin.getSettingsManager().loadPlayerSettings(player.getUniqueId());
+        plugin.getAdvancementManager().syncPlayerAdvancements(player);
+        plugin.getPetManager().refreshPetVisibility(player);
 
         // Respawn active pet if configured
         if (plugin.getConfig().getBoolean("pets.respawn_on_join", true)) {
@@ -48,9 +51,11 @@ public class PlayerListener implements Listener {
 
         // Despawn pet entity
         plugin.getPetManager().despawnPet(player.getUniqueId(), false);
+        plugin.getPetManager().clearViewerHoverTarget(player.getUniqueId());
 
         // Save data (pets are saved on each update, but clear cache)
         plugin.getPetManager().clearCache(player.getUniqueId());
+        plugin.getSettingsManager().unloadPlayerSettings(player.getUniqueId());
     }
 
     @EventHandler

@@ -77,6 +77,9 @@ integration:
   fish_rework:
     use_display_case_as_incubator: true
 
+advancements:
+  enabled: true
+
 # ══════════════════════════════════════════════════════════
 #  Messages (supports & color codes)
 # ══════════════════════════════════════════════════════════
@@ -85,6 +88,11 @@ messages:
   pet_despawned: "&7%pet_name% &7has returned to rest."
   pet_selected: "&aYou selected &e%pet_name%&a!"
   pet_deselected: "&7You deselected &e%pet_name%&7."
+  pet_renamed: "&aYour pet is now named &e%pet_name%&a!"
+  pet_mode_follow: "&aYour pet will follow you again."
+  pet_mode_stay: "&eYour pet is staying put."
+  hide_other_pets_enabled: "&aOther players' pets are now hidden."
+  hide_other_pets_disabled: "&eOther players' pets are visible again."
   pet_fed: "&a%pet_name% &7enjoyed the treat! Status: &e%status%"
   pet_petted: "&d%pet_name% &7loves the attention! Status: &e%status%"
   pet_level_up: "&b&lLEVEL UP! &e%pet_name% &7is now level &e%level%&7!"

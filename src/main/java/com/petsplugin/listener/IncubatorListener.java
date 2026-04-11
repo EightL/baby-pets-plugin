@@ -6,6 +6,8 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
+import org.bukkit.block.data.Bisected;
+import org.bukkit.block.data.type.TrapDoor;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -36,12 +38,37 @@ public class IncubatorListener implements Listener {
         ItemStack hand = event.getItemInHand();
         if (!plugin.getIncubatorManager().isIncubatorItem(hand)) return;
 
-        // Let the block place naturally (it's a smoker), then add furniture
+        // Let the smoker place, then replace it with an iron trapdoor anchor like other furniture systems.
         Block block = event.getBlock();
         org.bukkit.Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            if (block.getType() == Material.SMOKER) {
+                block.setType(Material.IRON_TRAPDOOR, false);
+                if (block.getBlockData() instanceof TrapDoor trapDoor) {
+                    trapDoor.setHalf(Bisected.Half.BOTTOM);
+                    trapDoor.setOpen(false);
+                    block.setBlockData(trapDoor, false);
+                }
+            }
             plugin.getIncubatorManager().createIncubatorFurniture(
                     block.getLocation(), event.getPlayer().getLocation().getYaw());
         }, 1L);
+    }
+
+    /**
+     * Legacy compatibility for incubators placed when barrier was used as anchor.
+     */
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onLegacyBarrierLeftClick(PlayerInteractEvent event) {
+        if (event.getAction() != Action.LEFT_CLICK_BLOCK) return;
+        if (event.getHand() != EquipmentSlot.HAND) return;
+
+        Block block = event.getClickedBlock();
+        if (block == null || block.getType() != Material.BARRIER) return;
+        if (!plugin.getIncubatorManager().isIncubatorBlock(block)) return;
+
+        event.setCancelled(true);
+        BlockBreakEvent breakEvent = new BlockBreakEvent(block, event.getPlayer());
+        org.bukkit.Bukkit.getPluginManager().callEvent(breakEvent);
     }
 
     /**
@@ -63,7 +90,7 @@ public class IncubatorListener implements Listener {
         if (event.getHand() != EquipmentSlot.HAND) return;
 
         Block block = event.getClickedBlock();
-        if (block == null || block.getType() != Material.SMOKER) return;
+        if (block == null) return;
 
         // Check if it's an incubator block (has display entities)
         if (!plugin.getIncubatorManager().isIncubatorBlock(block)) return;
@@ -92,6 +119,7 @@ public class IncubatorListener implements Listener {
             boolean placed = plugin.getIncubatorManager().placeEgg(block, player, eggRarity);
             if (placed) {
                 hand.setAmount(hand.getAmount() - 1);
+                plugin.getAdvancementManager().handleEggPlaced(player);
 
                 int minutes = plugin.getConfig().getInt("incubation.duration_minutes", 20);
                 String msg = plugin.getConfig().getString("messages.egg_placed",
@@ -129,14 +157,12 @@ public class IncubatorListener implements Listener {
     /**
      * When breaking an incubator block, remove furniture and drop item.
      */
-    @EventHandler(priority = EventPriority.HIGHEST)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onBreak(BlockBreakEvent event) {
         Block block = event.getBlock();
-        if (block.getType() != Material.SMOKER) return;
+        if (!plugin.getIncubatorManager().isIncubatorBlock(block)) return;
 
-        if (plugin.getIncubatorManager().isIncubatorBlock(block)) {
-            event.setDropItems(false); // Don't drop vanilla smoker
-            plugin.getIncubatorManager().removeIncubatorFurniture(block);
-        }
+        event.setDropItems(false);
+        plugin.getIncubatorManager().removeIncubatorFurniture(block);
     }
 }
