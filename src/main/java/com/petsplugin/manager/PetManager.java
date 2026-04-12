@@ -53,6 +53,7 @@ public class PetManager {
     private BukkitTask followTask;
     private BukkitTask xpTask;
     private BukkitTask hoverNameTask;
+    private BukkitTask hoverNamePositionTask;
 
     public PetManager(PetsPlugin plugin) {
         this.plugin = plugin;
@@ -68,13 +69,15 @@ public class PetManager {
         // XP task: every 60 seconds
         long xpInterval = plugin.getConfig().getLong("leveling.xp_interval_ticks", 1200L);
         xpTask = Bukkit.getScheduler().runTaskTimer(plugin, this::xpTick, xpInterval, xpInterval);
-        hoverNameTask = Bukkit.getScheduler().runTaskTimer(plugin, this::hoverNameTick, 10L, 4L);
+        hoverNameTask = Bukkit.getScheduler().runTaskTimer(plugin, this::hoverNameTick, 10L, 2L);
+        hoverNamePositionTask = Bukkit.getScheduler().runTaskTimer(plugin, this::hoverNamePositionTick, 10L, 1L);
     }
 
     public void shutdown() {
         if (followTask != null) followTask.cancel();
         if (xpTask != null) xpTask.cancel();
         if (hoverNameTask != null) hoverNameTask.cancel();
+        if (hoverNamePositionTask != null) hoverNamePositionTask.cancel();
 
         for (UUID playerUuid : new ArrayList<>(activePetEntities.keySet())) {
             despawnPet(playerUuid, false);
@@ -231,7 +234,8 @@ public class PetManager {
             mob.setAggressive(false);
             mob.setTarget(null);
             mob.setCollidable(false);
-            mob.setSilent(false);
+            // Mute bees' built-in loop; we trigger a short quiet buzz manually instead.
+            mob.setSilent(type.getEntityType() == EntityType.BEE);
             mob.setCanPickupItems(false);
             mob.setRemoveWhenFarAway(false);
             mob.setPersistent(true);
@@ -278,7 +282,7 @@ public class PetManager {
 
         // Effects
         spawnLoc.getWorld().spawnParticle(Particle.HEART, spawnLoc.clone().add(0, 1, 0), 5, 0.3, 0.3, 0.3);
-        spawnLoc.getWorld().playSound(spawnLoc, getPetAmbientSound(type), 0.8f, 1.2f);
+        playPetSound(spawnLoc, type, 0.8f, 1.2f);
 
         String msg = plugin.getConfig().getString("messages.pet_spawned",
                 "&a%pet_name% &7has appeared by your side!");
@@ -304,7 +308,7 @@ public class PetManager {
                     PetInstance pet = activePets.get(playerUuid);
                     PetType type = pet == null ? null : plugin.getPetTypes().get(pet.getPetTypeId());
                     if (type != null) {
-                        loc.getWorld().playSound(loc, getPetAmbientSound(type), 0.7f, 0.9f);
+                        playPetSound(loc, type, 0.7f, 0.9f);
                     }
                     loc.getWorld().spawnParticle(Particle.CLOUD, loc.clone().add(0, 0.5, 0), 10, 0.3, 0.3, 0.3);
                     entity.remove();
@@ -479,10 +483,9 @@ public class PetManager {
                 }
             }
 
-            syncHoverNamePosition(petEntity);
-
             if (plugin.getSettingsManager().isStayMode(playerUuid)) {
                 applyPetModePosture(playerUuid, petEntity);
+                syncHoverNamePosition(petEntity);
                 continue;
             }
 
@@ -491,6 +494,7 @@ public class PetManager {
             if (distance > teleportDist) {
                 Location safeLoc = findSafeSpawnLocation(player.getLocation());
                 petEntity.teleport(safeLoc);
+                syncHoverNamePosition(petEntity);
                 continue;
             }
 
@@ -499,6 +503,8 @@ public class PetManager {
             } else if (distance <= followDist) {
                 maybePlayIdleEmote(player, petEntity);
             }
+
+            syncHoverNamePosition(petEntity);
         }
     }
 
@@ -663,16 +669,7 @@ public class PetManager {
     }
 
     private void playMobSound(Entity entity, PetType type) {
-        Sound sound = switch (type.getEntityType()) {
-            case CHICKEN -> Sound.ENTITY_CHICKEN_AMBIENT;
-            case PIG -> Sound.ENTITY_PIG_AMBIENT;
-            case BEE -> Sound.ENTITY_BEE_LOOP;
-            case DOLPHIN -> Sound.ENTITY_DOLPHIN_AMBIENT;
-            case FOX -> Sound.ENTITY_FOX_AMBIENT;
-            case GOAT -> Sound.ENTITY_GOAT_AMBIENT;
-            default -> Sound.ENTITY_CAT_PURREOW;
-        };
-        entity.getWorld().playSound(entity.getLocation(), sound, 1.0f, 1.3f);
+        playPetSound(entity.getLocation(), type, 1.0f, 1.3f);
     }
 
     // ══════════════════════════════════════════════════════════
@@ -1013,6 +1010,16 @@ public class PetManager {
         }
     }
 
+    private void hoverNamePositionTick() {
+        Set<UUID> visibleTargets = new HashSet<>(viewerHoverTargets.values());
+        for (UUID petEntityUuid : visibleTargets) {
+            Entity petEntity = findEntityByUuid(petEntityUuid);
+            if (petEntity != null) {
+                syncHoverNamePosition(petEntity);
+            }
+        }
+    }
+
     private Entity resolveHoverTarget(Entity target) {
         if (target == null) return null;
         if (isPetEntity(target)) return target;
@@ -1080,6 +1087,9 @@ public class PetManager {
             display.setBillboard(Display.Billboard.CENTER);
             display.setSeeThrough(true);
             display.setViewRange(24f);
+            display.setInterpolationDelay(0);
+            display.setInterpolationDuration(1);
+            display.setTeleportDuration(1);
             display.getPersistentDataContainer().set(
                     PET_NAME_DISPLAY_KEY,
                     PersistentDataType.STRING,
@@ -1166,6 +1176,21 @@ public class PetManager {
             case NAUTILUS -> Sound.BLOCK_BUBBLE_COLUMN_WHIRLPOOL_INSIDE;
             default -> Sound.ENTITY_ALLAY_AMBIENT_WITHOUT_ITEM;
         };
+    }
+
+    private void playPetSound(Location location, PetType type, float volume, float pitch) {
+        if (location.getWorld() == null || type == null) {
+            return;
+        }
+
+        float adjustedVolume = volume;
+        float adjustedPitch = pitch;
+        if (type.getEntityType() == EntityType.BEE) {
+            adjustedVolume = Math.min(volume, 0.15f);
+            adjustedPitch = 1.0f;
+        }
+
+        location.getWorld().playSound(location, getPetAmbientSound(type), adjustedVolume, adjustedPitch);
     }
 
     private Fox.Type randomFoxType() {

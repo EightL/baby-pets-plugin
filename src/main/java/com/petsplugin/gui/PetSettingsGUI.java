@@ -19,11 +19,18 @@ public class PetSettingsGUI extends BaseGUI {
 
     private final Player player;
     private final int returnPage;
+    private final PetCollectionGUI.FilterMode returnFilterMode;
 
     public PetSettingsGUI(PetsPlugin plugin, Player player, int returnPage) {
+        this(plugin, player, returnPage, PetCollectionGUI.FilterMode.ALL);
+    }
+
+    public PetSettingsGUI(PetsPlugin plugin, Player player, int returnPage,
+                          PetCollectionGUI.FilterMode returnFilterMode) {
         super(plugin, 3, "Pet Settings");
         this.player = player;
         this.returnPage = returnPage;
+        this.returnFilterMode = returnFilterMode == null ? PetCollectionGUI.FilterMode.ALL : returnFilterMode;
         initializeItems();
     }
 
@@ -99,7 +106,7 @@ public class PetSettingsGUI extends BaseGUI {
         int slot = event.getSlot();
 
         if (slot == 18) {
-            new PetCollectionGUI(plugin, player, returnPage).open(player);
+            new PetCollectionGUI(plugin, player, returnPage, returnFilterMode).open(player);
             player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1f);
             return;
         }
@@ -113,7 +120,7 @@ public class PetSettingsGUI extends BaseGUI {
         }
 
         if (slot == 15) {
-            new PetCollectionGUI(plugin, player, returnPage).open(player);
+            new PetCollectionGUI(plugin, player, returnPage, returnFilterMode).open(player);
             player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1f);
         }
     }

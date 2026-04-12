@@ -24,12 +24,19 @@ public class DeleteConfirmGUI extends BaseGUI {
     private final Player player;
     private final PetInstance pet;
     private final int returnPage;
+    private final PetCollectionGUI.FilterMode returnFilterMode;
 
     public DeleteConfirmGUI(PetsPlugin plugin, Player player, PetInstance pet, int returnPage) {
+        this(plugin, player, pet, returnPage, PetCollectionGUI.FilterMode.ALL);
+    }
+
+    public DeleteConfirmGUI(PetsPlugin plugin, Player player, PetInstance pet, int returnPage,
+                            PetCollectionGUI.FilterMode returnFilterMode) {
         super(plugin, 3, "Delete Pet?");
         this.player = player;
         this.pet = pet;
         this.returnPage = returnPage;
+        this.returnFilterMode = returnFilterMode == null ? PetCollectionGUI.FilterMode.ALL : returnFilterMode;
         initializeItems();
     }
 
@@ -103,10 +110,10 @@ public class DeleteConfirmGUI extends BaseGUI {
                     .append(Component.text(" permanently.").color(NamedTextColor.RED)));
             player.playSound(player.getLocation(), Sound.ENTITY_ITEM_BREAK, 1f, 0.8f);
 
-            new PetCollectionGUI(plugin, player, returnPage).open(player);
+            new PetCollectionGUI(plugin, player, returnPage, returnFilterMode).open(player);
         } else if (slot == 15) {
             // Cancel — go back
-            new PetCollectionGUI(plugin, player, returnPage).open(player);
+            new PetCollectionGUI(plugin, player, returnPage, returnFilterMode).open(player);
             player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1f);
         }
     }

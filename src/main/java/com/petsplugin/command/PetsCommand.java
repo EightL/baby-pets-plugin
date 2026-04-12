@@ -246,8 +246,10 @@ public class PetsCommand implements CommandExecutor, TabExecutor {
         player.sendMessage(Component.text("  Status: ").color(NamedTextColor.GRAY)
                 .append(Component.text(pet.getStatus().getDisplay()).color(NamedTextColor.YELLOW)));
         player.sendMessage(Component.text("  " + type.getAttributeDisplay() + ": ").color(NamedTextColor.GRAY)
-                .append(Component.text("+" + String.format("%.2f", type.getAttributeAtLevel(pet.getLevel())))
-                        .color(NamedTextColor.GREEN)));
+                .append(Component.text("+" + type.formatAttributeBonus(pet.getLevel()))
+                        .color(NamedTextColor.GREEN))
+                .append(Component.text(" (+" + type.formatAttributePerLevel() + "/level)")
+                        .color(NamedTextColor.DARK_GRAY)));
         return true;
     }
 

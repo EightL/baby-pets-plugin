@@ -26,12 +26,19 @@ public class PetDetailGUI extends BaseGUI {
     private final Player player;
     private final PetInstance pet;
     private final int returnPage;
+    private final PetCollectionGUI.FilterMode returnFilterMode;
 
     public PetDetailGUI(PetsPlugin plugin, Player player, PetInstance pet, int returnPage) {
+        this(plugin, player, pet, returnPage, PetCollectionGUI.FilterMode.ALL);
+    }
+
+    public PetDetailGUI(PetsPlugin plugin, Player player, PetInstance pet, int returnPage,
+                        PetCollectionGUI.FilterMode returnFilterMode) {
         super(plugin, 3, "Pet Details");
         this.player = player;
         this.pet = pet;
         this.returnPage = returnPage;
+        this.returnFilterMode = returnFilterMode == null ? PetCollectionGUI.FilterMode.ALL : returnFilterMode;
         initializeItems();
     }
 
@@ -80,8 +87,16 @@ public class PetDetailGUI extends BaseGUI {
                 .decoration(TextDecoration.ITALIC, false));
         lore.add(Component.text(" " + type.getAttributeDisplay() + ": ").color(NamedTextColor.GRAY)
                 .decoration(TextDecoration.ITALIC, false)
-                .append(Component.text("+" + String.format("%.2f", type.getAttributeAtLevel(pet.getLevel())))
+                .append(Component.text("+" + type.formatAttributeBonus(pet.getLevel()))
                         .color(NamedTextColor.GREEN)));
+        lore.add(Component.text(" Growth: ").color(NamedTextColor.DARK_GRAY)
+                .decoration(TextDecoration.ITALIC, false)
+                .append(Component.text("+" + type.formatAttributePerLevel() + "/level")
+                        .color(NamedTextColor.GRAY)));
+        lore.add(Component.text(" At Lv" + maxLevel + ": ").color(NamedTextColor.DARK_GRAY)
+                .decoration(TextDecoration.ITALIC, false)
+                .append(Component.text("+" + type.formatAttributeBonus(maxLevel))
+                        .color(NamedTextColor.YELLOW)));
 
         lore.add(Component.empty());
 
@@ -155,7 +170,7 @@ public class PetDetailGUI extends BaseGUI {
 
         if (slot == 18) {
             // Back to collection
-            new PetCollectionGUI(plugin, player, returnPage).open(player);
+            new PetCollectionGUI(plugin, player, returnPage, returnFilterMode).open(player);
             player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1f);
         } else if (slot == 22) {
             // Toggle select
@@ -165,11 +180,11 @@ public class PetDetailGUI extends BaseGUI {
                 plugin.getPetManager().selectPet(player.getUniqueId(), pet);
             }
             plugin.getPetManager().refreshCache(player.getUniqueId());
-            new PetCollectionGUI(plugin, player, returnPage).open(player);
+            new PetCollectionGUI(plugin, player, returnPage, returnFilterMode).open(player);
             player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1f);
         } else if (slot == 26) {
             // Delete confirmation
-            new DeleteConfirmGUI(plugin, player, pet, returnPage).open(player);
+            new DeleteConfirmGUI(plugin, player, pet, returnPage, returnFilterMode).open(player);
         }
     }
 }

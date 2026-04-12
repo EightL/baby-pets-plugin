@@ -5,11 +5,15 @@ import org.bukkit.attribute.Attribute;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.EntityType;
 
+import java.util.Locale;
+
 /**
  * Represents a pet species loaded from pets.yml.
  * Pets give the PLAYER an attribute bonus that scales with pet level.
  */
 public class PetType {
+
+    private static final double DISPLAY_EPSILON = 1.0E-9;
 
     private final String id;
     private final String displayName;
@@ -85,5 +89,23 @@ public class PetType {
     /** Total attribute bonus at this level. */
     public double getAttributeAtLevel(int level) {
         return level * attributePerLevel;
+    }
+
+    public String formatAttributeBonus(int level) {
+        return formatAttributeValue(getAttributeAtLevel(level));
+    }
+
+    public String formatAttributePerLevel() {
+        return formatAttributeValue(attributePerLevel);
+    }
+
+    private String formatAttributeValue(double value) {
+        if (Math.abs(value - Math.rint(value)) < DISPLAY_EPSILON) {
+            return String.format(Locale.US, "%.0f", value);
+        }
+        if (Math.abs((value * 10.0) - Math.rint(value * 10.0)) < DISPLAY_EPSILON) {
+            return String.format(Locale.US, "%.1f", value);
+        }
+        return String.format(Locale.US, "%.2f", value);
     }
 }

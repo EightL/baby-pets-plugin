@@ -3,6 +3,7 @@ package com.petsplugin.gui;
 import com.petsplugin.PetsPlugin;
 import com.petsplugin.model.PetFollowMode;
 import com.petsplugin.model.PetInstance;
+import com.petsplugin.model.PetMovementType;
 import com.petsplugin.model.PetType;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -17,7 +18,9 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Main pet collection GUI opened with /pets.
@@ -26,7 +29,42 @@ import java.util.List;
  */
 public class PetCollectionGUI extends BaseGUI {
 
+    public enum FilterMode {
+        ALL("ALL"),
+        LEVEL_DESC("Level: Desc."),
+        LEVEL_ASC("Level: Asc."),
+        TYPE_GROUND("Type: Ground"),
+        TYPE_FLYING("Type: Flying"),
+        TYPE_WATER("Type: Water"),
+        NAME_ASC("Name: A -> Z"),
+        NAME_DESC("Name: Z -> A");
+
+        private final String displayName;
+
+        FilterMode(String displayName) {
+            this.displayName = displayName;
+        }
+
+        public String getDisplayName() {
+            return displayName;
+        }
+
+        public FilterMode next() {
+            return switch (this) {
+                case ALL -> LEVEL_DESC;
+                case LEVEL_DESC -> LEVEL_ASC;
+                case LEVEL_ASC -> TYPE_GROUND;
+                case TYPE_GROUND -> TYPE_FLYING;
+                case TYPE_FLYING -> TYPE_WATER;
+                case TYPE_WATER -> NAME_ASC;
+                case NAME_ASC -> NAME_DESC;
+                case NAME_DESC -> ALL;
+            };
+        }
+    }
+
     private final Player player;
+    private final FilterMode filterMode;
     private int page;
 
     /** Content slots: 3 rows × 7 columns. */
@@ -43,15 +81,21 @@ public class PetCollectionGUI extends BaseGUI {
     };
 
     private List<PetInstance> playerPets;
+    private List<PetInstance> visiblePets;
 
     public PetCollectionGUI(PetsPlugin plugin, Player player) {
-        this(plugin, player, 0);
+        this(plugin, player, 0, FilterMode.ALL);
     }
 
     public PetCollectionGUI(PetsPlugin plugin, Player player, int page) {
+        this(plugin, player, page, FilterMode.ALL);
+    }
+
+    public PetCollectionGUI(PetsPlugin plugin, Player player, int page, FilterMode filterMode) {
         super(plugin, 6, "Pet Collection");
         this.player = player;
         this.page = page;
+        this.filterMode = filterMode == null ? FilterMode.ALL : filterMode;
         initializeItems();
     }
 
@@ -65,33 +109,34 @@ public class PetCollectionGUI extends BaseGUI {
         fillRow(5, Material.BLACK_STAINED_GLASS_PANE);
         fillContentSides();
 
-        // Load player's pets
         playerPets = plugin.getPetManager().getPlayerPets(player.getUniqueId());
+        visiblePets = buildVisiblePets(playerPets);
 
-        int totalPages = Math.max(1, (int) Math.ceil((double) playerPets.size() / PETS_PER_PAGE));
+        int totalPages = Math.max(1, (int) Math.ceil((double) visiblePets.size() / PETS_PER_PAGE));
         if (page >= totalPages) page = totalPages - 1;
+        if (page < 0) page = 0;
 
         if (playerPets.isEmpty()) {
             renderEmptyStateRecipe();
+        } else if (visiblePets.isEmpty()) {
+            renderNoResultsState();
         }
 
         int startIndex = page * PETS_PER_PAGE;
-        int endIndex = Math.min(startIndex + PETS_PER_PAGE, playerPets.size());
+        int endIndex = Math.min(startIndex + PETS_PER_PAGE, visiblePets.size());
 
         for (int i = startIndex; i < endIndex; i++) {
             int slotIdx = i - startIndex;
             if (slotIdx >= PET_SLOTS.length) break;
 
-            PetInstance pet = playerPets.get(i);
+            PetInstance pet = visiblePets.get(i);
             PetType type = plugin.getPetTypes().get(pet.getPetTypeId());
             if (type == null) continue;
 
             ItemStack item = new ItemStack(type.getIcon());
             ItemMeta meta = item.getItemMeta();
 
-            // Display name
-            String displayName = pet.getDisplayName(type);
-            Component name = Component.text(displayName)
+            Component name = Component.text(pet.getDisplayName(type))
                     .color(type.getRarity().getColor())
                     .decoration(TextDecoration.ITALIC, false);
 
@@ -104,18 +149,14 @@ public class PetCollectionGUI extends BaseGUI {
             }
             meta.displayName(name);
 
-            // Lore
             List<Component> lore = new ArrayList<>();
             lore.add(Component.text(type.getDescription()).color(NamedTextColor.GRAY)
                     .decoration(TextDecoration.ITALIC, true));
             lore.add(Component.empty());
-
-            // Rarity
             lore.add(Component.text("Rarity: ").color(NamedTextColor.GRAY)
                     .decoration(TextDecoration.ITALIC, false)
                     .append(Component.text(type.getRarity().name()).color(type.getRarity().getColor())));
 
-            // Level & XP
             int maxLevel = plugin.getConfig().getInt("leveling.max_level", 10);
             lore.add(Component.text("Level: ").color(NamedTextColor.GRAY)
                     .decoration(TextDecoration.ITALIC, false)
@@ -128,7 +169,6 @@ public class PetCollectionGUI extends BaseGUI {
                         .append(Component.text(String.format("%.0f/%.0f", pet.getXp(), nextXp))
                                 .color(NamedTextColor.AQUA)));
 
-                // Simple progress bar
                 int barLength = 20;
                 int filled = (int) ((pet.getXp() / nextXp) * barLength);
                 StringBuilder bar = new StringBuilder();
@@ -144,24 +184,21 @@ public class PetCollectionGUI extends BaseGUI {
             }
 
             lore.add(Component.empty());
-
-            // Player attribute bonus
             lore.add(Component.text("Bonus: ").color(NamedTextColor.GOLD)
                     .decoration(TextDecoration.ITALIC, false));
             lore.add(Component.text(" " + type.getAttributeDisplay() + ": ").color(NamedTextColor.GRAY)
                     .decoration(TextDecoration.ITALIC, false)
-                    .append(Component.text("+" + String.format("%.2f", type.getAttributeAtLevel(pet.getLevel())))
+                    .append(Component.text("+" + type.formatAttributeBonus(pet.getLevel()))
                             .color(NamedTextColor.GREEN)));
-
-            // Status
+            lore.add(Component.text(" Growth: ").color(NamedTextColor.DARK_GRAY)
+                    .decoration(TextDecoration.ITALIC, false)
+                    .append(Component.text("+" + type.formatAttributePerLevel() + "/level")
+                            .color(NamedTextColor.GRAY)));
             lore.add(Component.text(" Status: ").color(NamedTextColor.GRAY)
                     .decoration(TextDecoration.ITALIC, false)
-                    .append(Component.text(pet.getStatus().getDisplay())
-                            .color(NamedTextColor.YELLOW)));
-
+                    .append(Component.text(pet.getStatus().getDisplay()).color(NamedTextColor.YELLOW)));
             lore.add(Component.empty());
 
-            // Action hint
             if (pet.isSelected()) {
                 lore.add(Component.text("Left-click to deselect").color(NamedTextColor.RED)
                         .decoration(TextDecoration.ITALIC, false));
@@ -176,7 +213,6 @@ public class PetCollectionGUI extends BaseGUI {
 
             meta.lore(lore);
 
-            // Enchant glint for selected pet
             if (pet.isSelected()) {
                 meta.addEnchant(Enchantment.UNBREAKING, 1, true);
                 meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
@@ -190,6 +226,7 @@ public class PetCollectionGUI extends BaseGUI {
         inventory.setItem(45, createPageArrow(page > 0, false));
         inventory.setItem(47, createSettingsButton());
         inventory.setItem(49, createPageInfo(page, totalPages));
+        inventory.setItem(51, createFilterItem());
         inventory.setItem(53, createPageArrow(page < totalPages - 1, true));
     }
 
@@ -202,70 +239,70 @@ public class PetCollectionGUI extends BaseGUI {
             PetFollowMode current = plugin.getSettingsManager().getFollowMode(player.getUniqueId());
             PetFollowMode next = current == PetFollowMode.FOLLOW ? PetFollowMode.STAY : PetFollowMode.FOLLOW;
             plugin.getPetManager().setFollowMode(player, next);
-            new PetCollectionGUI(plugin, player, page).open(player);
+            new PetCollectionGUI(plugin, player, page, filterMode).open(player);
             player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1f);
             return;
         }
 
         if (slot == 45) {
-            // Previous page
             if (page > 0) {
-                new PetCollectionGUI(plugin, player, page - 1).open(player);
-            }
-            return;
-        }
-
-        if (slot == 53) {
-            // Next page
-            int totalPages = Math.max(1, (int) Math.ceil((double) playerPets.size() / PETS_PER_PAGE));
-            if (page < totalPages - 1) {
-                new PetCollectionGUI(plugin, player, page + 1).open(player);
+                new PetCollectionGUI(plugin, player, page - 1, filterMode).open(player);
             }
             return;
         }
 
         if (slot == 47) {
-            new PetSettingsGUI(plugin, player, page).open(player);
+            new PetSettingsGUI(plugin, player, page, filterMode).open(player);
             player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1f);
             return;
         }
 
-        // Pet slot click
-        for (int i = 0; i < PET_SLOTS.length; i++) {
-            if (slot == PET_SLOTS[i]) {
-                int petIndex = page * PETS_PER_PAGE + i;
-                if (petIndex >= playerPets.size()) return;
+        if (slot == 51) {
+            new PetCollectionGUI(plugin, player, 0, filterMode.next()).open(player);
+            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1f);
+            return;
+        }
 
-                PetInstance pet = playerPets.get(petIndex);
-
-                if (event.isLeftClick()) {
-                    // Toggle selection
-                    if (pet.isSelected()) {
-                        plugin.getPetManager().deselectPet(player.getUniqueId());
-                        String msg = plugin.getConfig().getString("messages.pet_deselected",
-                                "&7You deselected &e%pet_name%&7.");
-                        PetType type = plugin.getPetTypes().get(pet.getPetTypeId());
-                        msg = msg.replace("%pet_name%", pet.getDisplayName(type));
-                        player.sendMessage(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
-                                .legacyAmpersand().deserialize(msg));
-                    } else {
-                        plugin.getPetManager().selectPet(player.getUniqueId(), pet);
-                        String msg = plugin.getConfig().getString("messages.pet_selected",
-                                "&aYou selected &e%pet_name%&a!");
-                        PetType type = plugin.getPetTypes().get(pet.getPetTypeId());
-                        msg = msg.replace("%pet_name%", pet.getDisplayName(type));
-                        player.sendMessage(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
-                                .legacyAmpersand().deserialize(msg));
-                    }
-                    player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1f);
-                    // Refresh
-                    plugin.getPetManager().refreshCache(player.getUniqueId());
-                    new PetCollectionGUI(plugin, player, page).open(player);
-                } else if (event.isRightClick()) {
-                    new PetDetailGUI(plugin, player, pet, page).open(player);
-                }
-                return;
+        if (slot == 53) {
+            int totalPages = Math.max(1, (int) Math.ceil((double) visiblePets.size() / PETS_PER_PAGE));
+            if (page < totalPages - 1) {
+                new PetCollectionGUI(plugin, player, page + 1, filterMode).open(player);
             }
+            return;
+        }
+
+        for (int i = 0; i < PET_SLOTS.length; i++) {
+            if (slot != PET_SLOTS[i]) continue;
+
+            int petIndex = page * PETS_PER_PAGE + i;
+            if (petIndex >= visiblePets.size()) return;
+
+            PetInstance pet = visiblePets.get(petIndex);
+            if (event.isLeftClick()) {
+                if (pet.isSelected()) {
+                    plugin.getPetManager().deselectPet(player.getUniqueId());
+                    String msg = plugin.getConfig().getString("messages.pet_deselected",
+                            "&7You deselected &e%pet_name%&7.");
+                    PetType type = plugin.getPetTypes().get(pet.getPetTypeId());
+                    msg = msg.replace("%pet_name%", pet.getDisplayName(type));
+                    player.sendMessage(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
+                            .legacyAmpersand().deserialize(msg));
+                } else {
+                    plugin.getPetManager().selectPet(player.getUniqueId(), pet);
+                    String msg = plugin.getConfig().getString("messages.pet_selected",
+                            "&aYou selected &e%pet_name%&a!");
+                    PetType type = plugin.getPetTypes().get(pet.getPetTypeId());
+                    msg = msg.replace("%pet_name%", pet.getDisplayName(type));
+                    player.sendMessage(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
+                            .legacyAmpersand().deserialize(msg));
+                }
+                player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1f);
+                plugin.getPetManager().refreshCache(player.getUniqueId());
+                new PetCollectionGUI(plugin, player, page, filterMode).open(player);
+            } else if (event.isRightClick()) {
+                new PetDetailGUI(plugin, player, pet, page, filterMode).open(player);
+            }
+            return;
         }
     }
 
@@ -313,12 +350,28 @@ public class PetCollectionGUI extends BaseGUI {
                 .color(NamedTextColor.YELLOW)
                 .decoration(TextDecoration.ITALIC, false));
         pageMeta.lore(List.of(
-                Component.text("Pets: " + playerPets.size())
+                Component.text("Showing: " + visiblePets.size() + "/" + playerPets.size())
                         .color(NamedTextColor.GRAY)
                         .decoration(TextDecoration.ITALIC, false)
         ));
         pageInfo.setItemMeta(pageMeta);
         return pageInfo;
+    }
+
+    private ItemStack createFilterItem() {
+        ItemStack filterItem = new ItemStack(Material.HOPPER);
+        ItemMeta filterMeta = filterItem.getItemMeta();
+        filterMeta.displayName(Component.text("Filter: " + filterMode.getDisplayName())
+                .color(NamedTextColor.GOLD)
+                .decoration(TextDecoration.ITALIC, false));
+        filterMeta.lore(List.of(
+                Component.text("Click to cycle filters").color(NamedTextColor.GRAY)
+                        .decoration(TextDecoration.ITALIC, false),
+                Component.text("Level, type, name, then back to all.").color(NamedTextColor.GRAY)
+                        .decoration(TextDecoration.ITALIC, false)
+        ));
+        filterItem.setItemMeta(filterMeta);
+        return filterItem;
     }
 
     private ItemStack createSettingsButton() {
@@ -411,6 +464,22 @@ public class PetCollectionGUI extends BaseGUI {
         }
     }
 
+    private void renderNoResultsState() {
+        fillEmptyRecipeBackground();
+
+        ItemStack item = new ItemStack(Material.COMPASS);
+        ItemMeta meta = item.getItemMeta();
+        meta.displayName(Component.text("No Pets Match")
+                .color(NamedTextColor.RED)
+                .decoration(TextDecoration.ITALIC, false));
+        meta.lore(List.of(
+                Component.text("Cycle the filter to view a different slice.").color(NamedTextColor.GRAY)
+                        .decoration(TextDecoration.ITALIC, false)
+        ));
+        item.setItemMeta(meta);
+        inventory.setItem(22, item);
+    }
+
     private ItemStack createRecipeArrow() {
         ItemStack arrow = new ItemStack(Material.SPECTRAL_ARROW);
         ItemMeta meta = arrow.getItemMeta();
@@ -431,5 +500,56 @@ public class PetCollectionGUI extends BaseGUI {
             builder.append(Character.toUpperCase(word.charAt(0))).append(word.substring(1));
         }
         return builder.toString();
+    }
+
+    private List<PetInstance> buildVisiblePets(List<PetInstance> pets) {
+        List<PetInstance> filtered = new ArrayList<>();
+        for (PetInstance pet : pets) {
+            PetType type = plugin.getPetTypes().get(pet.getPetTypeId());
+            if (type == null) {
+                continue;
+            }
+            if (!matchesFilter(type)) {
+                continue;
+            }
+            filtered.add(pet);
+        }
+
+        Comparator<PetInstance> baseComparator = Comparator.comparingLong(PetInstance::getObtainedAt);
+        switch (filterMode) {
+            case LEVEL_DESC ->
+                    filtered.sort(Comparator.comparingInt(PetInstance::getLevel).reversed().thenComparing(baseComparator));
+            case LEVEL_ASC ->
+                    filtered.sort(Comparator.comparingInt(PetInstance::getLevel).thenComparing(baseComparator));
+            case NAME_ASC ->
+                    filtered.sort(Comparator.comparing(this::getSortableName, String.CASE_INSENSITIVE_ORDER)
+                            .thenComparing(baseComparator));
+            case NAME_DESC ->
+                    filtered.sort(Comparator.comparing(this::getSortableName, String.CASE_INSENSITIVE_ORDER)
+                            .reversed()
+                            .thenComparing(baseComparator));
+            default -> {
+            }
+        }
+        return filtered;
+    }
+
+    private boolean matchesFilter(PetType type) {
+        return switch (filterMode) {
+            case TYPE_GROUND -> type.getMovementType() == PetMovementType.GROUND;
+            case TYPE_FLYING -> type.getMovementType() == PetMovementType.FLYING;
+            case TYPE_WATER -> type.getMovementType() == PetMovementType.WATER;
+            default -> true;
+        };
+    }
+
+    private String getSortableName(PetInstance pet) {
+        PetType type = plugin.getPetTypes().get(pet.getPetTypeId());
+        if (type == null) {
+            return "";
+        }
+
+        String name = pet.getDisplayName(type);
+        return name == null ? "" : name.toLowerCase(Locale.ROOT);
     }
 }
