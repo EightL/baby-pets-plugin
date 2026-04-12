@@ -1,9 +1,9 @@
 package com.petsplugin.gui;
 
 import com.petsplugin.PetsPlugin;
+import com.petsplugin.model.PetFollowMode;
 import com.petsplugin.model.PetInstance;
 import com.petsplugin.model.PetType;
-import com.petsplugin.model.Rarity;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
@@ -36,6 +36,11 @@ public class PetCollectionGUI extends BaseGUI {
             28, 29, 30, 31, 32, 33, 34
     };
     private static final int PETS_PER_PAGE = PET_SLOTS.length;
+    private static final int[] EMPTY_RECIPE_PATTERN_SLOTS = {
+            10, 11, 12,
+            19, 20, 21,
+            28, 29, 30
+    };
 
     private List<PetInstance> playerPets;
 
@@ -51,13 +56,24 @@ public class PetCollectionGUI extends BaseGUI {
     }
 
     private void initializeItems() {
-        fillBackground(Material.GRAY_STAINED_GLASS_PANE);
+        for (int slot = 0; slot < inventory.getSize(); slot++) {
+            inventory.setItem(slot, null);
+        }
+
+        fillRow(0, Material.GRAY_STAINED_GLASS_PANE);
+        fillRow(4, Material.PINK_STAINED_GLASS_PANE);
+        fillRow(5, Material.BLACK_STAINED_GLASS_PANE);
+        fillContentSides();
 
         // Load player's pets
         playerPets = plugin.getPetManager().getPlayerPets(player.getUniqueId());
 
         int totalPages = Math.max(1, (int) Math.ceil((double) playerPets.size() / PETS_PER_PAGE));
         if (page >= totalPages) page = totalPages - 1;
+
+        if (playerPets.isEmpty()) {
+            renderEmptyStateRecipe();
+        }
 
         int startIndex = page * PETS_PER_PAGE;
         int endIndex = Math.min(startIndex + PETS_PER_PAGE, playerPets.size());
@@ -170,55 +186,11 @@ public class PetCollectionGUI extends BaseGUI {
             inventory.setItem(PET_SLOTS[slotIdx], item);
         }
 
-        // Page info
-        ItemStack pageInfo = new ItemStack(Material.BOOK);
-        ItemMeta pageMeta = pageInfo.getItemMeta();
-        pageMeta.displayName(Component.text("Page " + (page + 1) + "/" + totalPages)
-                .color(NamedTextColor.YELLOW).decoration(TextDecoration.ITALIC, false));
-        pageMeta.lore(List.of(
-                Component.text("Pets: " + playerPets.size()).color(NamedTextColor.GRAY)
-                        .decoration(TextDecoration.ITALIC, false)
-        ));
-        pageInfo.setItemMeta(pageMeta);
-        inventory.setItem(49, pageInfo);
-
-        // Pagination
-        setPaginationControls(45, 53, page, totalPages);
-
-        // Close button
-        setCloseButton(48);
-
-        // Delete button (slot 50)
-        ItemStack deleteBtn = new ItemStack(Material.TNT);
-        ItemMeta deleteMeta = deleteBtn.getItemMeta();
-        deleteMeta.displayName(Component.text("Delete Selected Pet").color(NamedTextColor.RED)
-                .decoration(TextDecoration.ITALIC, false)
-                .decoration(TextDecoration.BOLD, true));
-        deleteMeta.lore(List.of(
-                Component.text("Select a pet first, then").color(NamedTextColor.GRAY)
-                        .decoration(TextDecoration.ITALIC, false),
-                Component.text("click here to delete it.").color(NamedTextColor.GRAY)
-                        .decoration(TextDecoration.ITALIC, false)
-        ));
-        deleteBtn.setItemMeta(deleteMeta);
-        inventory.setItem(50, deleteBtn);
-
-        ItemStack settingsBtn = new ItemStack(Material.COMPARATOR);
-        ItemMeta settingsMeta = settingsBtn.getItemMeta();
-        settingsMeta.displayName(Component.text("Pet Settings").color(NamedTextColor.AQUA)
-                .decoration(TextDecoration.ITALIC, false));
-        settingsMeta.lore(List.of(
-                Component.empty(),
-                Component.text("Follow or stay, hide other pets,").color(NamedTextColor.GRAY)
-                        .decoration(TextDecoration.ITALIC, false),
-                Component.text("and review naming controls.").color(NamedTextColor.GRAY)
-                        .decoration(TextDecoration.ITALIC, false),
-                Component.empty(),
-                Component.text("Click to open settings.").color(NamedTextColor.YELLOW)
-                        .decoration(TextDecoration.ITALIC, false)
-        ));
-        settingsBtn.setItemMeta(settingsMeta);
-        inventory.setItem(51, settingsBtn);
+        inventory.setItem(40, createFollowModeItem());
+        inventory.setItem(45, createPageArrow(page > 0, false));
+        inventory.setItem(47, createSettingsButton());
+        inventory.setItem(49, createPageInfo(page, totalPages));
+        inventory.setItem(53, createPageArrow(page < totalPages - 1, true));
     }
 
     @Override
@@ -226,8 +198,11 @@ public class PetCollectionGUI extends BaseGUI {
         event.setCancelled(true);
         int slot = event.getSlot();
 
-        if (slot == 48) {
-            player.closeInventory();
+        if (slot == 40) {
+            PetFollowMode current = plugin.getSettingsManager().getFollowMode(player.getUniqueId());
+            PetFollowMode next = current == PetFollowMode.FOLLOW ? PetFollowMode.STAY : PetFollowMode.FOLLOW;
+            plugin.getPetManager().setFollowMode(player, next);
+            new PetCollectionGUI(plugin, player, page).open(player);
             player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1f);
             return;
         }
@@ -249,22 +224,7 @@ public class PetCollectionGUI extends BaseGUI {
             return;
         }
 
-        if (slot == 50) {
-            // Delete selected pet
-            PetInstance selected = plugin.getPetManager().getActivePet(player.getUniqueId());
-            if (selected == null) {
-                selected = plugin.getPetManager().getSelectedPet(player.getUniqueId());
-            }
-            if (selected == null) {
-                player.sendMessage(Component.text("Select a pet first!").color(NamedTextColor.RED));
-                player.playSound(player.getLocation(), Sound.ENTITY_VILLAGER_NO, 1f, 1f);
-                return;
-            }
-            new DeleteConfirmGUI(plugin, player, selected, page).open(player);
-            return;
-        }
-
-        if (slot == 51) {
+        if (slot == 47) {
             new PetSettingsGUI(plugin, player, page).open(player);
             player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1f);
             return;
@@ -307,5 +267,169 @@ public class PetCollectionGUI extends BaseGUI {
                 return;
             }
         }
+    }
+
+    private void fillRow(int row, Material material) {
+        ItemStack pane = createBlankPane(material);
+        int start = row * 9;
+        for (int slot = start; slot < start + 9; slot++) {
+            inventory.setItem(slot, pane);
+        }
+    }
+
+    private void fillContentSides() {
+        for (int row = 1; row <= 3; row++) {
+            inventory.setItem(row * 9, createBlankPane(Material.GRAY_STAINED_GLASS_PANE));
+            inventory.setItem(row * 9 + 8, createBlankPane(Material.GRAY_STAINED_GLASS_PANE));
+        }
+    }
+
+    private ItemStack createBlankPane(Material material) {
+        ItemStack item = new ItemStack(material);
+        ItemMeta meta = item.getItemMeta();
+        meta.displayName(Component.text(" "));
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    private ItemStack createPageArrow(boolean enabled, boolean next) {
+        if (!enabled) {
+            return createBlankPane(Material.BLACK_STAINED_GLASS_PANE);
+        }
+
+        ItemStack arrow = new ItemStack(Material.ARROW);
+        ItemMeta meta = arrow.getItemMeta();
+        meta.displayName(Component.text(next ? "Next Page" : "Previous Page")
+                .color(NamedTextColor.YELLOW)
+                .decoration(TextDecoration.ITALIC, false));
+        arrow.setItemMeta(meta);
+        return arrow;
+    }
+
+    private ItemStack createPageInfo(int page, int totalPages) {
+        ItemStack pageInfo = new ItemStack(Material.BOOK);
+        ItemMeta pageMeta = pageInfo.getItemMeta();
+        pageMeta.displayName(Component.text("Page " + (page + 1) + "/" + totalPages)
+                .color(NamedTextColor.YELLOW)
+                .decoration(TextDecoration.ITALIC, false));
+        pageMeta.lore(List.of(
+                Component.text("Pets: " + playerPets.size())
+                        .color(NamedTextColor.GRAY)
+                        .decoration(TextDecoration.ITALIC, false)
+        ));
+        pageInfo.setItemMeta(pageMeta);
+        return pageInfo;
+    }
+
+    private ItemStack createSettingsButton() {
+        ItemStack settingsBtn = new ItemStack(Material.COMPARATOR);
+        ItemMeta settingsMeta = settingsBtn.getItemMeta();
+        settingsMeta.displayName(Component.text("Settings").color(NamedTextColor.AQUA)
+                .decoration(TextDecoration.ITALIC, false));
+        settingsMeta.lore(List.of(
+                Component.empty(),
+                Component.text("Manage hide-other-pets and").color(NamedTextColor.GRAY)
+                        .decoration(TextDecoration.ITALIC, false),
+                Component.text("review naming controls.").color(NamedTextColor.GRAY)
+                        .decoration(TextDecoration.ITALIC, false),
+                Component.empty(),
+                Component.text("Click to open").color(NamedTextColor.GREEN)
+                        .decoration(TextDecoration.ITALIC, false)
+        ));
+        settingsBtn.setItemMeta(settingsMeta);
+        return settingsBtn;
+    }
+
+    private ItemStack createFollowModeItem() {
+        PetFollowMode mode = plugin.getSettingsManager().getFollowMode(player.getUniqueId());
+        Material material = mode == PetFollowMode.FOLLOW ? Material.LEAD : Material.BELL;
+
+        ItemStack item = new ItemStack(material);
+        ItemMeta meta = item.getItemMeta();
+        meta.displayName(Component.text(mode == PetFollowMode.FOLLOW ? "Mode: Follow" : "Mode: Stay")
+                .color(mode == PetFollowMode.FOLLOW ? NamedTextColor.GREEN : NamedTextColor.GOLD)
+                .decoration(TextDecoration.ITALIC, false));
+        meta.lore(List.of(
+                Component.empty(),
+                Component.text("Follow keeps your pet near you.").color(NamedTextColor.GRAY)
+                        .decoration(TextDecoration.ITALIC, false),
+                Component.text("Stay keeps it in place.").color(NamedTextColor.GRAY)
+                        .decoration(TextDecoration.ITALIC, false),
+                Component.empty(),
+                Component.text("Click to toggle").color(NamedTextColor.YELLOW)
+                        .decoration(TextDecoration.ITALIC, false)
+        ));
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    private void renderEmptyStateRecipe() {
+        Material flower = Material.matchMaterial("GOLDEN_DANDELION");
+        if (flower == null) {
+            flower = Material.DANDELION;
+        }
+
+        fillEmptyRecipeBackground();
+
+        Material[] ingredients = {
+                Material.COPPER_BLOCK, Material.LIGHTNING_ROD, Material.COPPER_BLOCK,
+                Material.IRON_INGOT, Material.GLASS, Material.IRON_INGOT,
+                Material.IRON_BLOCK, flower, Material.IRON_BLOCK
+        };
+
+        for (int i = 0; i < EMPTY_RECIPE_PATTERN_SLOTS.length; i++) {
+            int slot = EMPTY_RECIPE_PATTERN_SLOTS[i];
+            ItemStack ingredient = new ItemStack(ingredients[i]);
+            ItemMeta meta = ingredient.getItemMeta();
+            meta.displayName(Component.text(formatMaterialName(ingredients[i]))
+                    .color(NamedTextColor.WHITE)
+                    .decoration(TextDecoration.ITALIC, false));
+            ingredient.setItemMeta(meta);
+            inventory.setItem(slot, ingredient);
+        }
+
+        inventory.setItem(23, createRecipeArrow());
+
+        ItemStack result = plugin.getIncubatorManager().createIncubatorItem().clone();
+        ItemMeta resultMeta = result.getItemMeta();
+        List<Component> lore = new ArrayList<>();
+        lore.add(Component.text("Craft this to start hatching eggs.").color(NamedTextColor.GRAY)
+                .decoration(TextDecoration.ITALIC, false));
+        lore.add(Component.text("The recipe works in a normal crafting table").color(NamedTextColor.GRAY)
+                .decoration(TextDecoration.ITALIC, false));
+        lore.add(Component.text("and shows in the vanilla recipe book.").color(NamedTextColor.GRAY)
+                .decoration(TextDecoration.ITALIC, false));
+        resultMeta.lore(lore);
+        result.setItemMeta(resultMeta);
+        inventory.setItem(25, result);
+    }
+
+    private void fillEmptyRecipeBackground() {
+        ItemStack filler = createBlankPane(Material.GRAY_STAINED_GLASS_PANE);
+        for (int slot : PET_SLOTS) {
+            inventory.setItem(slot, filler);
+        }
+    }
+
+    private ItemStack createRecipeArrow() {
+        ItemStack arrow = new ItemStack(Material.SPECTRAL_ARROW);
+        ItemMeta meta = arrow.getItemMeta();
+        meta.displayName(Component.text("Crafting Output")
+                .color(NamedTextColor.YELLOW)
+                .decoration(TextDecoration.ITALIC, false));
+        arrow.setItemMeta(meta);
+        return arrow;
+    }
+
+    private String formatMaterialName(Material material) {
+        String[] words = material.name().toLowerCase().split("_");
+        StringBuilder builder = new StringBuilder();
+        for (String word : words) {
+            if (builder.length() > 0) {
+                builder.append(' ');
+            }
+            builder.append(Character.toUpperCase(word.charAt(0))).append(word.substring(1));
+        }
+        return builder.toString();
     }
 }

@@ -2,8 +2,8 @@ package com.petsplugin.listener;
 
 import com.petsplugin.PetsPlugin;
 import com.petsplugin.model.PetInstance;
+import com.petsplugin.model.PetType;
 import io.papermc.paper.event.player.PlayerNameEntityEvent;
-import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.GameMode;
 import org.bukkit.Material;
@@ -13,14 +13,13 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
-import org.bukkit.event.entity.EntityTargetLivingEntityEvent;
+import org.bukkit.event.entity.EntityTargetEvent;
 import org.bukkit.event.player.PlayerInteractAtEntityEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -100,12 +99,14 @@ public class PetInteractListener implements Listener {
 
         ItemStack hand = player.getInventory().getItemInMainHand();
         if (hand.getType() == Material.NAME_TAG) {
+            handleNameTagRename(player, entity, pet, hand);
             return;
         }
 
         boolean headPat = isHeadPat(entity, clickedY);
         boolean emptyHand = hand.getType().isAir();
-        boolean validFood = isValidFood(hand);
+        PetType type = plugin.getPetTypes().get(pet.getPetTypeId());
+        boolean validFood = isValidFood(hand, type);
 
         if (validFood && !headPat) {
             handleFeeding(player, entity, pet, hand);
@@ -129,7 +130,7 @@ public class PetInteractListener implements Listener {
     }
 
     @EventHandler
-    public void onPetTarget(EntityTargetLivingEntityEvent event) {
+    public void onPetTarget(EntityTargetEvent event) {
         if (!plugin.getPetManager().isPetEntity(event.getEntity())) return;
         event.setCancelled(true);
     }
@@ -168,14 +169,49 @@ public class PetInteractListener implements Listener {
         plugin.getPetManager().petThePet(player, pet);
     }
 
-    private boolean isValidFood(ItemStack item) {
-        if (item == null || item.getType().isAir()) return false;
-        List<String> foodItems = plugin.getConfig().getStringList("status.food_items");
-        String materialName = item.getType().name();
-        for (String food : foodItems) {
-            if (food.equalsIgnoreCase(materialName)) return true;
+    private void handleNameTagRename(Player player, Entity entity, PetInstance pet, ItemStack hand) {
+        String nickname = readNameTagNickname(hand);
+        if (nickname == null) {
+            return;
         }
-        return false;
+
+        if (player.getGameMode() != GameMode.CREATIVE) {
+            hand.setAmount(hand.getAmount() - 1);
+        }
+
+        plugin.getPetManager().renamePet(player, pet, nickname);
+        player.playSound(entity.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.8f, 1.4f);
+    }
+
+    private String readNameTagNickname(ItemStack hand) {
+        if (hand == null || hand.getType() != Material.NAME_TAG || !hand.hasItemMeta()) {
+            return null;
+        }
+
+        if (hand.getItemMeta().hasDisplayName()) {
+            String nickname = PlainTextComponentSerializer.plainText()
+                    .serialize(hand.getItemMeta().displayName())
+                    .trim();
+            if (!nickname.isEmpty()) {
+                return nickname;
+            }
+        }
+
+        if (hand.getItemMeta().hasItemName()) {
+            String nickname = PlainTextComponentSerializer.plainText()
+                    .serialize(hand.getItemMeta().itemName())
+                    .trim();
+            if (!nickname.isEmpty()) {
+                return nickname;
+            }
+        }
+
+        return null;
+    }
+
+    private boolean isValidFood(ItemStack item, PetType type) {
+        if (item == null || item.getType().isAir() || type == null) return false;
+        return plugin.getPetManager().canPetEat(type, item.getType());
     }
 
     private boolean isHeadPat(Entity entity, Double clickedY) {

@@ -68,6 +68,15 @@ public class PetType {
     public boolean isBaby() { return baby; }
     public boolean isFlying() { return flying; }
     public boolean isAquatic() { return aquatic; }
+    public PetMovementType getMovementType() {
+        if (aquatic) {
+            return PetMovementType.WATER;
+        }
+        if (flying) {
+            return PetMovementType.FLYING;
+        }
+        return PetMovementType.GROUND;
+    }
 
     public Attribute getPlayerAttribute() { return playerAttribute; }
     public double getAttributePerLevel() { return attributePerLevel; }

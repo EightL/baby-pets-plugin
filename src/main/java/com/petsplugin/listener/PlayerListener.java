@@ -29,6 +29,7 @@ public class PlayerListener implements Listener {
         plugin.getPetManager().loadPlayerPets(player.getUniqueId());
         plugin.getSettingsManager().loadPlayerSettings(player.getUniqueId());
         plugin.getAdvancementManager().syncPlayerAdvancements(player);
+        plugin.getIncubatorManager().discoverIncubatorRecipe(player);
         plugin.getPetManager().refreshPetVisibility(player);
 
         // Respawn active pet if configured

@@ -17,13 +17,16 @@ public class PetInstance {
     private boolean selected;
     private final long obtainedAt;
     private PetStatus status;
+    private String appearanceVariant;
+    private String appearanceSoundVariant;
 
     // Runtime-only
     private transient UUID entityUuid;
 
     public PetInstance(int databaseId, UUID ownerUuid, String petTypeId,
                        String nickname, int level, double xp,
-                       boolean selected, long obtainedAt, PetStatus status) {
+                       boolean selected, long obtainedAt, PetStatus status,
+                       String appearanceVariant, String appearanceSoundVariant) {
         this.databaseId = databaseId;
         this.ownerUuid = ownerUuid;
         this.petTypeId = petTypeId;
@@ -33,12 +36,14 @@ public class PetInstance {
         this.selected = selected;
         this.obtainedAt = obtainedAt;
         this.status = status;
+        this.appearanceVariant = appearanceVariant;
+        this.appearanceSoundVariant = appearanceSoundVariant;
     }
 
     /** Create a new pet instance (for first-time creation). */
     public static PetInstance createNew(UUID ownerUuid, String petTypeId) {
         return new PetInstance(-1, ownerUuid, petTypeId, null, 1, 0.0,
-                false, System.currentTimeMillis(), PetStatus.CONTENT);
+                false, System.currentTimeMillis(), PetStatus.CONTENT, null, null);
     }
 
     // Getters & Setters
@@ -63,6 +68,12 @@ public class PetInstance {
 
     public PetStatus getStatus() { return status; }
     public void setStatus(PetStatus status) { this.status = status; }
+
+    public String getAppearanceVariant() { return appearanceVariant; }
+    public void setAppearanceVariant(String appearanceVariant) { this.appearanceVariant = appearanceVariant; }
+
+    public String getAppearanceSoundVariant() { return appearanceSoundVariant; }
+    public void setAppearanceSoundVariant(String appearanceSoundVariant) { this.appearanceSoundVariant = appearanceSoundVariant; }
 
     public UUID getEntityUuid() { return entityUuid; }
     public void setEntityUuid(UUID entityUuid) { this.entityUuid = entityUuid; }

@@ -58,17 +58,25 @@ leveling:
 status:
   feed_cooldown_seconds: 3
   pet_cooldown_seconds: 5
-  # Items that can be fed to the pet to improve status
-  food_items:
-    - WHEAT_SEEDS
-    - MELON_SEEDS
-    - PUMPKIN_SEEDS
-    - BEETROOT_SEEDS
-    - TORCHFLOWER_SEEDS
-    - PITCHER_POD
-    - APPLE
-    - BREAD
-    - CARROT
+  # Food is grouped by movement type: ground, flying, water.
+  food_by_type:
+    ground:
+      - WHEAT
+      - CARROT
+      - APPLE
+      - BREAD
+    flying:
+      - WHEAT_SEEDS
+      - MELON_SEEDS
+      - PUMPKIN_SEEDS
+      - BEETROOT_SEEDS
+      - TORCHFLOWER_SEEDS
+      - PITCHER_POD
+    water:
+      - COD
+      - SALMON
+      - TROPICAL_FISH
+      - KELP
 
 # ══════════════════════════════════════════════════════════
 #  Fish Rework Integration

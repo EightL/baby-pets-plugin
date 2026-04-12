@@ -5,6 +5,8 @@ import com.petsplugin.model.IncubatorState;
 import com.petsplugin.model.PetInstance;
 import com.petsplugin.model.PetType;
 import com.petsplugin.model.Rarity;
+import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.event.HoverEvent;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
@@ -12,6 +14,7 @@ import org.bukkit.*;
 import org.bukkit.block.Block;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.*;
+import org.bukkit.inventory.ShapedRecipe;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
@@ -45,11 +48,16 @@ public class IncubatorManager {
     }
 
     public void initialize() {
+        registerIncubatorRecipe();
         List<IncubatorState> states = plugin.getDatabaseManager().loadAllIncubators();
         for (IncubatorState state : states) {
             activeIncubators.put(state.locationKey(), state);
         }
         plugin.getLogger().info("Loaded " + activeIncubators.size() + " active incubators");
+
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            discoverIncubatorRecipe(player);
+        }
 
         // Main tick: check hatching (every second)
         tickTask = Bukkit.getScheduler().runTaskTimer(plugin, this::tick, 20L, 20L);
@@ -85,6 +93,30 @@ public class IncubatorManager {
         meta.getPersistentDataContainer().set(INCUBATOR_KEY, PersistentDataType.BYTE, (byte) 1);
         item.setItemMeta(meta);
         return item;
+    }
+
+    public void registerIncubatorRecipe() {
+        plugin.getServer().removeRecipe(INCUBATOR_KEY);
+
+        Material flower = Material.matchMaterial("GOLDEN_DANDELION");
+        if (flower == null) {
+            flower = Material.DANDELION;
+            plugin.getLogger().warning("GOLDEN_DANDELION is unavailable on this API target; incubator recipe is using DANDELION as a fallback.");
+        }
+
+        ShapedRecipe recipe = new ShapedRecipe(INCUBATOR_KEY, createIncubatorItem());
+        recipe.shape("CBC", "IGI", "FDF");
+        recipe.setIngredient('C', Material.COPPER_BLOCK);
+        recipe.setIngredient('B', Material.LIGHTNING_ROD);
+        recipe.setIngredient('I', Material.IRON_INGOT);
+        recipe.setIngredient('G', Material.GLASS);
+        recipe.setIngredient('F', Material.IRON_BLOCK);
+        recipe.setIngredient('D', flower);
+        plugin.getServer().addRecipe(recipe);
+    }
+
+    public void discoverIncubatorRecipe(Player player) {
+        player.discoverRecipe(INCUBATOR_KEY);
     }
 
     public boolean isIncubatorItem(ItemStack item) {
@@ -307,6 +339,7 @@ public class IncubatorManager {
         PetType type = plugin.getEggManager().rollPetType(state.getEggRarity());
 
         PetInstance pet = PetInstance.createNew(state.getOwnerUuid(), type.getId());
+        plugin.getPetManager().ensurePersistentAppearance(pet, type);
         plugin.getDatabaseManager().insertPet(pet);
         plugin.getDatabaseManager().deleteIncubator(state.getDatabaseId());
         plugin.getPetManager().refreshCache(state.getOwnerUuid());
@@ -322,11 +355,7 @@ public class IncubatorManager {
 
         Player owner = Bukkit.getPlayer(state.getOwnerUuid());
         if (owner != null && owner.isOnline()) {
-            String msg = plugin.getConfig().getString("messages.egg_hatched",
-                    "&a&lHATCH! &7Your egg hatched into a &e%pet_name%&7!");
-            msg = msg.replace("%pet_name%", type.getDisplayName());
-            owner.sendMessage(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
-                    .legacyAmpersand().deserialize(msg));
+            sendHatchMessage(owner, type);
             plugin.getAdvancementManager().handlePetHatched(owner, pet, type);
         }
     }
@@ -346,17 +375,14 @@ public class IncubatorManager {
             } else {
                 PetType type = plugin.getEggManager().rollPetType(state.getEggRarity());
                 PetInstance pet = PetInstance.createNew(playerUuid, type.getId());
+                plugin.getPetManager().ensurePersistentAppearance(pet, type);
                 plugin.getDatabaseManager().insertPet(pet);
                 plugin.getDatabaseManager().deleteIncubator(state.getDatabaseId());
                 plugin.getPetManager().refreshCache(playerUuid);
 
                 Player owner = Bukkit.getPlayer(playerUuid);
                 if (owner != null) {
-                    String msg = plugin.getConfig().getString("messages.egg_hatched",
-                            "&a&lHATCH! &7Your egg hatched into a &e%pet_name%&7!");
-                    msg = msg.replace("%pet_name%", type.getDisplayName());
-                    owner.sendMessage(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
-                            .legacyAmpersand().deserialize(msg));
+                    sendHatchMessage(owner, type);
                     plugin.getAdvancementManager().handlePetHatched(owner, pet, type);
                 }
             }
@@ -395,5 +421,21 @@ public class IncubatorManager {
                 && root.getBlockX() == block.getX()
                 && root.getBlockY() == block.getY()
                 && root.getBlockZ() == block.getZ();
+    }
+
+    private void sendHatchMessage(Player owner, PetType type) {
+        String msg = plugin.getConfig().getString("messages.egg_hatched",
+                "&a&lHATCH! &7Your egg hatched into a &e%pet_name%&7!");
+        msg = msg.replace("%pet_name%", type.getDisplayName());
+        owner.sendMessage(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
+                .legacyAmpersand().deserialize(msg));
+        owner.sendMessage(
+                Component.text("View in collection")
+                        .color(NamedTextColor.AQUA)
+                        .decoration(TextDecoration.ITALIC, false)
+                        .clickEvent(ClickEvent.runCommand("/pets"))
+                        .hoverEvent(HoverEvent.showText(Component.text("Open pet collection")
+                                .color(NamedTextColor.YELLOW)))
+        );
     }
 }

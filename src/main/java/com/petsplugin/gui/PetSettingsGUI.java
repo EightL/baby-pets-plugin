@@ -30,8 +30,8 @@ public class PetSettingsGUI extends BaseGUI {
     private void initializeItems() {
         fillBackground(Material.LIGHT_BLUE_STAINED_GLASS_PANE);
 
-        inventory.setItem(11, createFollowModeItem());
-        inventory.setItem(15, createHideOtherPetsItem());
+        inventory.setItem(11, createHideOtherPetsItem());
+        inventory.setItem(15, createCollectionShortcut());
         setBackButton(18);
 
         ItemStack info = new ItemStack(Material.NAME_TAG);
@@ -49,33 +49,6 @@ public class PetSettingsGUI extends BaseGUI {
         ));
         info.setItemMeta(meta);
         inventory.setItem(13, info);
-    }
-
-    private ItemStack createFollowModeItem() {
-        PetFollowMode mode = plugin.getSettingsManager().getFollowMode(player.getUniqueId());
-        Material material = mode == PetFollowMode.FOLLOW ? Material.LEAD : Material.BELL;
-
-        ItemStack item = new ItemStack(material);
-        ItemMeta meta = item.getItemMeta();
-        meta.displayName(Component.text("Pet Mode: " + mode.getDisplayName())
-                .color(mode == PetFollowMode.FOLLOW ? NamedTextColor.GREEN : NamedTextColor.GOLD)
-                .decoration(TextDecoration.ITALIC, false));
-
-        List<Component> lore = new ArrayList<>();
-        lore.add(Component.empty());
-        lore.add(Component.text("Follow: your pet stays by your side.").color(NamedTextColor.GRAY)
-                .decoration(TextDecoration.ITALIC, false));
-        lore.add(Component.text("Stay: your pet waits where it is.").color(NamedTextColor.GRAY)
-                .decoration(TextDecoration.ITALIC, false));
-        lore.add(Component.text("Commands: /pets follow, /pets stay").color(NamedTextColor.DARK_GRAY)
-                .decoration(TextDecoration.ITALIC, false));
-        lore.add(Component.empty());
-        lore.add(Component.text("Click to switch modes.").color(NamedTextColor.YELLOW)
-                .decoration(TextDecoration.ITALIC, false));
-
-        meta.lore(lore);
-        item.setItemMeta(meta);
-        return item;
     }
 
     private ItemStack createHideOtherPetsItem() {
@@ -105,6 +78,21 @@ public class PetSettingsGUI extends BaseGUI {
         return item;
     }
 
+    private ItemStack createCollectionShortcut() {
+        ItemStack item = new ItemStack(Material.CHEST);
+        ItemMeta meta = item.getItemMeta();
+        meta.displayName(Component.text("Pet Collection")
+                .color(NamedTextColor.GOLD)
+                .decoration(TextDecoration.ITALIC, false));
+        meta.lore(List.of(
+                Component.empty(),
+                Component.text("Return to the main pets menu.").color(NamedTextColor.GRAY)
+                        .decoration(TextDecoration.ITALIC, false)
+        ));
+        item.setItemMeta(meta);
+        return item;
+    }
+
     @Override
     public void onClick(InventoryClickEvent event) {
         event.setCancelled(true);
@@ -117,18 +105,15 @@ public class PetSettingsGUI extends BaseGUI {
         }
 
         if (slot == 11) {
-            PetFollowMode current = plugin.getSettingsManager().getFollowMode(player.getUniqueId());
-            PetFollowMode next = current == PetFollowMode.FOLLOW ? PetFollowMode.STAY : PetFollowMode.FOLLOW;
-            plugin.getPetManager().setFollowMode(player, next);
+            boolean current = plugin.getSettingsManager().isHideOtherPetsEnabled(player.getUniqueId());
+            plugin.getPetManager().setHideOtherPets(player, !current);
             initializeItems();
             player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1f);
             return;
         }
 
         if (slot == 15) {
-            boolean current = plugin.getSettingsManager().isHideOtherPetsEnabled(player.getUniqueId());
-            plugin.getPetManager().setHideOtherPets(player, !current);
-            initializeItems();
+            new PetCollectionGUI(plugin, player, returnPage).open(player);
             player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1f);
         }
     }

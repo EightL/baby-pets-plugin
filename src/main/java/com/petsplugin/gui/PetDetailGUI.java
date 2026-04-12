@@ -85,6 +85,17 @@ public class PetDetailGUI extends BaseGUI {
 
         lore.add(Component.empty());
 
+        lore.add(Component.text("─── Care ───").color(NamedTextColor.AQUA)
+                .decoration(TextDecoration.ITALIC, false));
+        lore.add(Component.text(" Type: ").color(NamedTextColor.GRAY)
+                .decoration(TextDecoration.ITALIC, false)
+                .append(Component.text(type.getMovementType().getDisplayName()).color(NamedTextColor.WHITE)));
+        lore.add(Component.text(" Foods: ").color(NamedTextColor.GRAY)
+                .decoration(TextDecoration.ITALIC, false)
+                .append(Component.text(plugin.getPetManager().getAllowedFoodsDisplay(type)).color(NamedTextColor.YELLOW)));
+
+        lore.add(Component.empty());
+
         // Status
         lore.add(Component.text("─── Status ───").color(NamedTextColor.YELLOW)
                 .decoration(TextDecoration.ITALIC, false));

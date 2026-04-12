@@ -56,12 +56,20 @@ public class PetDatabaseManager {
                         xp DOUBLE NOT NULL DEFAULT 0,
                         is_selected BOOLEAN NOT NULL DEFAULT 0,
                         obtained_at BIGINT NOT NULL DEFAULT 0,
-                        status VARCHAR(16) NOT NULL DEFAULT 'CONTENT'
+                        status VARCHAR(16) NOT NULL DEFAULT 'CONTENT',
+                        appearance_variant VARCHAR(64),
+                        appearance_sound_variant VARCHAR(64)
                     )
                 """);
                 // Migration: add status column to existing tables
                 try {
                     stmt.executeUpdate("ALTER TABLE player_pets ADD COLUMN status VARCHAR(16) NOT NULL DEFAULT 'CONTENT'");
+                } catch (SQLException ignored) { /* column already exists */ }
+                try {
+                    stmt.executeUpdate("ALTER TABLE player_pets ADD COLUMN appearance_variant VARCHAR(64)");
+                } catch (SQLException ignored) { /* column already exists */ }
+                try {
+                    stmt.executeUpdate("ALTER TABLE player_pets ADD COLUMN appearance_sound_variant VARCHAR(64)");
                 } catch (SQLException ignored) { /* column already exists */ }
                 stmt.executeUpdate("""
                     CREATE INDEX IF NOT EXISTS idx_player_pets_uuid ON player_pets(uuid)
@@ -100,8 +108,8 @@ public class PetDatabaseManager {
     public int insertPet(PetInstance pet) {
         synchronized (dbLock) {
             String sql = """
-                INSERT INTO player_pets (uuid, pet_type, nickname, level, xp, is_selected, obtained_at, status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO player_pets (uuid, pet_type, nickname, level, xp, is_selected, obtained_at, status, appearance_variant, appearance_sound_variant)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """;
             try (PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
                 ps.setString(1, pet.getOwnerUuid().toString());
@@ -112,6 +120,8 @@ public class PetDatabaseManager {
                 ps.setBoolean(6, pet.isSelected());
                 ps.setLong(7, pet.getObtainedAt());
                 ps.setString(8, pet.getStatus().name());
+                ps.setString(9, pet.getAppearanceVariant());
+                ps.setString(10, pet.getAppearanceSoundVariant());
                 ps.executeUpdate();
                 ResultSet keys = ps.getGeneratedKeys();
                 if (keys.next()) {
@@ -130,7 +140,7 @@ public class PetDatabaseManager {
     public void updatePet(PetInstance pet) {
         synchronized (dbLock) {
             String sql = """
-                UPDATE player_pets SET nickname=?, level=?, xp=?, is_selected=?, status=?
+                UPDATE player_pets SET nickname=?, level=?, xp=?, is_selected=?, status=?, appearance_variant=?, appearance_sound_variant=?
                 WHERE id=?
             """;
             try (PreparedStatement ps = connection.prepareStatement(sql)) {
@@ -139,7 +149,9 @@ public class PetDatabaseManager {
                 ps.setDouble(3, pet.getXp());
                 ps.setBoolean(4, pet.isSelected());
                 ps.setString(5, pet.getStatus().name());
-                ps.setInt(6, pet.getDatabaseId());
+                ps.setString(6, pet.getAppearanceVariant());
+                ps.setString(7, pet.getAppearanceSoundVariant());
+                ps.setInt(8, pet.getDatabaseId());
                 ps.executeUpdate();
             } catch (SQLException e) {
                 plugin.getLogger().log(Level.SEVERE, "Failed to update pet", e);
@@ -183,7 +195,9 @@ public class PetDatabaseManager {
                         rs.getDouble("xp"),
                         rs.getBoolean("is_selected"),
                         rs.getLong("obtained_at"),
-                        status
+                        status,
+                        rs.getString("appearance_variant"),
+                        rs.getString("appearance_sound_variant")
                     ));
                 }
             } catch (SQLException e) {

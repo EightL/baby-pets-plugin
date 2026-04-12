@@ -43,6 +43,18 @@ pets:
       value_per_level: 0.02
       display: "⛨ Knockback Resist"
 
+  bunny:
+    display_name: "Bunny"
+    entity_type: RABBIT
+    rarity: UNCOMMON
+    baby: true
+    icon: RABBIT_SPAWN_EGG
+    description: "A quick-footed hopper with many coats."
+    player_attribute:
+      type: JUMP_STRENGTH
+      value_per_level: 0.0265
+      display: "⬆ Jump Height"
+
   dolphin:
     display_name: "Dolphin"
     entity_type: DOLPHIN

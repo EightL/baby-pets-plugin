@@ -3,6 +3,7 @@ package com.petsplugin.manager;
 import com.petsplugin.PetsPlugin;
 import com.petsplugin.model.PetInstance;
 import com.petsplugin.model.PetFollowMode;
+import com.petsplugin.model.PetMovementType;
 import com.petsplugin.model.PetStatus;
 import com.petsplugin.model.PetType;
 import net.kyori.adventure.text.Component;
@@ -14,9 +15,15 @@ import org.bukkit.attribute.AttributeModifier;
 import org.bukkit.entity.*;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.scheduler.BukkitTask;
+import org.bukkit.scoreboard.Scoreboard;
+import org.bukkit.scoreboard.Team;
+import org.bukkit.util.RayTraceResult;
+import org.bukkit.util.Vector;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.stream.Collectors;
 
 /**
  * Core pet management — spawning, despawning, following, teleporting,
@@ -220,6 +227,9 @@ public class PetManager {
         if (entity instanceof Mob mob) {
             mob.setInvulnerable(true);
             mob.setAI(true);
+            mob.setAware(true);
+            mob.setAggressive(false);
+            mob.setTarget(null);
             mob.setCollidable(false);
             mob.setSilent(false);
             mob.setCanPickupItems(false);
@@ -254,18 +264,21 @@ public class PetManager {
         }
 
         applyPetName(entity, pet);
+        ensurePersistentAppearance(pet, type);
+        applyPetAppearance(entity, pet, type);
         applyPetModePosture(player.getUniqueId(), entity);
 
         pet.setEntityUuid(entity.getUniqueId());
         activePetEntities.put(player.getUniqueId(), entity.getUniqueId());
         activePets.put(player.getUniqueId(), pet);
+        applyOwnerNoCollision(player, entity);
 
         // Apply player attribute bonus
         applyPlayerAttribute(player, pet, type);
 
         // Effects
         spawnLoc.getWorld().spawnParticle(Particle.HEART, spawnLoc.clone().add(0, 1, 0), 5, 0.3, 0.3, 0.3);
-        spawnLoc.getWorld().playSound(spawnLoc, Sound.ENTITY_CAT_AMBIENT, 0.8f, 1.4f);
+        spawnLoc.getWorld().playSound(spawnLoc, getPetAmbientSound(type), 0.8f, 1.2f);
 
         String msg = plugin.getConfig().getString("messages.pet_spawned",
                 "&a%pet_name% &7has appeared by your side!");
@@ -286,7 +299,13 @@ public class PetManager {
         for (World world : Bukkit.getWorlds()) {
             for (Entity entity : world.getEntities()) {
                 if (entity.getUniqueId().equals(entityUuid)) {
+                    clearOwnerNoCollision(playerUuid, entity);
                     Location loc = entity.getLocation();
+                    PetInstance pet = activePets.get(playerUuid);
+                    PetType type = pet == null ? null : plugin.getPetTypes().get(pet.getPetTypeId());
+                    if (type != null) {
+                        loc.getWorld().playSound(loc, getPetAmbientSound(type), 0.7f, 0.9f);
+                    }
                     loc.getWorld().spawnParticle(Particle.CLOUD, loc.clone().add(0, 0.5, 0), 10, 0.3, 0.3, 0.3);
                     entity.remove();
                     break;
@@ -319,6 +338,30 @@ public class PetManager {
 
     public boolean isPetEntity(Entity entity) {
         return entity.getPersistentDataContainer().has(PET_ENTITY_KEY, PersistentDataType.BYTE);
+    }
+
+    public void ensurePersistentAppearance(PetInstance pet, PetType type) {
+        if (pet == null || type == null) {
+            return;
+        }
+        if (pet.getAppearanceVariant() != null || pet.getAppearanceSoundVariant() != null) {
+            return;
+        }
+
+        switch (type.getEntityType()) {
+            case FOX -> pet.setAppearanceVariant(randomFoxType().name());
+            case PIG -> pet.setAppearanceVariant(randomPigVariant());
+            case CHICKEN -> pet.setAppearanceVariant(randomChickenVariant());
+            case RABBIT -> pet.setAppearanceVariant(randomRabbitType().name());
+            default -> {
+                return;
+            }
+        }
+
+        if (pet.getDatabaseId() > 0) {
+            plugin.getDatabaseManager().updatePet(pet);
+            syncCachedAppearance(pet);
+        }
     }
 
     public UUID getPetOwner(Entity entity) {
@@ -427,6 +470,15 @@ public class PetManager {
                 }
             }
 
+            if (petEntity instanceof Mob mob) {
+                if (mob.getTarget() != null) {
+                    mob.setTarget(null);
+                }
+                if (mob.isAggressive()) {
+                    mob.setAggressive(false);
+                }
+            }
+
             syncHoverNamePosition(petEntity);
 
             if (plugin.getSettingsManager().isStayMode(playerUuid)) {
@@ -439,8 +491,6 @@ public class PetManager {
             if (distance > teleportDist) {
                 Location safeLoc = findSafeSpawnLocation(player.getLocation());
                 petEntity.teleport(safeLoc);
-                petEntity.getWorld().spawnParticle(Particle.REVERSE_PORTAL,
-                        safeLoc.clone().add(0, 0.5, 0), 8, 0.2, 0.2, 0.2);
                 continue;
             }
 
@@ -540,6 +590,38 @@ public class PetManager {
         player.sendMessage(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
                 .legacyAmpersand().deserialize(msg));
         plugin.getAdvancementManager().handlePetFed(player);
+    }
+
+    public boolean canPetEat(PetType type, Material material) {
+        return getAllowedFoods(type).contains(material);
+    }
+
+    public List<Material> getAllowedFoods(PetType type) {
+        if (type == null) {
+            return Collections.emptyList();
+        }
+
+        PetMovementType movementType = type.getMovementType();
+        String path = "status.food_by_type." + movementType.name().toLowerCase();
+        List<String> configured = plugin.getConfig().getStringList(path);
+        if (configured.isEmpty()) {
+            configured = defaultFoods(movementType);
+        }
+
+        List<Material> allowed = new ArrayList<>();
+        for (String value : configured) {
+            Material material = Material.matchMaterial(value);
+            if (material != null) {
+                allowed.add(material);
+            }
+        }
+        return allowed;
+    }
+
+    public String getAllowedFoodsDisplay(PetType type) {
+        return getAllowedFoods(type).stream()
+                .map(this::formatMaterialName)
+                .collect(Collectors.joining(", "));
     }
 
     // ══════════════════════════════════════════════════════════
@@ -714,6 +796,19 @@ public class PetManager {
         }
     }
 
+    private void syncCachedAppearance(PetInstance pet) {
+        List<PetInstance> pets = playerPetsCache.get(pet.getOwnerUuid());
+        if (pets == null) return;
+
+        for (PetInstance cachedPet : pets) {
+            if (cachedPet.getDatabaseId() == pet.getDatabaseId()) {
+                cachedPet.setAppearanceVariant(pet.getAppearanceVariant());
+                cachedPet.setAppearanceSoundVariant(pet.getAppearanceSoundVariant());
+                break;
+            }
+        }
+    }
+
     private Entity findActivePetEntity(UUID playerUuid) {
         UUID entityUuid = activePetEntities.get(playerUuid);
         return findEntityByUuid(entityUuid);
@@ -777,9 +872,119 @@ public class PetManager {
         }
     }
 
+    private void applyPetAppearance(Entity entity, PetInstance pet, PetType type) {
+        if (pet == null || type == null) {
+            return;
+        }
+
+        switch (type.getEntityType()) {
+            case FOX -> {
+                if (entity instanceof Fox fox && pet.getAppearanceVariant() != null) {
+                    try {
+                        fox.setFoxType(Fox.Type.valueOf(pet.getAppearanceVariant()));
+                    } catch (IllegalArgumentException ignored) {
+                    }
+                }
+            }
+            case PIG -> {
+                if (entity instanceof Pig pig) {
+                    Pig.Variant variant = parsePigVariant(pet.getAppearanceVariant());
+                    if (variant != null) {
+                        pig.setVariant(variant);
+                    }
+                }
+            }
+            case CHICKEN -> {
+                if (entity instanceof Chicken chicken) {
+                    Chicken.Variant variant = parseChickenVariant(pet.getAppearanceVariant());
+                    if (variant != null) {
+                        chicken.setVariant(variant);
+                    }
+                }
+            }
+            case RABBIT -> {
+                if (entity instanceof Rabbit rabbit && pet.getAppearanceVariant() != null) {
+                    try {
+                        rabbit.setRabbitType(Rabbit.Type.valueOf(pet.getAppearanceVariant()));
+                    } catch (IllegalArgumentException ignored) {
+                    }
+                }
+            }
+            default -> {
+            }
+        }
+    }
+
+    private List<String> defaultFoods(PetMovementType movementType) {
+        return switch (movementType) {
+            case GROUND -> List.of("WHEAT", "CARROT", "APPLE", "BREAD");
+            case FLYING -> List.of("WHEAT_SEEDS", "MELON_SEEDS", "PUMPKIN_SEEDS", "BEETROOT_SEEDS", "TORCHFLOWER_SEEDS", "PITCHER_POD");
+            case WATER -> List.of("COD", "SALMON", "TROPICAL_FISH", "KELP");
+        };
+    }
+
+    private String formatMaterialName(Material material) {
+        String[] words = material.name().toLowerCase().split("_");
+        StringBuilder builder = new StringBuilder();
+        for (String word : words) {
+            if (builder.length() > 0) {
+                builder.append(' ');
+            }
+            builder.append(Character.toUpperCase(word.charAt(0))).append(word.substring(1));
+        }
+        return builder.toString();
+    }
+
+    private void applyOwnerNoCollision(Player player, Entity petEntity) {
+        if (!(petEntity instanceof LivingEntity livingEntity)) {
+            return;
+        }
+
+        livingEntity.setCollidable(false);
+        Scoreboard scoreboard = Bukkit.getScoreboardManager().getMainScoreboard();
+        Team team = scoreboard.getTeam(collisionTeamName(player.getUniqueId()));
+        if (team == null) {
+            team = scoreboard.registerNewTeam(collisionTeamName(player.getUniqueId()));
+            team.setOption(Team.Option.COLLISION_RULE, Team.OptionStatus.NEVER);
+            team.setCanSeeFriendlyInvisibles(false);
+            team.setAllowFriendlyFire(false);
+        }
+
+        if (!team.hasEntity(player)) {
+            team.addEntity(player);
+        }
+        if (!team.hasEntity(petEntity)) {
+            team.addEntity(petEntity);
+        }
+    }
+
+    private void clearOwnerNoCollision(UUID playerUuid, Entity petEntity) {
+        Scoreboard scoreboard = Bukkit.getScoreboardManager().getMainScoreboard();
+        Team team = scoreboard.getTeam(collisionTeamName(playerUuid));
+        if (team == null) {
+            return;
+        }
+
+        Player player = Bukkit.getPlayer(playerUuid);
+        if (player != null && team.hasEntity(player)) {
+            team.removeEntity(player);
+        }
+        if (petEntity != null && team.hasEntity(petEntity)) {
+            team.removeEntity(petEntity);
+        }
+        if (team.getSize() == 0) {
+            team.unregister();
+        }
+    }
+
+    private String collisionTeamName(UUID playerUuid) {
+        String compact = playerUuid.toString().replace("-", "");
+        return "petnc_" + compact.substring(0, 10);
+    }
+
     private void hoverNameTick() {
         for (Player player : Bukkit.getOnlinePlayers()) {
-            Entity target = resolveHoverTarget(player.getTargetEntity(8, false));
+            Entity target = resolveHoverTarget(getViewedPetTarget(player));
             UUID nextTarget = null;
             if (target != null && isPetEntity(target)) {
                 UUID ownerUuid = getPetOwner(target);
@@ -820,6 +1025,46 @@ public class PetManager {
         } catch (IllegalArgumentException ignored) {
             return null;
         }
+    }
+
+    private Entity getViewedPetTarget(Player player) {
+        RayTraceResult rayTrace = player.rayTraceEntities(8, false);
+        if (rayTrace != null && rayTrace.getHitEntity() != null) {
+            Entity resolved = resolveHoverTarget(rayTrace.getHitEntity());
+            if (resolved != null) {
+                return resolved;
+            }
+        }
+
+        Location eye = player.getEyeLocation();
+        Vector direction = eye.getDirection().normalize();
+        Entity bestMatch = null;
+        double bestAlignment = 0.965;
+
+        for (UUID petEntityUuid : activePetEntities.values()) {
+            Entity entity = findEntityByUuid(petEntityUuid);
+            if (entity == null || !entity.getWorld().equals(player.getWorld())) {
+                continue;
+            }
+
+            Location targetLocation = entity.getLocation().add(0, entity.getHeight() * 0.6, 0);
+            Vector toTarget = targetLocation.toVector().subtract(eye.toVector());
+            double distance = toTarget.length();
+            if (distance > 8 || distance <= 0.001) {
+                continue;
+            }
+            if (!player.hasLineOfSight(entity)) {
+                continue;
+            }
+
+            double alignment = direction.dot(toTarget.normalize());
+            if (alignment > bestAlignment) {
+                bestAlignment = alignment;
+                bestMatch = entity;
+            }
+        }
+
+        return bestMatch;
     }
 
     private void ensureHoverNameDisplay(Entity entity, String nickname) {
@@ -875,7 +1120,7 @@ public class PetManager {
     }
 
     private Location getHoverNameLocation(Entity entity) {
-        return entity.getLocation().add(0, entity.getHeight() + 0.55, 0);
+        return entity.getLocation().add(0, entity.getHeight() + 0.25, 0);
     }
 
     private void clearHoverTargetsForPet(UUID petEntityUuid) {
@@ -891,6 +1136,10 @@ public class PetManager {
 
         Entity display = findEntityByUuid(displayUuid);
         if (display != null) {
+            Entity petEntity = findEntityByUuid(petEntityUuid);
+            if (petEntity != null) {
+                syncHoverNamePosition(petEntity);
+            }
             viewer.showEntity(plugin, display);
         }
     }
@@ -903,5 +1152,72 @@ public class PetManager {
         if (display != null) {
             viewer.hideEntity(plugin, display);
         }
+    }
+
+    private Sound getPetAmbientSound(PetType type) {
+        return switch (type.getEntityType()) {
+            case CHICKEN -> Sound.ENTITY_CHICKEN_AMBIENT;
+            case PIG -> Sound.ENTITY_PIG_AMBIENT;
+            case BEE -> Sound.ENTITY_BEE_LOOP;
+            case DOLPHIN -> Sound.ENTITY_DOLPHIN_AMBIENT;
+            case FOX -> Sound.ENTITY_FOX_AMBIENT;
+            case GOAT -> Sound.ENTITY_GOAT_AMBIENT;
+            case RABBIT -> Sound.ENTITY_RABBIT_AMBIENT;
+            case NAUTILUS -> Sound.BLOCK_BUBBLE_COLUMN_WHIRLPOOL_INSIDE;
+            default -> Sound.ENTITY_ALLAY_AMBIENT_WITHOUT_ITEM;
+        };
+    }
+
+    private Fox.Type randomFoxType() {
+        Fox.Type[] values = Fox.Type.values();
+        return values[ThreadLocalRandom.current().nextInt(values.length)];
+    }
+
+    private String randomPigVariant() {
+        return switch (ThreadLocalRandom.current().nextInt(3)) {
+            case 0 -> "COLD";
+            case 1 -> "TEMPERATE";
+            default -> "WARM";
+        };
+    }
+
+    private String randomChickenVariant() {
+        return switch (ThreadLocalRandom.current().nextInt(3)) {
+            case 0 -> "COLD";
+            case 1 -> "TEMPERATE";
+            default -> "WARM";
+        };
+    }
+
+    private Rabbit.Type randomRabbitType() {
+        Rabbit.Type[] values = {
+                Rabbit.Type.BROWN,
+                Rabbit.Type.WHITE,
+                Rabbit.Type.BLACK,
+                Rabbit.Type.BLACK_AND_WHITE,
+                Rabbit.Type.GOLD,
+                Rabbit.Type.SALT_AND_PEPPER
+        };
+        return values[ThreadLocalRandom.current().nextInt(values.length)];
+    }
+
+    private Pig.Variant parsePigVariant(String value) {
+        if (value == null) return null;
+        return switch (value) {
+            case "COLD" -> Pig.Variant.COLD;
+            case "TEMPERATE" -> Pig.Variant.TEMPERATE;
+            case "WARM" -> Pig.Variant.WARM;
+            default -> null;
+        };
+    }
+
+    private Chicken.Variant parseChickenVariant(String value) {
+        if (value == null) return null;
+        return switch (value) {
+            case "COLD" -> Chicken.Variant.COLD;
+            case "TEMPERATE" -> Chicken.Variant.TEMPERATE;
+            case "WARM" -> Chicken.Variant.WARM;
+            default -> null;
+        };
     }
 }
