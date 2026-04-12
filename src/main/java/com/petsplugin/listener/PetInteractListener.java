@@ -1,13 +1,13 @@
 package com.petsplugin.listener;
 
 import com.petsplugin.PetsPlugin;
+import com.petsplugin.gui.PetStorageGUI;
 import com.petsplugin.model.PetInstance;
 import com.petsplugin.model.PetType;
 import io.papermc.paper.event.player.PlayerNameEntityEvent;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.GameMode;
 import org.bukkit.Material;
-import org.bukkit.Sound;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -64,7 +64,12 @@ public class PetInteractListener implements Listener {
         }
 
         plugin.getPetManager().renamePet(player, pet, nickname);
-        player.playSound(event.getEntity().getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.8f, 1.4f);
+        if (plugin.getSettingsManager().isPetSoundsEnabled(player.getUniqueId())) {
+            PetType type = plugin.getPetTypes().get(pet.getPetTypeId());
+            if (type != null) {
+                plugin.getPetManager().playPetAmbientSound(event.getEntity(), type);
+            }
+        }
     }
 
     @EventHandler
@@ -113,6 +118,13 @@ public class PetInteractListener implements Listener {
             return;
         }
 
+        // Storage pet: empty hand (not sneaking) opens the storage GUI
+        if (emptyHand && !player.isSneaking()
+                && type != null && type.getSpecialAbility() == PetType.SpecialAbility.STORAGE) {
+            openPetStorage(player, pet, type);
+            return;
+        }
+
         if (player.isSneaking() || headPat || emptyHand) {
             handlePetting(player, pet);
         }
@@ -137,15 +149,14 @@ public class PetInteractListener implements Listener {
 
     private void handleFeeding(Player player, Entity entity, PetInstance pet, ItemStack hand) {
         long now = System.currentTimeMillis();
-        long feedCd = plugin.getConfig().getInt("status.feed_cooldown_seconds", 3) * 1000L;
+        long feedCd = plugin.getFeedCooldownMillis();
         Long lastFeed = feedCooldowns.get(player.getUniqueId());
         if (lastFeed != null && now - lastFeed < feedCd) {
             long remaining = (feedCd - (now - lastFeed)) / 1000;
-            String msg = plugin.getConfig().getString("messages.feed_cooldown",
-                    "&cYou can feed again in %seconds%s.");
-            msg = msg.replace("%seconds%", String.valueOf(remaining + 1));
-            player.sendMessage(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
-                    .legacyAmpersand().deserialize(msg));
+            plugin.getPetManager().sendPetNotification(player,
+                    "messages.feed_cooldown",
+                    "&cYou can feed again in %seconds%s.",
+                    Map.of("%seconds%", String.valueOf(remaining + 1)));
             return;
         }
 
@@ -154,12 +165,11 @@ public class PetInteractListener implements Listener {
         }
         feedCooldowns.put(player.getUniqueId(), now);
         plugin.getPetManager().feedPet(player, pet);
-        player.playSound(entity.getLocation(), Sound.ENTITY_GENERIC_EAT, 1.0f, 1.2f);
     }
 
     private void handlePetting(Player player, PetInstance pet) {
         long now = System.currentTimeMillis();
-        long petCd = plugin.getConfig().getInt("status.pet_cooldown_seconds", 5) * 1000L;
+        long petCd = plugin.getPetCooldownMillis();
         Long lastPet = petCooldowns.get(player.getUniqueId());
         if (lastPet != null && now - lastPet < petCd) {
             return;
@@ -180,7 +190,12 @@ public class PetInteractListener implements Listener {
         }
 
         plugin.getPetManager().renamePet(player, pet, nickname);
-        player.playSound(entity.getLocation(), Sound.ENTITY_EXPERIENCE_ORB_PICKUP, 0.8f, 1.4f);
+        if (plugin.getSettingsManager().isPetSoundsEnabled(player.getUniqueId())) {
+            PetType type = plugin.getPetTypes().get(pet.getPetTypeId());
+            if (type != null) {
+                plugin.getPetManager().playPetAmbientSound(entity, type);
+            }
+        }
     }
 
     private String readNameTagNickname(ItemStack hand) {
@@ -219,9 +234,21 @@ public class PetInteractListener implements Listener {
         return clickedY >= entity.getHeight() * 0.6;
     }
 
+    private void openPetStorage(Player player, PetInstance pet, PetType type) {
+        Map<Integer, org.bukkit.inventory.ItemStack> contents =
+                plugin.getDatabaseManager().loadPlayerStorage(player.getUniqueId(), type.getStorageGroup());
+        new PetStorageGUI(plugin, player, type, pet.getLevel(), contents).open(player);
+    }
+
     private boolean shouldIgnoreDuplicate(Player player, Entity entity) {
         String key = player.getUniqueId() + ":" + entity.getUniqueId();
         long now = System.currentTimeMillis();
+
+        if (recentInteractions.size() > 4096) {
+            long cutoff = now - 10000L;
+            recentInteractions.entrySet().removeIf(entry -> entry.getValue() < cutoff);
+        }
+
         Long lastAt = recentInteractions.get(key);
         recentInteractions.put(key, now);
         return lastAt != null && now - lastAt < 75L;

@@ -1,6 +1,7 @@
 package com.petsplugin.gui;
 
 import com.petsplugin.PetsPlugin;
+import com.petsplugin.model.PetFollowMode;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
@@ -14,6 +15,10 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
 
 /**
  * Base GUI class — same pattern as fish-rework's BaseGUI.
@@ -63,13 +68,24 @@ public abstract class BaseGUI implements InventoryHolder {
         }
     }
 
-    protected void setCloseButton(int slot) {
-        ItemStack close = new ItemStack(Material.BARRIER);
-        ItemMeta meta = close.getItemMeta();
-        meta.displayName(Component.text("Close").color(NamedTextColor.RED)
-                .decoration(TextDecoration.ITALIC, false));
-        close.setItemMeta(meta);
-        inventory.setItem(slot, close);
+    protected ItemStack createFillerPane(Material material) {
+        ItemStack item = new ItemStack(material);
+        ItemMeta meta = item.getItemMeta();
+        meta.displayName(Component.text(" "));
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    protected void fillBottomBar() {
+        fillBottomBar(Material.BLACK_STAINED_GLASS_PANE);
+    }
+
+    protected void fillBottomBar(Material material) {
+        ItemStack pane = createFillerPane(material);
+        int startSlot = Math.max(0, inventory.getSize() - 9);
+        for (int slot = startSlot; slot < inventory.getSize(); slot++) {
+            inventory.setItem(slot, pane);
+        }
     }
 
     protected void setBackButton(int slot) {
@@ -81,22 +97,35 @@ public abstract class BaseGUI implements InventoryHolder {
         inventory.setItem(slot, back);
     }
 
-    protected void setPaginationControls(int prevSlot, int nextSlot, int page, int totalPages) {
-        if (page > 0) {
-            ItemStack prev = new ItemStack(Material.ARROW);
-            ItemMeta meta = prev.getItemMeta();
-            meta.displayName(Component.text("Previous Page").color(NamedTextColor.YELLOW)
-                    .decoration(TextDecoration.ITALIC, false));
-            prev.setItemMeta(meta);
-            inventory.setItem(prevSlot, prev);
+        protected ItemStack createFollowModeItem(UUID playerUuid, boolean includeCommandHint) {
+        PetFollowMode mode = plugin.getSettingsManager().getFollowMode(playerUuid);
+        boolean follow = mode == PetFollowMode.FOLLOW;
+
+        ItemStack item = new ItemStack(follow ? Material.LEAD : Material.BELL);
+        ItemMeta meta = item.getItemMeta();
+        String title = includeCommandHint
+            ? "Follow Mode: " + (follow ? "ON" : "OFF")
+            : (follow ? "Mode: Follow" : "Mode: Stay");
+        meta.displayName(Component.text(title)
+            .color(follow ? NamedTextColor.GREEN : NamedTextColor.GOLD)
+            .decoration(TextDecoration.ITALIC, false));
+
+        List<Component> lore = new ArrayList<>();
+        lore.add(Component.empty());
+        lore.add(Component.text("Follow keeps your active pet near you.").color(NamedTextColor.GRAY)
+            .decoration(TextDecoration.ITALIC, false));
+        lore.add(Component.text("Stay keeps your pet in place.").color(NamedTextColor.GRAY)
+            .decoration(TextDecoration.ITALIC, false));
+        if (includeCommandHint) {
+            lore.add(Component.text("Commands: /pets follow, /pets stay").color(NamedTextColor.DARK_GRAY)
+                .decoration(TextDecoration.ITALIC, false));
         }
-        if (page < totalPages - 1) {
-            ItemStack next = new ItemStack(Material.ARROW);
-            ItemMeta meta = next.getItemMeta();
-            meta.displayName(Component.text("Next Page").color(NamedTextColor.YELLOW)
-                    .decoration(TextDecoration.ITALIC, false));
-            next.setItemMeta(meta);
-            inventory.setItem(nextSlot, next);
+        lore.add(Component.empty());
+        lore.add(Component.text("Click to toggle.").color(NamedTextColor.YELLOW)
+            .decoration(TextDecoration.ITALIC, false));
+
+        meta.lore(lore);
+        item.setItemMeta(meta);
+        return item;
         }
-    }
 }

@@ -3,6 +3,7 @@ package com.petsplugin.gui;
 import com.petsplugin.PetsPlugin;
 import com.petsplugin.model.PetInstance;
 import com.petsplugin.model.PetType;
+import com.petsplugin.model.Rarity;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
@@ -13,7 +14,9 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Confirmation GUI for pet deletion.
@@ -25,23 +28,26 @@ public class DeleteConfirmGUI extends BaseGUI {
     private final PetInstance pet;
     private final int returnPage;
     private final PetCollectionGUI.FilterMode returnFilterMode;
-
-    public DeleteConfirmGUI(PetsPlugin plugin, Player player, PetInstance pet, int returnPage) {
-        this(plugin, player, pet, returnPage, PetCollectionGUI.FilterMode.ALL);
-    }
+    private final Set<Rarity> returnRarityFilters;
 
     public DeleteConfirmGUI(PetsPlugin plugin, Player player, PetInstance pet, int returnPage,
-                            PetCollectionGUI.FilterMode returnFilterMode) {
+                            PetCollectionGUI.FilterMode returnFilterMode,
+                            Set<Rarity> returnRarityFilters) {
         super(plugin, 3, "Delete Pet?");
         this.player = player;
         this.pet = pet;
         this.returnPage = returnPage;
         this.returnFilterMode = returnFilterMode == null ? PetCollectionGUI.FilterMode.ALL : returnFilterMode;
+        this.returnRarityFilters = EnumSet.noneOf(Rarity.class);
+        if (returnRarityFilters != null) {
+            this.returnRarityFilters.addAll(returnRarityFilters);
+        }
         initializeItems();
     }
 
     private void initializeItems() {
         fillBackground(Material.RED_STAINED_GLASS_PANE);
+        fillBottomBar();
 
         PetType type = plugin.getPetTypes().get(pet.getPetTypeId());
         if (type == null) return;
@@ -110,10 +116,10 @@ public class DeleteConfirmGUI extends BaseGUI {
                     .append(Component.text(" permanently.").color(NamedTextColor.RED)));
             player.playSound(player.getLocation(), Sound.ENTITY_ITEM_BREAK, 1f, 0.8f);
 
-            new PetCollectionGUI(plugin, player, returnPage, returnFilterMode).open(player);
+            new PetCollectionGUI(plugin, player, returnPage, returnFilterMode, returnRarityFilters).open(player);
         } else if (slot == 15) {
             // Cancel — go back
-            new PetCollectionGUI(plugin, player, returnPage, returnFilterMode).open(player);
+            new PetCollectionGUI(plugin, player, returnPage, returnFilterMode, returnRarityFilters).open(player);
             player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1f);
         }
     }

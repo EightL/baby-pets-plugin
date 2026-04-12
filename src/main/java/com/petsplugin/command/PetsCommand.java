@@ -20,6 +20,8 @@ import org.bukkit.inventory.ItemStack;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
 
 public class PetsCommand implements CommandExecutor, TabExecutor {
 
@@ -51,6 +53,7 @@ public class PetsCommand implements CommandExecutor, TabExecutor {
         return switch (sub) {
             case "help" -> handleHelp(player);
             case "give" -> handleGive(player, args);
+            case "givepet", "addpet" -> handleGivePet(player, args);
             case "hatch" -> handleHatch(player);
             case "settings" -> handleSettings(player);
             case "select" -> handleSelect(player, args);
@@ -58,6 +61,8 @@ public class PetsCommand implements CommandExecutor, TabExecutor {
             case "follow" -> handleFollowMode(player, PetFollowMode.FOLLOW);
             case "stay" -> handleFollowMode(player, PetFollowMode.STAY);
             case "hideothers", "hideotherpets" -> handleHideOthers(player, args);
+            case "sounds", "petsounds", "mutesounds" -> handlePetSounds(player, args);
+            case "notifications", "notifs", "notif" -> handlePetNotifications(player, args);
             case "info" -> handleInfo(player);
             case "setlevel" -> handleSetLevel(player, args);
             case "reload" -> handleReload(player);
@@ -84,21 +89,27 @@ public class PetsCommand implements CommandExecutor, TabExecutor {
                 .append(Component.text(" - Tell your active pet to stay").color(NamedTextColor.GRAY)));
         player.sendMessage(Component.text("/pets hideothers [on|off|toggle]").color(NamedTextColor.YELLOW)
                 .append(Component.text(" - Hide other players' pets").color(NamedTextColor.GRAY)));
+        player.sendMessage(Component.text("/pets sounds [on|off|toggle]").color(NamedTextColor.YELLOW)
+            .append(Component.text(" - Toggle your pet sounds").color(NamedTextColor.GRAY)));
+        player.sendMessage(Component.text("/pets notifications [on|off|toggle]").color(NamedTextColor.YELLOW)
+            .append(Component.text(" - Toggle pet chat notifications").color(NamedTextColor.GRAY)));
         player.sendMessage(Component.text("/pets select <id>").color(NamedTextColor.YELLOW)
                 .append(Component.text(" - Select a pet by DB ID").color(NamedTextColor.GRAY)));
         player.sendMessage(Component.text("/pets deselect").color(NamedTextColor.YELLOW)
                 .append(Component.text(" - Deselect current pet").color(NamedTextColor.GRAY)));
-        player.sendMessage(Component.text("/pets hatch").color(NamedTextColor.YELLOW)
-                .append(Component.text(" - Instantly hatch incubating eggs").color(NamedTextColor.GRAY)));
 
         if (player.hasPermission("pets.admin")) {
             player.sendMessage(Component.text("─── Admin ───").color(NamedTextColor.RED));
             player.sendMessage(Component.text("/pets give <player> <rarity>").color(NamedTextColor.YELLOW)
                     .append(Component.text(" - Give an egg").color(NamedTextColor.GRAY)));
+                player.sendMessage(Component.text("/pets givepet <pet_type>").color(NamedTextColor.YELLOW)
+                    .append(Component.text(" - Add a pet directly to your collection").color(NamedTextColor.GRAY)));
             player.sendMessage(Component.text("/pets setlevel <level>").color(NamedTextColor.YELLOW)
                     .append(Component.text(" - Set selected pet's level").color(NamedTextColor.GRAY)));
             player.sendMessage(Component.text("/pets incubator").color(NamedTextColor.YELLOW)
                     .append(Component.text(" - Get an incubator item").color(NamedTextColor.GRAY)));
+                player.sendMessage(Component.text("/pets hatch").color(NamedTextColor.YELLOW)
+                    .append(Component.text(" - Instantly hatch your incubating eggs").color(NamedTextColor.GRAY)));
             player.sendMessage(Component.text("/pets reload").color(NamedTextColor.YELLOW)
                     .append(Component.text(" - Reload config").color(NamedTextColor.GRAY)));
         }
@@ -111,8 +122,7 @@ public class PetsCommand implements CommandExecutor, TabExecutor {
     }
 
     private boolean handleGive(Player player, String[] args) {
-        if (!player.hasPermission("pets.admin")) {
-            player.sendMessage(Component.text("No permission.").color(NamedTextColor.RED));
+        if (!requireAdmin(player)) {
             return true;
         }
 
@@ -143,7 +153,41 @@ public class PetsCommand implements CommandExecutor, TabExecutor {
         return true;
     }
 
+    private boolean handleGivePet(Player player, String[] args) {
+        if (!requireAdmin(player)) {
+            return true;
+        }
+
+        if (args.length < 2) {
+            player.sendMessage(Component.text("Usage: /pets givepet <pet_type>").color(NamedTextColor.RED));
+            return true;
+        }
+
+        String petTypeId = args[1].toLowerCase();
+        PetType type = plugin.getPetTypes().get(petTypeId);
+        if (type == null) {
+            player.sendMessage(Component.text("Unknown pet type: " + args[1]).color(NamedTextColor.RED));
+            player.sendMessage(Component.text("Available: " + String.join(", ", plugin.getPetTypes().keySet()))
+                    .color(NamedTextColor.GRAY));
+            return true;
+        }
+
+        PetInstance pet = PetInstance.createNew(player.getUniqueId(), type.getId());
+        plugin.getPetManager().ensurePersistentAppearance(pet, type);
+        plugin.getDatabaseManager().insertPet(pet);
+        plugin.getPetManager().refreshCache(player.getUniqueId());
+
+        player.sendMessage(Component.text("Added ").color(NamedTextColor.GREEN)
+                .append(Component.text(type.getDisplayName()).color(type.getRarity().getColor()))
+                .append(Component.text(" to your collection.").color(NamedTextColor.GREEN)));
+        return true;
+    }
+
     private boolean handleHatch(Player player) {
+        if (!requireAdmin(player)) {
+            return true;
+        }
+
         int hatched = plugin.getIncubatorManager().instantHatch(player.getUniqueId());
         if (hatched > 0) {
             player.sendMessage(Component.text("Instantly hatched " + hatched + " egg(s)!")
@@ -190,23 +234,30 @@ public class PetsCommand implements CommandExecutor, TabExecutor {
     }
 
     private boolean handleHideOthers(Player player, String[] args) {
-        boolean enabled;
-        if (args.length >= 2) {
-            String value = args[1].toLowerCase();
-            if (!value.equals("on") && !value.equals("off") && !value.equals("toggle")) {
-                player.sendMessage(Component.text("Usage: /pets hideothers [on|off|toggle]")
-                        .color(NamedTextColor.RED));
-                return true;
-            }
+        return toggleBooleanSetting(
+                player,
+                args,
+                "hideothers",
+                () -> plugin.getSettingsManager().isHideOtherPetsEnabled(player.getUniqueId()),
+                enabled -> plugin.getPetManager().setHideOtherPets(player, enabled));
+    }
 
-            boolean current = plugin.getSettingsManager().isHideOtherPetsEnabled(player.getUniqueId());
-            enabled = value.equals("toggle") ? !current : value.equals("on");
-        } else {
-            enabled = !plugin.getSettingsManager().isHideOtherPetsEnabled(player.getUniqueId());
-        }
+    private boolean handlePetSounds(Player player, String[] args) {
+        return toggleBooleanSetting(
+                player,
+                args,
+                "sounds",
+                () -> plugin.getSettingsManager().isPetSoundsEnabled(player.getUniqueId()),
+                enabled -> plugin.getPetManager().setPetSoundsEnabled(player, enabled));
+    }
 
-        plugin.getPetManager().setHideOtherPets(player, enabled);
-        return true;
+    private boolean handlePetNotifications(Player player, String[] args) {
+        return toggleBooleanSetting(
+                player,
+                args,
+                "notifications",
+                () -> plugin.getSettingsManager().isPetNotificationsEnabled(player.getUniqueId()),
+                enabled -> plugin.getPetManager().setPetNotificationsEnabled(player, enabled));
     }
 
     private boolean handleInfo(Player player) {
@@ -225,7 +276,7 @@ public class PetsCommand implements CommandExecutor, TabExecutor {
             return true;
         }
 
-        int maxLevel = plugin.getConfig().getInt("leveling.max_level", 10);
+        int maxLevel = plugin.getMaxLevel();
 
         player.sendMessage(Component.text("─── " + pet.getDisplayName(type) + " ───")
                 .color(type.getRarity().getColor()));
@@ -245,17 +296,26 @@ public class PetsCommand implements CommandExecutor, TabExecutor {
 
         player.sendMessage(Component.text("  Status: ").color(NamedTextColor.GRAY)
                 .append(Component.text(pet.getStatus().getDisplay()).color(NamedTextColor.YELLOW)));
-        player.sendMessage(Component.text("  " + type.getAttributeDisplay() + ": ").color(NamedTextColor.GRAY)
-                .append(Component.text("+" + type.formatAttributeBonus(pet.getLevel()))
-                        .color(NamedTextColor.GREEN))
-                .append(Component.text(" (+" + type.formatAttributePerLevel() + "/level)")
-                        .color(NamedTextColor.DARK_GRAY)));
+        if (plugin.getPetManager().arePetAbilitiesEnabled()) {
+            if (type.getSpecialAbility() == PetType.SpecialAbility.STORAGE) {
+                int activeSlots = type.computeActiveStorageSlots(pet.getLevel(), maxLevel);
+                player.sendMessage(Component.text("  Bonus: ").color(NamedTextColor.GRAY)
+                        .append(Component.text("+" + activeSlots + " storage space")
+                                .color(NamedTextColor.GREEN)));
+            } else {
+                String sign = type.isNegativeAttribute() ? "" : "+";
+                player.sendMessage(Component.text("  " + type.getAttributeDisplay() + ": ").color(NamedTextColor.GRAY)
+                        .append(Component.text(sign + type.formatAttributeBonus(pet.getLevel()))
+                                .color(NamedTextColor.GREEN))
+                        .append(Component.text(" (" + sign + type.formatAttributePerLevel() + "/level)")
+                                .color(NamedTextColor.DARK_GRAY)));
+            }
+        }
         return true;
     }
 
     private boolean handleSetLevel(Player player, String[] args) {
-        if (!player.hasPermission("pets.admin")) {
-            player.sendMessage(Component.text("No permission.").color(NamedTextColor.RED));
+        if (!requireAdmin(player)) {
             return true;
         }
 
@@ -286,8 +346,7 @@ public class PetsCommand implements CommandExecutor, TabExecutor {
     }
 
     private boolean handleReload(Player player) {
-        if (!player.hasPermission("pets.admin")) {
-            player.sendMessage(Component.text("No permission.").color(NamedTextColor.RED));
+        if (!requireAdmin(player)) {
             return true;
         }
         plugin.reload();
@@ -296,8 +355,7 @@ public class PetsCommand implements CommandExecutor, TabExecutor {
     }
 
     private boolean handleIncubator(Player player) {
-        if (!player.hasPermission("pets.admin")) {
-            player.sendMessage(Component.text("No permission.").color(NamedTextColor.RED));
+        if (!requireAdmin(player)) {
             return true;
         }
         player.getInventory().addItem(plugin.getIncubatorManager().createIncubatorItem());
@@ -310,9 +368,9 @@ public class PetsCommand implements CommandExecutor, TabExecutor {
         if (args.length == 1) {
             List<String> completions = new ArrayList<>(
                     List.of("help", "info", "settings", "follow", "stay", "hideothers",
-                            "select", "deselect", "hatch"));
+                        "sounds", "notifications", "select", "deselect"));
             if (sender.hasPermission("pets.admin")) {
-                completions.addAll(List.of("give", "setlevel", "reload", "incubator"));
+                completions.addAll(List.of("give", "givepet", "setlevel", "reload", "incubator", "hatch"));
             }
             return filterCompletions(completions, args[0]);
         }
@@ -331,7 +389,10 @@ public class PetsCommand implements CommandExecutor, TabExecutor {
             if (args[0].equalsIgnoreCase("setlevel")) {
                 return List.of("1", "5", "10");
             }
-            if (args[0].equalsIgnoreCase("hideothers") || args[0].equalsIgnoreCase("hideotherpets")) {
+            if (args[0].equalsIgnoreCase("givepet") || args[0].equalsIgnoreCase("addpet")) {
+                return filterCompletions(new ArrayList<>(plugin.getPetTypes().keySet()), args[1]);
+            }
+            if (isToggleSubcommand(args[0])) {
                 return filterCompletions(List.of("on", "off", "toggle"), args[1]);
             }
         }
@@ -355,5 +416,46 @@ public class PetsCommand implements CommandExecutor, TabExecutor {
             }
         }
         return filtered;
+    }
+
+    private boolean requireAdmin(Player player) {
+        if (player.hasPermission("pets.admin")) {
+            return true;
+        }
+        player.sendMessage(Component.text("No permission.").color(NamedTextColor.RED));
+        return false;
+    }
+
+    private boolean toggleBooleanSetting(Player player, String[] args, String usageKey,
+                                         BooleanSupplier getter,
+                                         Consumer<Boolean> setter) {
+        boolean enabled;
+        if (args.length >= 2) {
+            String value = args[1].toLowerCase();
+            if (!value.equals("on") && !value.equals("off") && !value.equals("toggle")) {
+                player.sendMessage(Component.text("Usage: /pets " + usageKey + " [on|off|toggle]")
+                        .color(NamedTextColor.RED));
+                return true;
+            }
+
+            boolean current = getter.getAsBoolean();
+            enabled = value.equals("toggle") ? !current : value.equals("on");
+        } else {
+            enabled = !getter.getAsBoolean();
+        }
+
+        setter.accept(enabled);
+        return true;
+    }
+
+    private boolean isToggleSubcommand(String commandName) {
+        return commandName.equalsIgnoreCase("hideothers")
+                || commandName.equalsIgnoreCase("hideotherpets")
+                || commandName.equalsIgnoreCase("sounds")
+                || commandName.equalsIgnoreCase("petsounds")
+                || commandName.equalsIgnoreCase("mutesounds")
+                || commandName.equalsIgnoreCase("notifications")
+                || commandName.equalsIgnoreCase("notifs")
+                || commandName.equalsIgnoreCase("notif");
     }
 }

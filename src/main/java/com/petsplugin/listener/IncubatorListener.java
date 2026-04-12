@@ -1,6 +1,7 @@
 package com.petsplugin.listener;
 
 import com.petsplugin.PetsPlugin;
+import com.petsplugin.gui.PetCollectionGUI;
 import com.petsplugin.model.Rarity;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -33,7 +34,7 @@ public class IncubatorListener implements Listener {
     /**
      * When placing a Pet Incubator item, create furniture.
      */
-    @EventHandler(priority = EventPriority.HIGHEST)
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onPlace(BlockPlaceEvent event) {
         ItemStack hand = event.getItemInHand();
         if (!plugin.getIncubatorManager().isIncubatorItem(hand)) return;
@@ -41,6 +42,10 @@ public class IncubatorListener implements Listener {
         // Let the smoker place, then replace it with an iron trapdoor anchor like other furniture systems.
         Block block = event.getBlock();
         org.bukkit.Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            if (block.getType() != Material.SMOKER && block.getType() != Material.IRON_TRAPDOOR) {
+                return;
+            }
+
             if (block.getType() == Material.SMOKER) {
                 block.setType(Material.IRON_TRAPDOOR, false);
                 if (block.getBlockData() instanceof TrapDoor trapDoor) {
@@ -49,26 +54,12 @@ public class IncubatorListener implements Listener {
                     block.setBlockData(trapDoor, false);
                 }
             }
-            plugin.getIncubatorManager().createIncubatorFurniture(
-                    block.getLocation(), event.getPlayer().getLocation().getYaw());
+
+            if (block.getType() == Material.IRON_TRAPDOOR) {
+                plugin.getIncubatorManager().createIncubatorFurniture(
+                        block.getLocation(), event.getPlayer().getLocation().getYaw());
+            }
         }, 1L);
-    }
-
-    /**
-     * Legacy compatibility for incubators placed when barrier was used as anchor.
-     */
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
-    public void onLegacyBarrierLeftClick(PlayerInteractEvent event) {
-        if (event.getAction() != Action.LEFT_CLICK_BLOCK) return;
-        if (event.getHand() != EquipmentSlot.HAND) return;
-
-        Block block = event.getClickedBlock();
-        if (block == null || block.getType() != Material.BARRIER) return;
-        if (!plugin.getIncubatorManager().isIncubatorBlock(block)) return;
-
-        event.setCancelled(true);
-        BlockBreakEvent breakEvent = new BlockBreakEvent(block, event.getPlayer());
-        org.bukkit.Bukkit.getPluginManager().callEvent(breakEvent);
     }
 
     /**
@@ -79,6 +70,29 @@ public class IncubatorListener implements Listener {
         if (plugin.getEggManager().isEgg(event.getItemInHand())) {
             event.setCancelled(true);
         }
+    }
+
+    /**
+     * Right-clicking a pet egg opens the pet collection GUI, except on incubators.
+     */
+    @EventHandler(ignoreCancelled = true)
+    public void onEggRightClick(PlayerInteractEvent event) {
+        if (event.getHand() != EquipmentSlot.HAND) return;
+
+        Action action = event.getAction();
+        if (action != Action.RIGHT_CLICK_AIR && action != Action.RIGHT_CLICK_BLOCK) return;
+
+        Player player = event.getPlayer();
+        ItemStack hand = player.getInventory().getItemInMainHand();
+        if (!plugin.getEggManager().isEgg(hand)) return;
+
+        Block clicked = event.getClickedBlock();
+        if (clicked != null && plugin.getIncubatorManager().isIncubatorBlock(clicked)) {
+            return;
+        }
+
+        event.setCancelled(true);
+        new PetCollectionGUI(plugin, player).open(player);
     }
 
     /**
@@ -108,10 +122,11 @@ public class IncubatorListener implements Listener {
 
             if (plugin.getIncubatorManager().hasActiveIncubation(block)) {
                 // Already has an egg
-                String msg = plugin.getConfig().getString("messages.incubator_busy",
-                        "&cThis incubator already has an egg!");
-                player.sendMessage(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
-                        .legacyAmpersand().deserialize(msg));
+                plugin.getPetManager().sendPetNotification(player,
+                    "messages.incubator_busy",
+                    "&cThis incubator already has an egg!",
+                    null,
+                    false);
                 return;
             }
 
@@ -121,12 +136,12 @@ public class IncubatorListener implements Listener {
                 hand.setAmount(hand.getAmount() - 1);
                 plugin.getAdvancementManager().handleEggPlaced(player);
 
-                int minutes = plugin.getConfig().getInt("incubation.duration_minutes", 20);
-                String msg = plugin.getConfig().getString("messages.egg_placed",
-                        "&7Egg placed in incubator. Hatching in &e%time%&7...");
-                msg = msg.replace("%time%", minutes + " minutes");
-                player.sendMessage(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
-                        .legacyAmpersand().deserialize(msg));
+                int minutes = plugin.getIncubationDurationMinutes();
+                plugin.getPetManager().sendPetNotification(player,
+                    "messages.egg_placed",
+                    "&7Egg placed in incubator. Hatching in &e%time%&7...",
+                    java.util.Map.of("%time%", minutes + " minutes"),
+                    false);
 
                 // Sound
                 player.playSound(block.getLocation(), org.bukkit.Sound.BLOCK_FIRE_EXTINGUISH, 0.5f, 1.5f);

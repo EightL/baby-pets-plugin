@@ -115,7 +115,7 @@ public class PetAdvancementManager {
             if (pet.getLevel() >= 5) {
                 hasLevel5 = true;
             }
-            if (pet.getLevel() >= plugin.getConfig().getInt("leveling.max_level", 10)) {
+            if (pet.getLevel() >= plugin.getMaxLevel()) {
                 hasLevel10 = true;
             }
 
@@ -188,7 +188,7 @@ public class PetAdvancementManager {
         if (pet.getLevel() >= 5) {
             grantAdvancement(player, GROWING_TOGETHER_KEY);
         }
-        if (pet.getLevel() >= plugin.getConfig().getInt("leveling.max_level", 10)) {
+        if (pet.getLevel() >= plugin.getMaxLevel()) {
             grantAdvancement(player, BEST_FRIENDS_FOREVER_KEY);
         }
         checkCompletionist(player);

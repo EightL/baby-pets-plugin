@@ -2,7 +2,6 @@ package com.petsplugin;
 
 import com.petsplugin.command.PetsCommand;
 import com.petsplugin.gui.GuiListener;
-import com.petsplugin.integration.FishReworkHook;
 import com.petsplugin.listener.*;
 import com.petsplugin.manager.EggManager;
 import com.petsplugin.manager.IncubatorManager;
@@ -33,32 +32,40 @@ public class PetsPlugin extends JavaPlugin {
     private PetManager petManager;
     private PetSettingsManager settingsManager;
     private PetAdvancementManager advancementManager;
-    private FishReworkHook fishReworkHook;
 
     private Map<String, PetType> petTypes = new LinkedHashMap<>();
+
+    private int maxLevel;
+    private double followDistance;
+    private double teleportDistance;
+    private int incubationDurationMinutes;
+    private long feedCooldownMillis;
+    private long petCooldownMillis;
 
     @Override
     public void onEnable() {
         // Save default configs
         saveDefaultConfig();
         saveResource("pets.yml", false);
+        loadRuntimeConfigCache();
 
         // Load pet type definitions
         loadPetTypes();
 
         // Initialize managers
         databaseManager = new PetDatabaseManager(this);
-        databaseManager.initialize();
+        if (!databaseManager.initialize()) {
+            getLogger().severe("BabyPets failed to start because the database could not be initialized.");
+            getServer().getPluginManager().disablePlugin(this);
+            return;
+        }
 
         eggManager = new EggManager(this);
         incubatorManager = new IncubatorManager(this);
         settingsManager = new PetSettingsManager(this);
         petManager = new PetManager(this);
         advancementManager = new PetAdvancementManager(this);
-
-        // Initialize integration
-        fishReworkHook = new FishReworkHook(this);
-        fishReworkHook.initialize();
+        petManager.reloadConfigCache();
 
         // Start managers
         incubatorManager.initialize();
@@ -96,11 +103,25 @@ public class PetsPlugin extends JavaPlugin {
      */
     public void reload() {
         reloadConfig();
+        loadRuntimeConfigCache();
         loadPetTypes();
+        if (petManager != null) {
+            petManager.reloadConfigCache();
+            petManager.refreshAbilityStateForOnlinePlayers();
+        }
         if (advancementManager != null) {
             advancementManager.loadAdvancements();
         }
         getLogger().info("Configuration reloaded. " + petTypes.size() + " pet types loaded.");
+    }
+
+    private void loadRuntimeConfigCache() {
+        maxLevel = getConfig().getInt("leveling.max_level", 10);
+        followDistance = getConfig().getDouble("pets.follow_distance", 3.0);
+        teleportDistance = getConfig().getDouble("pets.teleport_distance", 20.0);
+        incubationDurationMinutes = getConfig().getInt("incubation.duration_minutes", 20);
+        feedCooldownMillis = getConfig().getLong("status.feed_cooldown_seconds", 3L) * 1000L;
+        petCooldownMillis = getConfig().getLong("status.pet_cooldown_seconds", 5L) * 1000L;
     }
 
     /**
@@ -143,6 +164,11 @@ public class PetsPlugin extends JavaPlugin {
     public PetManager getPetManager() { return petManager; }
     public PetSettingsManager getSettingsManager() { return settingsManager; }
     public PetAdvancementManager getAdvancementManager() { return advancementManager; }
-    public FishReworkHook getFishReworkHook() { return fishReworkHook; }
     public Map<String, PetType> getPetTypes() { return petTypes; }
+    public int getMaxLevel() { return maxLevel; }
+    public double getFollowDistance() { return followDistance; }
+    public double getTeleportDistance() { return teleportDistance; }
+    public int getIncubationDurationMinutes() { return incubationDurationMinutes; }
+    public long getFeedCooldownMillis() { return feedCooldownMillis; }
+    public long getPetCooldownMillis() { return petCooldownMillis; }
 }

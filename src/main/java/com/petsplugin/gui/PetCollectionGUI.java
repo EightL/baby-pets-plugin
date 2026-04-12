@@ -4,6 +4,7 @@ import com.petsplugin.PetsPlugin;
 import com.petsplugin.model.PetFollowMode;
 import com.petsplugin.model.PetInstance;
 import com.petsplugin.model.PetMovementType;
+import com.petsplugin.model.Rarity;
 import com.petsplugin.model.PetType;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
@@ -18,9 +19,14 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
 import java.util.ArrayList;
+import java.util.EnumMap;
+import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Main pet collection GUI opened with /pets.
@@ -65,6 +71,7 @@ public class PetCollectionGUI extends BaseGUI {
 
     private final Player player;
     private final FilterMode filterMode;
+    private final Set<Rarity> activeRarityFilters;
     private int page;
 
     /** Content slots: 3 rows × 7 columns. */
@@ -72,6 +79,14 @@ public class PetCollectionGUI extends BaseGUI {
             10, 11, 12, 13, 14, 15, 16,
             19, 20, 21, 22, 23, 24, 25,
             28, 29, 30, 31, 32, 33, 34
+    };
+    private static final int[] RARITY_FILTER_SLOTS = {2, 3, 4, 5, 6};
+    private static final Rarity[] RARITY_FILTER_ORDER = {
+            Rarity.COMMON,
+            Rarity.UNCOMMON,
+            Rarity.RARE,
+            Rarity.EPIC,
+            Rarity.LEGENDARY
     };
     private static final int PETS_PER_PAGE = PET_SLOTS.length;
     private static final int[] EMPTY_RECIPE_PATTERN_SLOTS = {
@@ -84,18 +99,19 @@ public class PetCollectionGUI extends BaseGUI {
     private List<PetInstance> visiblePets;
 
     public PetCollectionGUI(PetsPlugin plugin, Player player) {
-        this(plugin, player, 0, FilterMode.ALL);
+        this(plugin, player, 0, FilterMode.ALL, EnumSet.noneOf(Rarity.class));
     }
 
-    public PetCollectionGUI(PetsPlugin plugin, Player player, int page) {
-        this(plugin, player, page, FilterMode.ALL);
-    }
-
-    public PetCollectionGUI(PetsPlugin plugin, Player player, int page, FilterMode filterMode) {
+    public PetCollectionGUI(PetsPlugin plugin, Player player, int page, FilterMode filterMode,
+                            Set<Rarity> activeRarityFilters) {
         super(plugin, 6, "Pet Collection");
         this.player = player;
         this.page = page;
         this.filterMode = filterMode == null ? FilterMode.ALL : filterMode;
+        this.activeRarityFilters = EnumSet.noneOf(Rarity.class);
+        if (activeRarityFilters != null) {
+            this.activeRarityFilters.addAll(activeRarityFilters);
+        }
         initializeItems();
     }
 
@@ -106,11 +122,12 @@ public class PetCollectionGUI extends BaseGUI {
 
         fillRow(0, Material.GRAY_STAINED_GLASS_PANE);
         fillRow(4, Material.PINK_STAINED_GLASS_PANE);
-        fillRow(5, Material.BLACK_STAINED_GLASS_PANE);
+        fillBottomBar();
         fillContentSides();
 
         playerPets = plugin.getPetManager().getPlayerPets(player.getUniqueId());
         visiblePets = buildVisiblePets(playerPets);
+        renderRaritySummary();
 
         int totalPages = Math.max(1, (int) Math.ceil((double) visiblePets.size() / PETS_PER_PAGE));
         if (page >= totalPages) page = totalPages - 1;
@@ -124,6 +141,7 @@ public class PetCollectionGUI extends BaseGUI {
 
         int startIndex = page * PETS_PER_PAGE;
         int endIndex = Math.min(startIndex + PETS_PER_PAGE, visiblePets.size());
+        boolean abilitiesEnabled = plugin.getPetManager().arePetAbilitiesEnabled();
 
         for (int i = startIndex; i < endIndex; i++) {
             int slotIdx = i - startIndex;
@@ -157,7 +175,7 @@ public class PetCollectionGUI extends BaseGUI {
                     .decoration(TextDecoration.ITALIC, false)
                     .append(Component.text(type.getRarity().name()).color(type.getRarity().getColor())));
 
-            int maxLevel = plugin.getConfig().getInt("leveling.max_level", 10);
+            int maxLevel = plugin.getMaxLevel();
             lore.add(Component.text("Level: ").color(NamedTextColor.GRAY)
                     .decoration(TextDecoration.ITALIC, false)
                     .append(Component.text(pet.getLevel() + "/" + maxLevel).color(NamedTextColor.YELLOW)));
@@ -184,16 +202,22 @@ public class PetCollectionGUI extends BaseGUI {
             }
 
             lore.add(Component.empty());
-            lore.add(Component.text("Bonus: ").color(NamedTextColor.GOLD)
-                    .decoration(TextDecoration.ITALIC, false));
-            lore.add(Component.text(" " + type.getAttributeDisplay() + ": ").color(NamedTextColor.GRAY)
-                    .decoration(TextDecoration.ITALIC, false)
-                    .append(Component.text("+" + type.formatAttributeBonus(pet.getLevel()))
+            if (abilitiesEnabled) {
+                lore.add(Component.text("Bonus: ").color(NamedTextColor.GOLD)
+                        .decoration(TextDecoration.ITALIC, false));
+                if (type.getSpecialAbility() == PetType.SpecialAbility.STORAGE) {
+                    int activeSlots = type.computeActiveStorageSlots(pet.getLevel(), maxLevel);
+                    lore.add(Component.text(" +" + activeSlots + " storage space")
+                        .color(NamedTextColor.GREEN)
+                        .decoration(TextDecoration.ITALIC, false));
+                } else {
+                    String sign = type.isNegativeAttribute() ? "" : "+";
+                    lore.add(Component.text(" " + type.getAttributeDisplay() + ": ").color(NamedTextColor.GRAY)
+                        .decoration(TextDecoration.ITALIC, false)
+                        .append(Component.text(sign + type.formatAttributeBonus(pet.getLevel()))
                             .color(NamedTextColor.GREEN)));
-            lore.add(Component.text(" Growth: ").color(NamedTextColor.DARK_GRAY)
-                    .decoration(TextDecoration.ITALIC, false)
-                    .append(Component.text("+" + type.formatAttributePerLevel() + "/level")
-                            .color(NamedTextColor.GRAY)));
+                }
+            }
             lore.add(Component.text(" Status: ").color(NamedTextColor.GRAY)
                     .decoration(TextDecoration.ITALIC, false)
                     .append(Component.text(pet.getStatus().getDisplay()).color(NamedTextColor.YELLOW)));
@@ -222,7 +246,8 @@ public class PetCollectionGUI extends BaseGUI {
             inventory.setItem(PET_SLOTS[slotIdx], item);
         }
 
-        inventory.setItem(40, createFollowModeItem());
+        inventory.setItem(40, createFollowModeItem(player.getUniqueId(), false));
+        inventory.setItem(43, createFillerPane(Material.PINK_STAINED_GLASS_PANE));
         inventory.setItem(45, createPageArrow(page > 0, false));
         inventory.setItem(47, createSettingsButton());
         inventory.setItem(49, createPageInfo(page, totalPages));
@@ -235,30 +260,48 @@ public class PetCollectionGUI extends BaseGUI {
         event.setCancelled(true);
         int slot = event.getSlot();
 
+        Rarity rarityFilter = rarityFromSlot(slot);
+        if (rarityFilter != null) {
+            Set<Rarity> nextRarityFilters = copyRarityFilters();
+            if (event.isRightClick()) {
+                nextRarityFilters.clear();
+            } else if (!nextRarityFilters.remove(rarityFilter)) {
+                nextRarityFilters.add(rarityFilter);
+            }
+
+            new PetCollectionGUI(plugin, player, 0, filterMode, nextRarityFilters).open(player);
+            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1f);
+            return;
+        }
+
         if (slot == 40) {
             PetFollowMode current = plugin.getSettingsManager().getFollowMode(player.getUniqueId());
             PetFollowMode next = current == PetFollowMode.FOLLOW ? PetFollowMode.STAY : PetFollowMode.FOLLOW;
             plugin.getPetManager().setFollowMode(player, next);
-            new PetCollectionGUI(plugin, player, page, filterMode).open(player);
+            new PetCollectionGUI(plugin, player, page, filterMode, copyRarityFilters()).open(player);
             player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1f);
+            return;
+        }
+
+        if (slot == 43) {
             return;
         }
 
         if (slot == 45) {
             if (page > 0) {
-                new PetCollectionGUI(plugin, player, page - 1, filterMode).open(player);
+                new PetCollectionGUI(plugin, player, page - 1, filterMode, copyRarityFilters()).open(player);
             }
             return;
         }
 
         if (slot == 47) {
-            new PetSettingsGUI(plugin, player, page, filterMode).open(player);
+            new PetSettingsGUI(plugin, player, page, filterMode, copyRarityFilters()).open(player);
             player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1f);
             return;
         }
 
         if (slot == 51) {
-            new PetCollectionGUI(plugin, player, 0, filterMode.next()).open(player);
+            new PetCollectionGUI(plugin, player, 0, filterMode.next(), copyRarityFilters()).open(player);
             player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1f);
             return;
         }
@@ -266,7 +309,7 @@ public class PetCollectionGUI extends BaseGUI {
         if (slot == 53) {
             int totalPages = Math.max(1, (int) Math.ceil((double) visiblePets.size() / PETS_PER_PAGE));
             if (page < totalPages - 1) {
-                new PetCollectionGUI(plugin, player, page + 1, filterMode).open(player);
+                new PetCollectionGUI(plugin, player, page + 1, filterMode, copyRarityFilters()).open(player);
             }
             return;
         }
@@ -279,35 +322,33 @@ public class PetCollectionGUI extends BaseGUI {
 
             PetInstance pet = visiblePets.get(petIndex);
             if (event.isLeftClick()) {
+                PetType type = plugin.getPetTypes().get(pet.getPetTypeId());
+                String displayName = type != null ? pet.getDisplayName(type) : pet.getPetTypeId();
                 if (pet.isSelected()) {
                     plugin.getPetManager().deselectPet(player.getUniqueId());
-                    String msg = plugin.getConfig().getString("messages.pet_deselected",
-                            "&7You deselected &e%pet_name%&7.");
-                    PetType type = plugin.getPetTypes().get(pet.getPetTypeId());
-                    msg = msg.replace("%pet_name%", pet.getDisplayName(type));
-                    player.sendMessage(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
-                            .legacyAmpersand().deserialize(msg));
+                    plugin.getPetManager().sendPetNotification(player,
+                        "messages.pet_deselected",
+                        "&7You deselected &e%pet_name%&7.",
+                        Map.of("%pet_name%", displayName));
                 } else {
                     plugin.getPetManager().selectPet(player.getUniqueId(), pet);
-                    String msg = plugin.getConfig().getString("messages.pet_selected",
-                            "&aYou selected &e%pet_name%&a!");
-                    PetType type = plugin.getPetTypes().get(pet.getPetTypeId());
-                    msg = msg.replace("%pet_name%", pet.getDisplayName(type));
-                    player.sendMessage(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
-                            .legacyAmpersand().deserialize(msg));
+                    plugin.getPetManager().sendPetNotification(player,
+                        "messages.pet_selected",
+                        "&aYou selected &e%pet_name%&a!",
+                        Map.of("%pet_name%", displayName));
                 }
                 player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1f);
                 plugin.getPetManager().refreshCache(player.getUniqueId());
-                new PetCollectionGUI(plugin, player, page, filterMode).open(player);
+                new PetCollectionGUI(plugin, player, page, filterMode, copyRarityFilters()).open(player);
             } else if (event.isRightClick()) {
-                new PetDetailGUI(plugin, player, pet, page, filterMode).open(player);
+                new PetDetailGUI(plugin, player, pet, page, filterMode, copyRarityFilters()).open(player);
             }
             return;
         }
     }
 
     private void fillRow(int row, Material material) {
-        ItemStack pane = createBlankPane(material);
+        ItemStack pane = createFillerPane(material);
         int start = row * 9;
         for (int slot = start; slot < start + 9; slot++) {
             inventory.setItem(slot, pane);
@@ -316,22 +357,108 @@ public class PetCollectionGUI extends BaseGUI {
 
     private void fillContentSides() {
         for (int row = 1; row <= 3; row++) {
-            inventory.setItem(row * 9, createBlankPane(Material.GRAY_STAINED_GLASS_PANE));
-            inventory.setItem(row * 9 + 8, createBlankPane(Material.GRAY_STAINED_GLASS_PANE));
+            inventory.setItem(row * 9, createFillerPane(Material.GRAY_STAINED_GLASS_PANE));
+            inventory.setItem(row * 9 + 8, createFillerPane(Material.GRAY_STAINED_GLASS_PANE));
         }
     }
 
-    private ItemStack createBlankPane(Material material) {
-        ItemStack item = new ItemStack(material);
+    private void renderRaritySummary() {
+        Map<Rarity, Integer> totalByRarity = new EnumMap<>(Rarity.class);
+        Map<Rarity, Integer> ownedByRarity = new EnumMap<>(Rarity.class);
+        for (Rarity rarity : Rarity.values()) {
+            totalByRarity.put(rarity, 0);
+            ownedByRarity.put(rarity, 0);
+        }
+
+        for (PetType type : plugin.getPetTypes().values()) {
+            totalByRarity.put(type.getRarity(), totalByRarity.get(type.getRarity()) + 1);
+        }
+
+        Set<String> ownedTypeIds = new HashSet<>();
+        for (PetInstance pet : playerPets) {
+            if (!ownedTypeIds.add(pet.getPetTypeId())) {
+                continue;
+            }
+            PetType type = plugin.getPetTypes().get(pet.getPetTypeId());
+            if (type == null) continue;
+            ownedByRarity.put(type.getRarity(), ownedByRarity.get(type.getRarity()) + 1);
+        }
+
+        boolean filteringByRarity = !activeRarityFilters.isEmpty();
+        for (int i = 0; i < RARITY_FILTER_ORDER.length; i++) {
+            Rarity rarity = RARITY_FILTER_ORDER[i];
+            int owned = ownedByRarity.getOrDefault(rarity, 0);
+            int total = totalByRarity.getOrDefault(rarity, 0);
+            boolean selected = activeRarityFilters.contains(rarity);
+            inventory.setItem(RARITY_FILTER_SLOTS[i],
+                    createRarityItem(rarity, owned, total, filteringByRarity, selected));
+        }
+    }
+
+    private ItemStack createRarityItem(Rarity rarity, int owned, int total,
+                                       boolean filteringByRarity, boolean selected) {
+        ItemStack item = new ItemStack(rarityDye(rarity));
         ItemMeta meta = item.getItemMeta();
-        meta.displayName(Component.text(" "));
+        meta.displayName(Component.text(rarityTitle(rarity) + " Collection")
+                .color(rarity.getColor())
+                .decoration(TextDecoration.ITALIC, false));
+
+        List<Component> lore = new ArrayList<>();
+        lore.add(Component.text(owned + "/" + total + " collected")
+                .color(NamedTextColor.YELLOW)
+                .decoration(TextDecoration.ITALIC, false));
+        lore.add(Component.empty());
+        if (!filteringByRarity) {
+            lore.add(Component.text("No rarity filter active.")
+                    .color(NamedTextColor.GRAY)
+                    .decoration(TextDecoration.ITALIC, false));
+        } else if (selected) {
+            lore.add(Component.text("Included in current filter.")
+                    .color(NamedTextColor.GREEN)
+                    .decoration(TextDecoration.ITALIC, false));
+        } else {
+            lore.add(Component.text("Excluded by current filter.")
+                    .color(NamedTextColor.DARK_GRAY)
+                    .decoration(TextDecoration.ITALIC, false));
+        }
+        lore.add(Component.text("Left-click: toggle this rarity").color(NamedTextColor.GRAY)
+                .decoration(TextDecoration.ITALIC, false));
+        lore.add(Component.text("Right-click: clear rarity filters").color(NamedTextColor.DARK_GRAY)
+                .decoration(TextDecoration.ITALIC, false));
+        meta.lore(lore);
+
+        if (selected) {
+            meta.addEnchant(Enchantment.UNBREAKING, 1, true);
+            meta.addItemFlags(ItemFlag.HIDE_ENCHANTS);
+        }
+
         item.setItemMeta(meta);
         return item;
     }
 
+    private Material rarityDye(Rarity rarity) {
+        return switch (rarity) {
+            case COMMON -> Material.WHITE_DYE;
+            case UNCOMMON -> Material.LIME_DYE;
+            case RARE -> Material.BLUE_DYE;
+            case EPIC -> Material.PURPLE_DYE;
+            case LEGENDARY -> Material.YELLOW_DYE;
+        };
+    }
+
+    private String rarityTitle(Rarity rarity) {
+        return switch (rarity) {
+            case COMMON -> "Common";
+            case UNCOMMON -> "Uncommon";
+            case RARE -> "Rare";
+            case EPIC -> "Epic";
+            case LEGENDARY -> "Legendary";
+        };
+    }
+
     private ItemStack createPageArrow(boolean enabled, boolean next) {
         if (!enabled) {
-            return createBlankPane(Material.BLACK_STAINED_GLASS_PANE);
+            return createFillerPane(Material.BLACK_STAINED_GLASS_PANE);
         }
 
         ItemStack arrow = new ItemStack(Material.ARROW);
@@ -367,7 +494,9 @@ public class PetCollectionGUI extends BaseGUI {
         filterMeta.lore(List.of(
                 Component.text("Click to cycle filters").color(NamedTextColor.GRAY)
                         .decoration(TextDecoration.ITALIC, false),
-                Component.text("Level, type, name, then back to all.").color(NamedTextColor.GRAY)
+            Component.text("Level, type, name, then back to all.").color(NamedTextColor.GRAY)
+                .decoration(TextDecoration.ITALIC, false),
+            Component.text("Use top dyes to toggle rarity filters.").color(NamedTextColor.GRAY)
                         .decoration(TextDecoration.ITALIC, false)
         ));
         filterItem.setItemMeta(filterMeta);
@@ -381,9 +510,9 @@ public class PetCollectionGUI extends BaseGUI {
                 .decoration(TextDecoration.ITALIC, false));
         settingsMeta.lore(List.of(
                 Component.empty(),
-                Component.text("Manage hide-other-pets and").color(NamedTextColor.GRAY)
+                Component.text("Manage follow mode, visibility,").color(NamedTextColor.GRAY)
                         .decoration(TextDecoration.ITALIC, false),
-                Component.text("review naming controls.").color(NamedTextColor.GRAY)
+                Component.text("and pet sound preferences.").color(NamedTextColor.GRAY)
                         .decoration(TextDecoration.ITALIC, false),
                 Component.empty(),
                 Component.text("Click to open").color(NamedTextColor.GREEN)
@@ -393,48 +522,24 @@ public class PetCollectionGUI extends BaseGUI {
         return settingsBtn;
     }
 
-    private ItemStack createFollowModeItem() {
-        PetFollowMode mode = plugin.getSettingsManager().getFollowMode(player.getUniqueId());
-        Material material = mode == PetFollowMode.FOLLOW ? Material.LEAD : Material.BELL;
-
-        ItemStack item = new ItemStack(material);
-        ItemMeta meta = item.getItemMeta();
-        meta.displayName(Component.text(mode == PetFollowMode.FOLLOW ? "Mode: Follow" : "Mode: Stay")
-                .color(mode == PetFollowMode.FOLLOW ? NamedTextColor.GREEN : NamedTextColor.GOLD)
-                .decoration(TextDecoration.ITALIC, false));
-        meta.lore(List.of(
-                Component.empty(),
-                Component.text("Follow keeps your pet near you.").color(NamedTextColor.GRAY)
-                        .decoration(TextDecoration.ITALIC, false),
-                Component.text("Stay keeps it in place.").color(NamedTextColor.GRAY)
-                        .decoration(TextDecoration.ITALIC, false),
-                Component.empty(),
-                Component.text("Click to toggle").color(NamedTextColor.YELLOW)
-                        .decoration(TextDecoration.ITALIC, false)
-        ));
-        item.setItemMeta(meta);
-        return item;
-    }
-
     private void renderEmptyStateRecipe() {
-        Material flower = Material.matchMaterial("GOLDEN_DANDELION");
-        if (flower == null) {
-            flower = Material.DANDELION;
-        }
-
         fillEmptyRecipeBackground();
 
-        Material[] ingredients = {
-                Material.COPPER_BLOCK, Material.LIGHTNING_ROD, Material.COPPER_BLOCK,
-                Material.IRON_INGOT, Material.GLASS, Material.IRON_INGOT,
-                Material.IRON_BLOCK, flower, Material.IRON_BLOCK
-        };
+        List<Material> ingredients = new ArrayList<>(EMPTY_RECIPE_PATTERN_SLOTS.length);
+        String[] shape = plugin.getIncubatorManager().getIncubatorRecipeShape();
+        Map<Character, Material> ingredientMap = plugin.getIncubatorManager().getIncubatorRecipeIngredients();
+        for (String row : shape) {
+            for (int i = 0; i < row.length(); i++) {
+                ingredients.add(ingredientMap.getOrDefault(row.charAt(i), Material.AIR));
+            }
+        }
 
         for (int i = 0; i < EMPTY_RECIPE_PATTERN_SLOTS.length; i++) {
             int slot = EMPTY_RECIPE_PATTERN_SLOTS[i];
-            ItemStack ingredient = new ItemStack(ingredients[i]);
+            Material ingredientMaterial = i < ingredients.size() ? ingredients.get(i) : Material.AIR;
+            ItemStack ingredient = new ItemStack(ingredientMaterial);
             ItemMeta meta = ingredient.getItemMeta();
-            meta.displayName(Component.text(formatMaterialName(ingredients[i]))
+            meta.displayName(Component.text(plugin.getPetManager().formatMaterialName(ingredientMaterial))
                     .color(NamedTextColor.WHITE)
                     .decoration(TextDecoration.ITALIC, false));
             ingredient.setItemMeta(meta);
@@ -458,7 +563,7 @@ public class PetCollectionGUI extends BaseGUI {
     }
 
     private void fillEmptyRecipeBackground() {
-        ItemStack filler = createBlankPane(Material.GRAY_STAINED_GLASS_PANE);
+        ItemStack filler = createFillerPane(Material.GRAY_STAINED_GLASS_PANE);
         for (int slot : PET_SLOTS) {
             inventory.setItem(slot, filler);
         }
@@ -473,7 +578,7 @@ public class PetCollectionGUI extends BaseGUI {
                 .color(NamedTextColor.RED)
                 .decoration(TextDecoration.ITALIC, false));
         meta.lore(List.of(
-                Component.text("Cycle the filter to view a different slice.").color(NamedTextColor.GRAY)
+            Component.text("Adjust rarity dyes or cycle the hopper filter.").color(NamedTextColor.GRAY)
                         .decoration(TextDecoration.ITALIC, false)
         ));
         item.setItemMeta(meta);
@@ -490,18 +595,6 @@ public class PetCollectionGUI extends BaseGUI {
         return arrow;
     }
 
-    private String formatMaterialName(Material material) {
-        String[] words = material.name().toLowerCase().split("_");
-        StringBuilder builder = new StringBuilder();
-        for (String word : words) {
-            if (builder.length() > 0) {
-                builder.append(' ');
-            }
-            builder.append(Character.toUpperCase(word.charAt(0))).append(word.substring(1));
-        }
-        return builder.toString();
-    }
-
     private List<PetInstance> buildVisiblePets(List<PetInstance> pets) {
         List<PetInstance> filtered = new ArrayList<>();
         for (PetInstance pet : pets) {
@@ -510,6 +603,9 @@ public class PetCollectionGUI extends BaseGUI {
                 continue;
             }
             if (!matchesFilter(type)) {
+                continue;
+            }
+            if (!activeRarityFilters.isEmpty() && !activeRarityFilters.contains(type.getRarity())) {
                 continue;
             }
             filtered.add(pet);
@@ -541,6 +637,21 @@ public class PetCollectionGUI extends BaseGUI {
             case TYPE_WATER -> type.getMovementType() == PetMovementType.WATER;
             default -> true;
         };
+    }
+
+    private Set<Rarity> copyRarityFilters() {
+        Set<Rarity> copy = EnumSet.noneOf(Rarity.class);
+        copy.addAll(activeRarityFilters);
+        return copy;
+    }
+
+    private Rarity rarityFromSlot(int slot) {
+        for (int i = 0; i < RARITY_FILTER_SLOTS.length; i++) {
+            if (RARITY_FILTER_SLOTS[i] == slot) {
+                return RARITY_FILTER_ORDER[i];
+            }
+        }
+        return null;
     }
 
     private String getSortableName(PetInstance pet) {

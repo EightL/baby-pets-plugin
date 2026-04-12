@@ -2,7 +2,10 @@ package com.petsplugin.gui;
 
 import com.petsplugin.PetsPlugin;
 import com.petsplugin.model.PetInstance;
+import com.petsplugin.model.PetMovementType;
+import com.petsplugin.model.PetStatus;
 import com.petsplugin.model.PetType;
+import com.petsplugin.model.Rarity;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
@@ -16,151 +19,414 @@ import org.bukkit.inventory.meta.ItemMeta;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 
 /**
- * Detailed view of a single pet — stats, ability info, obtained date.
+ * Expanded pet details view with a themed 6-row layout.
  */
 public class PetDetailGUI extends BaseGUI {
+
+    private static final int[] FRAME_SLOTS = {
+            0, 1, 2, 3, 4, 5, 6, 7, 8,
+            9, 17,
+            18, 26,
+            27, 35,
+            36, 44,
+            45, 46, 47, 48, 49, 50, 51, 52, 53
+    };
+
+    private static final int[] DETAIL_PANEL_SLOTS = {
+            10, 11, 12, 13, 14, 15, 16,
+            19, 20, 21, 22, 23, 24, 25,
+            28, 29, 30, 31, 32, 33, 34,
+            37, 38, 39, 40, 41, 42, 43
+    };
+
+    private static final int[] ACCENT_SLOTS = {
+            11, 13, 15,
+            20, 24,
+            29, 33,
+            38, 42
+    };
 
     private final Player player;
     private final PetInstance pet;
     private final int returnPage;
     private final PetCollectionGUI.FilterMode returnFilterMode;
-
-    public PetDetailGUI(PetsPlugin plugin, Player player, PetInstance pet, int returnPage) {
-        this(plugin, player, pet, returnPage, PetCollectionGUI.FilterMode.ALL);
-    }
+    private final Set<Rarity> returnRarityFilters;
 
     public PetDetailGUI(PetsPlugin plugin, Player player, PetInstance pet, int returnPage,
-                        PetCollectionGUI.FilterMode returnFilterMode) {
-        super(plugin, 3, "Pet Details");
+                        PetCollectionGUI.FilterMode returnFilterMode,
+                        Set<Rarity> returnRarityFilters) {
+        super(plugin, 6, "Pet Details");
         this.player = player;
         this.pet = pet;
         this.returnPage = returnPage;
         this.returnFilterMode = returnFilterMode == null ? PetCollectionGUI.FilterMode.ALL : returnFilterMode;
+        this.returnRarityFilters = EnumSet.noneOf(Rarity.class);
+        if (returnRarityFilters != null) {
+            this.returnRarityFilters.addAll(returnRarityFilters);
+        }
         initializeItems();
     }
 
     private void initializeItems() {
-        fillBackground(Material.BLACK_STAINED_GLASS_PANE);
-
         PetType type = plugin.getPetTypes().get(pet.getPetTypeId());
-        if (type == null) return;
+        if (type == null) {
+            fillBackground(Material.BLACK_STAINED_GLASS_PANE);
+            fillBottomBar();
+            setBackButton(45);
+            return;
+        }
 
-        // Center: Pet icon with full details
-        ItemStack petItem = new ItemStack(type.getIcon());
-        ItemMeta meta = petItem.getItemMeta();
+        int maxLevel = plugin.getMaxLevel();
+        applyTheme(type.getMovementType());
+        fillBottomBar();
+
+        inventory.setItem(20, createProgressItem(type, maxLevel));
+        inventory.setItem(22, createPetSummaryItem(type, maxLevel));
+        inventory.setItem(24, createCareItem(type));
+
+        inventory.setItem(30, createAbilityItem(type, maxLevel));
+        inventory.setItem(31, createStatusItem());
+        inventory.setItem(32, createMetadataItem(type));
+
+        inventory.setItem(45, createBackButton());
+        inventory.setItem(49, createSelectButton());
+        inventory.setItem(53, createDeleteButton());
+    }
+
+    private void applyTheme(PetMovementType movementType) {
+        Material frame = switch (movementType) {
+            case WATER -> Material.BLUE_STAINED_GLASS_PANE;
+            case FLYING -> Material.LIGHT_BLUE_STAINED_GLASS_PANE;
+            case GROUND -> Material.BROWN_STAINED_GLASS_PANE;
+        };
+
+        Material panel = switch (movementType) {
+            case WATER -> Material.CYAN_STAINED_GLASS_PANE;
+            case FLYING -> Material.WHITE_STAINED_GLASS_PANE;
+            case GROUND -> Material.GRAY_STAINED_GLASS_PANE;
+        };
+
+        Material accent = switch (movementType) {
+            case WATER -> Material.LIGHT_BLUE_STAINED_GLASS_PANE;
+            case FLYING -> Material.YELLOW_STAINED_GLASS_PANE;
+            case GROUND -> Material.LIME_STAINED_GLASS_PANE;
+        };
+
+        fillBackground(frame);
+        for (int slot : FRAME_SLOTS) {
+            inventory.setItem(slot, createFillerPane(frame));
+        }
+        for (int slot : DETAIL_PANEL_SLOTS) {
+            inventory.setItem(slot, createFillerPane(panel));
+        }
+        for (int slot : ACCENT_SLOTS) {
+            inventory.setItem(slot, createFillerPane(accent));
+        }
+    }
+
+    private ItemStack createPetSummaryItem(PetType type, int maxLevel) {
+        ItemStack item = new ItemStack(type.getIcon());
+        ItemMeta meta = item.getItemMeta();
         meta.displayName(Component.text(pet.getDisplayName(type))
                 .color(type.getRarity().getColor())
-                .decoration(TextDecoration.ITALIC, false));
+                .decoration(TextDecoration.ITALIC, false)
+                .decoration(TextDecoration.BOLD, true));
 
         List<Component> lore = new ArrayList<>();
-        lore.add(Component.text(type.getDescription()).color(NamedTextColor.GRAY)
+        lore.add(Component.text(type.getDescription())
+                .color(NamedTextColor.GRAY)
                 .decoration(TextDecoration.ITALIC, true));
         lore.add(Component.empty());
 
-        // Rarity
         lore.add(Component.text("Rarity: ").color(NamedTextColor.GRAY)
                 .decoration(TextDecoration.ITALIC, false)
                 .append(Component.text(type.getRarity().name()).color(type.getRarity().getColor())));
-
-        // Level
-        int maxLevel = plugin.getConfig().getInt("leveling.max_level", 10);
         lore.add(Component.text("Level: ").color(NamedTextColor.GRAY)
                 .decoration(TextDecoration.ITALIC, false)
                 .append(Component.text(pet.getLevel() + "/" + maxLevel).color(NamedTextColor.YELLOW)));
 
-        // XP
         if (pet.getLevel() < maxLevel) {
             double nextXp = plugin.getPetManager().getXpForLevel(pet.getLevel() + 1);
             lore.add(Component.text("XP: ").color(NamedTextColor.GRAY)
                     .decoration(TextDecoration.ITALIC, false)
-                    .append(Component.text(String.format("%.0f/%.0f", pet.getXp(), nextXp))
+                    .append(Component.text(String.format(Locale.US, "%.0f/%.0f", pet.getXp(), nextXp))
                             .color(NamedTextColor.AQUA)));
+        } else {
+            lore.add(Component.text("XP: MAX LEVEL")
+                    .color(NamedTextColor.GOLD)
+                    .decoration(TextDecoration.ITALIC, false));
         }
 
-        lore.add(Component.empty());
-
-        // Player attribute bonus
-        lore.add(Component.text("─── Bonus ───").color(NamedTextColor.GOLD)
-                .decoration(TextDecoration.ITALIC, false));
-        lore.add(Component.text(" " + type.getAttributeDisplay() + ": ").color(NamedTextColor.GRAY)
+        lore.add(Component.text("Status: ").color(NamedTextColor.GRAY)
                 .decoration(TextDecoration.ITALIC, false)
-                .append(Component.text("+" + type.formatAttributeBonus(pet.getLevel()))
-                        .color(NamedTextColor.GREEN)));
-        lore.add(Component.text(" Growth: ").color(NamedTextColor.DARK_GRAY)
-                .decoration(TextDecoration.ITALIC, false)
-                .append(Component.text("+" + type.formatAttributePerLevel() + "/level")
-                        .color(NamedTextColor.GRAY)));
-        lore.add(Component.text(" At Lv" + maxLevel + ": ").color(NamedTextColor.DARK_GRAY)
-                .decoration(TextDecoration.ITALIC, false)
-                .append(Component.text("+" + type.formatAttributeBonus(maxLevel))
-                        .color(NamedTextColor.YELLOW)));
-
-        lore.add(Component.empty());
-
-        lore.add(Component.text("─── Care ───").color(NamedTextColor.AQUA)
-                .decoration(TextDecoration.ITALIC, false));
-        lore.add(Component.text(" Type: ").color(NamedTextColor.GRAY)
-                .decoration(TextDecoration.ITALIC, false)
-                .append(Component.text(type.getMovementType().getDisplayName()).color(NamedTextColor.WHITE)));
-        lore.add(Component.text(" Foods: ").color(NamedTextColor.GRAY)
-                .decoration(TextDecoration.ITALIC, false)
-                .append(Component.text(plugin.getPetManager().getAllowedFoodsDisplay(type)).color(NamedTextColor.YELLOW)));
-
-        lore.add(Component.empty());
-
-        // Status
-        lore.add(Component.text("─── Status ───").color(NamedTextColor.YELLOW)
-                .decoration(TextDecoration.ITALIC, false));
-        lore.add(Component.text(" " + pet.getStatus().getDisplay())
-                .color(NamedTextColor.WHITE)
-                .decoration(TextDecoration.ITALIC, false));
-
-        lore.add(Component.empty());
-
-        // Obtained date
-        String date = new SimpleDateFormat("MMM dd, yyyy").format(new Date(pet.getObtainedAt()));
-        lore.add(Component.text("Obtained: " + date).color(NamedTextColor.DARK_GRAY)
-                .decoration(TextDecoration.ITALIC, false));
-
-        // Selection
-        lore.add(Component.text("Selection: ").color(NamedTextColor.GRAY)
-                .decoration(TextDecoration.ITALIC, false)
-                .append(pet.isSelected()
-                        ? Component.text("ACTIVE").color(NamedTextColor.GREEN)
-                                .decoration(TextDecoration.BOLD, true)
-                        : Component.text("Resting").color(NamedTextColor.DARK_GRAY)));
+                .append(Component.text(pet.getStatus().getDisplay()).color(statusColor(pet.getStatus()))));
 
         meta.lore(lore);
-        petItem.setItemMeta(meta);
-        inventory.setItem(13, petItem);
+        item.setItemMeta(meta);
+        return item;
+    }
 
-        // Back button
-        setBackButton(18);
-
-        // Select/Deselect button
-        ItemStack selectBtn = new ItemStack(pet.isSelected() ? Material.RED_DYE : Material.LIME_DYE);
-        ItemMeta selectMeta = selectBtn.getItemMeta();
-        selectMeta.displayName(Component.text(pet.isSelected() ? "Deselect" : "Select")
-                .color(pet.isSelected() ? NamedTextColor.RED : NamedTextColor.GREEN)
+    private ItemStack createProgressItem(PetType type, int maxLevel) {
+        ItemStack item = new ItemStack(Material.EXPERIENCE_BOTTLE);
+        ItemMeta meta = item.getItemMeta();
+        meta.displayName(Component.text("Progress").color(NamedTextColor.AQUA)
                 .decoration(TextDecoration.ITALIC, false));
-        selectBtn.setItemMeta(selectMeta);
-        inventory.setItem(22, selectBtn);
 
-        // Delete button
-        ItemStack deleteBtn = new ItemStack(Material.TNT);
-        ItemMeta deleteMeta = deleteBtn.getItemMeta();
-        deleteMeta.displayName(Component.text("Delete Pet").color(NamedTextColor.RED)
+        List<Component> lore = new ArrayList<>();
+        lore.add(Component.text(type.getDisplayName() + " growth tracker")
+                .color(NamedTextColor.GRAY)
+                .decoration(TextDecoration.ITALIC, false));
+        lore.add(Component.empty());
+
+        if (pet.getLevel() >= maxLevel) {
+            lore.add(Component.text("This pet reached max level.").color(NamedTextColor.GOLD)
+                    .decoration(TextDecoration.ITALIC, false));
+            lore.add(Component.text("No more XP is required.").color(NamedTextColor.GRAY)
+                    .decoration(TextDecoration.ITALIC, false));
+        } else {
+            double nextXp = plugin.getPetManager().getXpForLevel(pet.getLevel() + 1);
+            double currentXp = Math.max(0, pet.getXp());
+            int percent = nextXp <= 0 ? 100 : clamp((int) Math.round((currentXp / nextXp) * 100.0), 0, 100);
+
+            lore.add(Component.text("Current XP: ").color(NamedTextColor.GRAY)
+                    .decoration(TextDecoration.ITALIC, false)
+                    .append(Component.text(String.format(Locale.US, "%.0f", currentXp)).color(NamedTextColor.AQUA)));
+            lore.add(Component.text("Next Level XP: ").color(NamedTextColor.GRAY)
+                    .decoration(TextDecoration.ITALIC, false)
+                    .append(Component.text(String.format(Locale.US, "%.0f", nextXp)).color(NamedTextColor.YELLOW)));
+            lore.add(Component.text("Completion: ").color(NamedTextColor.GRAY)
+                    .decoration(TextDecoration.ITALIC, false)
+                    .append(Component.text(percent + "%").color(NamedTextColor.GREEN)));
+            lore.add(buildBarComponent(percent, 16, NamedTextColor.GREEN));
+        }
+
+        meta.lore(lore);
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    private ItemStack createCareItem(PetType type) {
+        Material material = switch (type.getMovementType()) {
+            case WATER -> Material.COD;
+            case FLYING -> Material.WHEAT_SEEDS;
+            case GROUND -> Material.HAY_BLOCK;
+        };
+
+        ItemStack item = new ItemStack(material);
+        ItemMeta meta = item.getItemMeta();
+        meta.displayName(Component.text("Care Guide").color(NamedTextColor.YELLOW)
+                .decoration(TextDecoration.ITALIC, false));
+        meta.lore(List.of(
+                Component.text("Type: ").color(NamedTextColor.GRAY)
+                        .decoration(TextDecoration.ITALIC, false)
+                        .append(Component.text(type.getMovementType().getDisplayName()).color(NamedTextColor.WHITE)),
+                Component.text("Foods: ").color(NamedTextColor.GRAY)
+                        .decoration(TextDecoration.ITALIC, false)
+                        .append(Component.text(plugin.getPetManager().getAllowedFoodsDisplay(type))
+                                .color(NamedTextColor.YELLOW))
+        ));
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    private ItemStack createAbilityItem(PetType type, int maxLevel) {
+        boolean abilitiesEnabled = plugin.getPetManager().arePetAbilitiesEnabled();
+
+        ItemStack item = new ItemStack(abilitiesEnabled ? Material.NETHER_STAR : Material.GRAY_DYE);
+        ItemMeta meta = item.getItemMeta();
+        meta.displayName(Component.text(abilitiesEnabled ? "Abilities" : "Vanity Mode")
+                .color(abilitiesEnabled ? NamedTextColor.GOLD : NamedTextColor.DARK_GRAY)
+                .decoration(TextDecoration.ITALIC, false));
+
+        List<Component> lore = new ArrayList<>();
+        if (abilitiesEnabled) {
+            if (type.getSpecialAbility() == com.petsplugin.model.PetType.SpecialAbility.STORAGE) {
+                // Storage pets: show slot progression instead of a stat bonus
+                int currentSlots = type.computeActiveStorageSlots(pet.getLevel(), maxLevel);
+                int maxSlots = type.getStorageSize();
+                lore.add(Component.text("Storage: ").color(NamedTextColor.GRAY)
+                        .decoration(TextDecoration.ITALIC, false)
+                        .append(Component.text(currentSlots + " / " + maxSlots + " slots")
+                                .color(NamedTextColor.AQUA)));
+                lore.add(Component.text("Slots unlock as the pet levels up")
+                        .color(NamedTextColor.DARK_GRAY)
+                        .decoration(TextDecoration.ITALIC, false));
+                lore.add(Component.text("Right-click with empty hand to open bag")
+                        .color(NamedTextColor.DARK_GRAY)
+                        .decoration(TextDecoration.ITALIC, false));
+            } else {
+                // Normal stat-based pets
+                String sign = type.isNegativeAttribute() ? "" : "+";
+                lore.add(Component.text(type.getAttributeDisplay() + ": ").color(NamedTextColor.GRAY)
+                        .decoration(TextDecoration.ITALIC, false)
+                        .append(Component.text(sign + type.formatAttributeBonus(pet.getLevel()))
+                                .color(NamedTextColor.GREEN)));
+                lore.add(Component.text("Growth: " + sign + type.formatAttributePerLevel() + "/level")
+                        .color(NamedTextColor.DARK_GRAY)
+                        .decoration(TextDecoration.ITALIC, false));
+                lore.add(Component.text("At Lv" + maxLevel + ": ").color(NamedTextColor.DARK_GRAY)
+                        .decoration(TextDecoration.ITALIC, false)
+                        .append(Component.text(sign + type.formatAttributeBonus(maxLevel))
+                                .color(NamedTextColor.YELLOW)));
+
+                if (type.getSpecialAbility() == com.petsplugin.model.PetType.SpecialAbility.UNDERWATER_VISION) {
+                    lore.add(Component.empty());
+                    lore.add(Component.text("Special: ").color(NamedTextColor.GRAY)
+                            .decoration(TextDecoration.ITALIC, false)
+                            .append(Component.text("Underwater Night Vision").color(NamedTextColor.AQUA)));
+                }
+            }
+        } else {
+            lore.add(Component.text("Pet abilities are disabled in config.")
+                    .color(NamedTextColor.GRAY)
+                    .decoration(TextDecoration.ITALIC, false));
+            lore.add(Component.text("This pet is currently vanity-only.")
+                    .color(NamedTextColor.GRAY)
+                    .decoration(TextDecoration.ITALIC, false));
+        }
+
+        meta.lore(lore);
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    private ItemStack createStatusItem() {
+        PetStatus status = pet.getStatus();
+        int percent = statusPercent(status);
+        NamedTextColor color = statusColor(status);
+
+        ItemStack item = new ItemStack(statusMaterial(status));
+        ItemMeta meta = item.getItemMeta();
+        meta.displayName(Component.text("Status Meter")
+                .color(color)
                 .decoration(TextDecoration.ITALIC, false)
                 .decoration(TextDecoration.BOLD, true));
-        deleteMeta.lore(List.of(
-                Component.text("Permanently delete this pet!").color(NamedTextColor.DARK_RED)
+
+        List<Component> lore = new ArrayList<>();
+        lore.add(Component.text("Mood: ").color(NamedTextColor.GRAY)
+                .decoration(TextDecoration.ITALIC, false)
+                .append(Component.text(status.getDisplay()).color(color)));
+        lore.add(Component.text("Meter: ").color(NamedTextColor.GRAY)
+                .decoration(TextDecoration.ITALIC, false)
+                .append(Component.text(percent + "%").color(color)));
+        lore.add(buildBarComponent(percent, 16, color));
+        lore.add(Component.text("Feed and pet regularly to improve mood.")
+                .color(NamedTextColor.DARK_GRAY)
+                .decoration(TextDecoration.ITALIC, false));
+
+        meta.lore(lore);
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    private ItemStack createMetadataItem(PetType type) {
+        ItemStack item = new ItemStack(Material.BOOK);
+        ItemMeta meta = item.getItemMeta();
+        meta.displayName(Component.text("Profile").color(NamedTextColor.AQUA)
+                .decoration(TextDecoration.ITALIC, false));
+
+        String date = new SimpleDateFormat("MMM dd, yyyy").format(new Date(pet.getObtainedAt()));
+        meta.lore(List.of(
+                Component.text("Obtained: " + date).color(NamedTextColor.GRAY)
+                        .decoration(TextDecoration.ITALIC, false),
+                Component.text("Selection: ").color(NamedTextColor.GRAY)
+                        .decoration(TextDecoration.ITALIC, false)
+                        .append(pet.isSelected()
+                                ? Component.text("ACTIVE").color(NamedTextColor.GREEN)
+                                        .decoration(TextDecoration.BOLD, true)
+                                : Component.text("Resting").color(NamedTextColor.DARK_GRAY)),
+                Component.text("Species: " + type.getDisplayName()).color(NamedTextColor.GRAY)
                         .decoration(TextDecoration.ITALIC, false)
         ));
-        deleteBtn.setItemMeta(deleteMeta);
-        inventory.setItem(26, deleteBtn);
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    private ItemStack createBackButton() {
+        ItemStack item = new ItemStack(Material.ARROW);
+        ItemMeta meta = item.getItemMeta();
+        meta.displayName(Component.text("Back").color(NamedTextColor.GRAY)
+                .decoration(TextDecoration.ITALIC, false));
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    private ItemStack createSelectButton() {
+        ItemStack item = new ItemStack(pet.isSelected() ? Material.RED_DYE : Material.LIME_DYE);
+        ItemMeta meta = item.getItemMeta();
+        meta.displayName(Component.text(pet.isSelected() ? "Deselect" : "Select")
+                .color(pet.isSelected() ? NamedTextColor.RED : NamedTextColor.GREEN)
+                .decoration(TextDecoration.ITALIC, false));
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    private ItemStack createDeleteButton() {
+        ItemStack item = new ItemStack(Material.TNT);
+        ItemMeta meta = item.getItemMeta();
+        meta.displayName(Component.text("Delete Pet")
+                .color(NamedTextColor.RED)
+                .decoration(TextDecoration.ITALIC, false)
+                .decoration(TextDecoration.BOLD, true));
+        meta.lore(List.of(
+                Component.text("Permanently delete this pet!")
+                        .color(NamedTextColor.DARK_RED)
+                        .decoration(TextDecoration.ITALIC, false)
+        ));
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    private Component buildBarComponent(int percent, int length, NamedTextColor fillColor) {
+        int filled = clamp((int) Math.round((percent / 100.0) * length), 0, length);
+        Component bar = Component.empty();
+        for (int i = 0; i < length; i++) {
+            NamedTextColor color = i < filled ? fillColor : NamedTextColor.DARK_GRAY;
+            bar = bar.append(Component.text(i < filled ? "█" : "░")
+                    .color(color)
+                    .decoration(TextDecoration.ITALIC, false));
+        }
+        return bar;
+    }
+
+    private int statusPercent(PetStatus status) {
+        return switch (status) {
+            case ECSTATIC -> 100;
+            case HAPPY -> 80;
+            case CONTENT -> 60;
+            case HUNGRY -> 35;
+            case SAD -> 15;
+        };
+    }
+
+    private NamedTextColor statusColor(PetStatus status) {
+        return switch (status) {
+            case ECSTATIC -> NamedTextColor.GOLD;
+            case HAPPY -> NamedTextColor.GREEN;
+            case CONTENT -> NamedTextColor.YELLOW;
+            case HUNGRY -> NamedTextColor.RED;
+            case SAD -> NamedTextColor.DARK_RED;
+        };
+    }
+
+    private Material statusMaterial(PetStatus status) {
+        return switch (status) {
+            case ECSTATIC -> Material.TOTEM_OF_UNDYING;
+            case HAPPY -> Material.LIME_DYE;
+            case CONTENT -> Material.SLIME_BALL;
+            case HUNGRY -> Material.ORANGE_DYE;
+            case SAD -> Material.GRAY_DYE;
+        };
+    }
+
+    private int clamp(int value, int min, int max) {
+        return Math.max(min, Math.min(max, value));
     }
 
     @Override
@@ -168,23 +434,26 @@ public class PetDetailGUI extends BaseGUI {
         event.setCancelled(true);
         int slot = event.getSlot();
 
-        if (slot == 18) {
-            // Back to collection
-            new PetCollectionGUI(plugin, player, returnPage, returnFilterMode).open(player);
+        if (slot == 45) {
+            new PetCollectionGUI(plugin, player, returnPage, returnFilterMode, returnRarityFilters).open(player);
             player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1f);
-        } else if (slot == 22) {
-            // Toggle select
+            return;
+        }
+
+        if (slot == 49) {
             if (pet.isSelected()) {
                 plugin.getPetManager().deselectPet(player.getUniqueId());
             } else {
                 plugin.getPetManager().selectPet(player.getUniqueId(), pet);
             }
             plugin.getPetManager().refreshCache(player.getUniqueId());
-            new PetCollectionGUI(plugin, player, returnPage, returnFilterMode).open(player);
+            new PetCollectionGUI(plugin, player, returnPage, returnFilterMode, returnRarityFilters).open(player);
             player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1f);
-        } else if (slot == 26) {
-            // Delete confirmation
-            new DeleteConfirmGUI(plugin, player, pet, returnPage, returnFilterMode).open(player);
+            return;
+        }
+
+        if (slot == 53) {
+            new DeleteConfirmGUI(plugin, player, pet, returnPage, returnFilterMode, returnRarityFilters).open(player);
         }
     }
 }

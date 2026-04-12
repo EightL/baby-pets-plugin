@@ -11,10 +11,14 @@ public class PetSettingsManager {
 
     public static final String FOLLOW_MODE_KEY = "follow_mode";
     public static final String HIDE_OTHER_PETS_KEY = "hide_other_pets";
+    public static final String PET_SOUNDS_ENABLED_KEY = "pet_sounds_enabled";
+    public static final String PET_NOTIFICATIONS_ENABLED_KEY = "pet_notifications_enabled";
 
     private final PetsPlugin plugin;
     private final Map<UUID, PetFollowMode> followModes = new ConcurrentHashMap<>();
     private final Map<UUID, Boolean> hideOtherPets = new ConcurrentHashMap<>();
+    private final Map<UUID, Boolean> petSoundsEnabled = new ConcurrentHashMap<>();
+    private final Map<UUID, Boolean> petNotificationsEnabled = new ConcurrentHashMap<>();
 
     public PetSettingsManager(PetsPlugin plugin) {
         this.plugin = plugin;
@@ -23,19 +27,19 @@ public class PetSettingsManager {
     public void loadPlayerSettings(UUID uuid) {
         followModes.put(uuid, loadFollowMode(uuid));
         hideOtherPets.put(uuid, loadHideOtherPets(uuid));
+        petSoundsEnabled.put(uuid, loadPetSoundsEnabled(uuid));
+        petNotificationsEnabled.put(uuid, loadPetNotificationsEnabled(uuid));
     }
 
     public void unloadPlayerSettings(UUID uuid) {
         followModes.remove(uuid);
         hideOtherPets.remove(uuid);
+        petSoundsEnabled.remove(uuid);
+        petNotificationsEnabled.remove(uuid);
     }
 
     public PetFollowMode getFollowMode(UUID uuid) {
         return followModes.computeIfAbsent(uuid, this::loadFollowMode);
-    }
-
-    public boolean isFollowMode(UUID uuid) {
-        return getFollowMode(uuid) == PetFollowMode.FOLLOW;
     }
 
     public boolean isStayMode(UUID uuid) {
@@ -57,6 +61,24 @@ public class PetSettingsManager {
         plugin.getDatabaseManager().saveSetting(uuid, HIDE_OTHER_PETS_KEY, String.valueOf(enabled));
     }
 
+    public boolean isPetSoundsEnabled(UUID uuid) {
+        return petSoundsEnabled.computeIfAbsent(uuid, this::loadPetSoundsEnabled);
+    }
+
+    public void setPetSoundsEnabled(UUID uuid, boolean enabled) {
+        petSoundsEnabled.put(uuid, enabled);
+        plugin.getDatabaseManager().saveSetting(uuid, PET_SOUNDS_ENABLED_KEY, String.valueOf(enabled));
+    }
+
+    public boolean isPetNotificationsEnabled(UUID uuid) {
+        return petNotificationsEnabled.computeIfAbsent(uuid, this::loadPetNotificationsEnabled);
+    }
+
+    public void setPetNotificationsEnabled(UUID uuid, boolean enabled) {
+        petNotificationsEnabled.put(uuid, enabled);
+        plugin.getDatabaseManager().saveSetting(uuid, PET_NOTIFICATIONS_ENABLED_KEY, String.valueOf(enabled));
+    }
+
     private PetFollowMode loadFollowMode(UUID uuid) {
         String raw = plugin.getDatabaseManager().loadSetting(uuid, FOLLOW_MODE_KEY, PetFollowMode.FOLLOW.getId());
         PetFollowMode mode = PetFollowMode.fromInput(raw);
@@ -65,5 +87,13 @@ public class PetSettingsManager {
 
     private boolean loadHideOtherPets(UUID uuid) {
         return Boolean.parseBoolean(plugin.getDatabaseManager().loadSetting(uuid, HIDE_OTHER_PETS_KEY, "false"));
+    }
+
+    private boolean loadPetSoundsEnabled(UUID uuid) {
+        return Boolean.parseBoolean(plugin.getDatabaseManager().loadSetting(uuid, PET_SOUNDS_ENABLED_KEY, "true"));
+    }
+
+    private boolean loadPetNotificationsEnabled(UUID uuid) {
+        return Boolean.parseBoolean(plugin.getDatabaseManager().loadSetting(uuid, PET_NOTIFICATIONS_ENABLED_KEY, "true"));
     }
 }

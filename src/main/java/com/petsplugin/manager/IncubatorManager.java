@@ -30,15 +30,18 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class IncubatorManager {
 
+    private static final String[] INCUBATOR_RECIPE_SHAPE = {"CBC", "IGI", "FDF"};
+
     private final PetsPlugin plugin;
     private final Map<String, IncubatorState> activeIncubators = new ConcurrentHashMap<>();
     private BukkitTask tickTask;
     private BukkitTask particleTask;
     private long particleCounter = 0;
+    private Material incubatorFlowerIngredient = Material.DANDELION;
 
-    public final NamespacedKey INCUBATOR_KEY;
-    public final NamespacedKey INCUBATOR_ENTITY_KEY;
-    public final NamespacedKey INCUBATOR_ANCHOR_KEY;
+    private final NamespacedKey INCUBATOR_KEY;
+    private final NamespacedKey INCUBATOR_ENTITY_KEY;
+    private final NamespacedKey INCUBATOR_ANCHOR_KEY;
 
     public IncubatorManager(PetsPlugin plugin) {
         this.plugin = plugin;
@@ -63,6 +66,18 @@ public class IncubatorManager {
         tickTask = Bukkit.getScheduler().runTaskTimer(plugin, this::tick, 20L, 20L);
         // Particle tick: every 20 seconds, check and spawn particles
         particleTask = Bukkit.getScheduler().runTaskTimer(plugin, this::particleTick, 100L, 400L);
+    }
+
+    public NamespacedKey getIncubatorKey() {
+        return INCUBATOR_KEY;
+    }
+
+    public NamespacedKey getIncubatorEntityKey() {
+        return INCUBATOR_ENTITY_KEY;
+    }
+
+    public NamespacedKey getIncubatorAnchorKey() {
+        return INCUBATOR_ANCHOR_KEY;
     }
 
     public void shutdown() {
@@ -97,22 +112,40 @@ public class IncubatorManager {
 
     public void registerIncubatorRecipe() {
         plugin.getServer().removeRecipe(INCUBATOR_KEY);
-
-        Material flower = Material.matchMaterial("GOLDEN_DANDELION");
-        if (flower == null) {
-            flower = Material.DANDELION;
-            plugin.getLogger().warning("GOLDEN_DANDELION is unavailable on this API target; incubator recipe is using DANDELION as a fallback.");
-        }
+        incubatorFlowerIngredient = resolveIncubatorFlowerIngredient(true);
 
         ShapedRecipe recipe = new ShapedRecipe(INCUBATOR_KEY, createIncubatorItem());
-        recipe.shape("CBC", "IGI", "FDF");
-        recipe.setIngredient('C', Material.COPPER_BLOCK);
-        recipe.setIngredient('B', Material.LIGHTNING_ROD);
-        recipe.setIngredient('I', Material.IRON_INGOT);
-        recipe.setIngredient('G', Material.GLASS);
-        recipe.setIngredient('F', Material.IRON_BLOCK);
-        recipe.setIngredient('D', flower);
+        recipe.shape(getIncubatorRecipeShape());
+        for (Map.Entry<Character, Material> entry : getIncubatorRecipeIngredients().entrySet()) {
+            recipe.setIngredient(entry.getKey(), entry.getValue());
+        }
         plugin.getServer().addRecipe(recipe);
+    }
+
+    public String[] getIncubatorRecipeShape() {
+        return INCUBATOR_RECIPE_SHAPE.clone();
+    }
+
+    public Map<Character, Material> getIncubatorRecipeIngredients() {
+        Map<Character, Material> ingredients = new LinkedHashMap<>();
+        ingredients.put('C', Material.COPPER_BLOCK);
+        ingredients.put('B', Material.LIGHTNING_ROD);
+        ingredients.put('I', Material.IRON_INGOT);
+        ingredients.put('G', Material.GLASS);
+        ingredients.put('F', Material.IRON_BLOCK);
+        ingredients.put('D', incubatorFlowerIngredient);
+        return ingredients;
+    }
+
+    private Material resolveIncubatorFlowerIngredient(boolean logFallback) {
+        Material flower = Material.matchMaterial("GOLDEN_DANDELION");
+        if (flower != null) {
+            return flower;
+        }
+        if (logFallback) {
+            plugin.getLogger().warning("GOLDEN_DANDELION is unavailable on this API target; incubator recipe is using DANDELION as a fallback.");
+        }
+        return Material.DANDELION;
     }
 
     public void discoverIncubatorRecipe(Player player) {
@@ -148,22 +181,20 @@ public class IncubatorManager {
                 0.875f, 0.865f, 0.875f,
             -0.4375f, 0.01625f, -0.4375f,
             anchorKey);
-        spawnPart(center, snappedYaw, Bukkit.createBlockData(Material.IRON_BLOCK),
-                0.1155f, 0.88f, 0.1175f,
-            -0.498125f, 0.01f, -0.49625f,
-            anchorKey);
-        spawnPart(center, snappedYaw, Bukkit.createBlockData(Material.IRON_BLOCK),
-                0.1155f, 0.88f, 0.1175f,
-            -0.498125f, 0.00625f, 0.375f,
-            anchorKey);
-        spawnPart(center, snappedYaw, Bukkit.createBlockData(Material.IRON_BLOCK),
-                0.1155f, 0.88f, 0.1175f,
-            0.375f, 0.001875f, 0.375f,
-            anchorKey);
-        spawnPart(center, snappedYaw, Bukkit.createBlockData(Material.IRON_BLOCK),
-                0.1155f, 0.88f, 0.1175f,
-            0.375f, 0.001875f, -0.498125f,
-            anchorKey);
+
+        float[][] legTranslations = {
+                {-0.498125f, 0.01f, -0.49625f},
+                {-0.498125f, 0.00625f, 0.375f},
+                {0.375f, 0.001875f, 0.375f},
+                {0.375f, 0.001875f, -0.498125f}
+        };
+        for (float[] translation : legTranslations) {
+            spawnPart(center, snappedYaw, Bukkit.createBlockData(Material.IRON_BLOCK),
+                    0.1155f, 0.88f, 0.1175f,
+                    translation[0], translation[1], translation[2],
+                    anchorKey);
+        }
+
         spawnPart(center, snappedYaw, Bukkit.createBlockData(Material.WAXED_CUT_COPPER),
                 1.0f, 0.125f, 1.0f,
             -0.506875f, 0.875f, -0.5f,
@@ -244,7 +275,7 @@ public class IncubatorManager {
         String key = locationKey(block);
         if (activeIncubators.containsKey(key)) return false;
 
-        long durationMs = plugin.getConfig().getInt("incubation.duration_minutes", 20) * 60L * 1000L;
+        long durationMs = plugin.getIncubationDurationMinutes() * 60L * 1000L;
 
         IncubatorState state = new IncubatorState(
                 -1, block.getWorld().getName(),
@@ -290,6 +321,14 @@ public class IncubatorManager {
 
             Location loc = new Location(world, state.getX(), state.getY(), state.getZ());
             if (!loc.getChunk().isLoaded()) continue;
+
+            if (plugin.getConfig().getBoolean("incubation.require_simulation_distance", true)) {
+                Location center = loc.clone().add(0.5, 0.5, 0.5);
+                // Approximate simulation distance check via nearby players in ticking range.
+                if (world.getNearbyPlayers(center, 128.0).isEmpty()) {
+                    continue;
+                }
+            }
 
             hatch(state, loc);
             it.remove();
@@ -411,26 +450,16 @@ public class IncubatorManager {
 
         String key = locationKey(block);
         String anchor = entity.getPersistentDataContainer().get(INCUBATOR_ANCHOR_KEY, PersistentDataType.STRING);
-        if (anchor != null) {
-            return key.equals(anchor);
-        }
-
-        // Backward-compat: older incubator entities may not have an anchor key.
-        Location root = entity.getLocation();
-        return root.getWorld().equals(block.getWorld())
-                && root.getBlockX() == block.getX()
-                && root.getBlockY() == block.getY()
-                && root.getBlockZ() == block.getZ();
+        return key.equals(anchor);
     }
 
     private void sendHatchMessage(Player owner, PetType type) {
-        String msg = plugin.getConfig().getString("messages.egg_hatched",
-                "&a&lHATCH! &7Your egg hatched into a &e%pet_name%&7!");
-        msg = msg.replace("%pet_name%", type.getDisplayName());
-        owner.sendMessage(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
-                .legacyAmpersand().deserialize(msg));
+        plugin.getPetManager().sendPetNotification(owner,
+            "messages.egg_hatched",
+            "&a&lHATCH! &7Your egg hatched into a &e%pet_name%&7!",
+            java.util.Map.of("%pet_name%", type.getDisplayName()));
         owner.sendMessage(
-                Component.text("View in collection")
+                Component.text("Click to view in collection")
                         .color(NamedTextColor.AQUA)
                         .decoration(TextDecoration.ITALIC, false)
                         .clickEvent(ClickEvent.runCommand("/pets"))

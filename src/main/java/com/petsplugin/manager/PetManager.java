@@ -14,6 +14,8 @@ import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.attribute.AttributeModifier;
 import org.bukkit.entity.*;
 import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitTask;
 import org.bukkit.scoreboard.Scoreboard;
 import org.bukkit.scoreboard.Team;
@@ -41,19 +43,27 @@ public class PetManager {
     private final Map<UUID, UUID> hoverNameDisplays = new ConcurrentHashMap<>();
     private final Map<UUID, UUID> viewerHoverTargets = new ConcurrentHashMap<>();
     private final Map<UUID, Long> idleEmoteAt = new ConcurrentHashMap<>();
+    private final Map<UUID, Attribute> appliedPlayerAttributes = new ConcurrentHashMap<>();
+    private final Map<UUID, Location> stayAnchors = new ConcurrentHashMap<>();
+    private final Map<String, List<Material>> allowedFoodsByPetType = new ConcurrentHashMap<>();
 
-    public final NamespacedKey PET_ENTITY_KEY;
-    public final NamespacedKey PET_OWNER_KEY;
-    public final NamespacedKey PET_TYPE_KEY;
-    public final NamespacedKey PET_NAME_DISPLAY_KEY;
+    private final NamespacedKey PET_ENTITY_KEY;
+    private final NamespacedKey PET_OWNER_KEY;
+    private final NamespacedKey PET_TYPE_KEY;
+    private final NamespacedKey PET_NAME_DISPLAY_KEY;
 
     /** NamespacedKey used for player attribute modifiers applied by pets. */
-    public final NamespacedKey PET_ATTRIBUTE_KEY;
+    private final NamespacedKey PET_ATTRIBUTE_KEY;
 
     private BukkitTask followTask;
     private BukkitTask xpTask;
     private BukkitTask hoverNameTask;
     private BukkitTask hoverNamePositionTask;
+    private BukkitTask abilityTask;
+
+    private static final double STAY_MAX_HORIZONTAL_DRIFT = 0.65;
+    private static final double STAY_MAX_VERTICAL_DRIFT = 1.0;
+    private static final double STAY_VELOCITY_EPSILON_SQUARED = 0.000001;
 
     public PetManager(PetsPlugin plugin) {
         this.plugin = plugin;
@@ -65,12 +75,15 @@ public class PetManager {
     }
 
     public void initialize() {
+        reloadConfigCache();
         followTask = Bukkit.getScheduler().runTaskTimer(plugin, this::followTick, 10L, 5L);
         // XP task: every 60 seconds
         long xpInterval = plugin.getConfig().getLong("leveling.xp_interval_ticks", 1200L);
         xpTask = Bukkit.getScheduler().runTaskTimer(plugin, this::xpTick, xpInterval, xpInterval);
         hoverNameTask = Bukkit.getScheduler().runTaskTimer(plugin, this::hoverNameTick, 10L, 2L);
         hoverNamePositionTask = Bukkit.getScheduler().runTaskTimer(plugin, this::hoverNamePositionTick, 10L, 1L);
+        // Special ability tick every 2 seconds (e.g. squid underwater vision)
+        abilityTask = Bukkit.getScheduler().runTaskTimer(plugin, this::abilityTick, 20L, 40L);
     }
 
     public void shutdown() {
@@ -78,6 +91,7 @@ public class PetManager {
         if (xpTask != null) xpTask.cancel();
         if (hoverNameTask != null) hoverNameTask.cancel();
         if (hoverNamePositionTask != null) hoverNamePositionTask.cancel();
+        if (abilityTask != null) abilityTask.cancel();
 
         for (UUID playerUuid : new ArrayList<>(activePetEntities.keySet())) {
             despawnPet(playerUuid, false);
@@ -86,6 +100,8 @@ public class PetManager {
         for (UUID viewerUuid : new ArrayList<>(viewerHoverTargets.keySet())) {
             clearViewerHoverTarget(viewerUuid);
         }
+
+        appliedPlayerAttributes.clear();
     }
 
     // ══════════════════════════════════════════════════════════
@@ -116,7 +132,58 @@ public class PetManager {
 
     public void clearCache(UUID uuid) { playerPetsCache.remove(uuid); }
 
+    public void clearPlayerSessionState(UUID uuid) {
+        activePets.remove(uuid);
+        appliedPlayerAttributes.remove(uuid);
+        stayAnchors.remove(uuid);
+    }
+
     public void refreshCache(UUID uuid) { loadPlayerPets(uuid); }
+
+    public NamespacedKey getPetEntityKey() {
+        return PET_ENTITY_KEY;
+    }
+
+    public NamespacedKey getPetOwnerKey() {
+        return PET_OWNER_KEY;
+    }
+
+    public NamespacedKey getPetTypeKey() {
+        return PET_TYPE_KEY;
+    }
+
+    public NamespacedKey getPetNameDisplayKey() {
+        return PET_NAME_DISPLAY_KEY;
+    }
+
+    public NamespacedKey getPetAttributeKey() {
+        return PET_ATTRIBUTE_KEY;
+    }
+
+    public void reloadConfigCache() {
+        Map<PetMovementType, List<Material>> foodsByMovement = new EnumMap<>(PetMovementType.class);
+        for (PetMovementType movementType : PetMovementType.values()) {
+            foodsByMovement.put(movementType, loadFoodsForMovement(movementType));
+        }
+
+        allowedFoodsByPetType.clear();
+        for (PetType type : plugin.getPetTypes().values()) {
+            List<Material> allowed = foodsByMovement.getOrDefault(type.getMovementType(), Collections.emptyList());
+            allowedFoodsByPetType.put(type.getId(), allowed);
+        }
+    }
+
+    private List<Material> loadFoodsForMovement(PetMovementType movementType) {
+        String path = "status.food_by_type." + movementType.name().toLowerCase(Locale.ROOT);
+        List<Material> allowed = new ArrayList<>();
+        for (String value : plugin.getConfig().getStringList(path)) {
+            Material material = Material.matchMaterial(value);
+            if (material != null) {
+                allowed.add(material);
+            }
+        }
+        return Collections.unmodifiableList(allowed);
+    }
 
     // ══════════════════════════════════════════════════════════
     //  Selection
@@ -129,12 +196,12 @@ public class PetManager {
         for (PetInstance p : pets) {
             if (p.isSelected()) {
                 p.setSelected(false);
-                plugin.getDatabaseManager().updatePet(p);
+                plugin.getDatabaseManager().updatePetAsync(p);
             }
         }
 
         pet.setSelected(true);
-        plugin.getDatabaseManager().updatePet(pet);
+        plugin.getDatabaseManager().updatePetAsync(pet);
         activePets.put(playerUuid, pet);
 
         Player player = Bukkit.getPlayer(playerUuid);
@@ -149,14 +216,14 @@ public class PetManager {
         PetInstance active = activePets.remove(playerUuid);
         if (active != null) {
             active.setSelected(false);
-            plugin.getDatabaseManager().updatePet(active);
+            plugin.getDatabaseManager().updatePetAsync(active);
         }
 
         List<PetInstance> pets = getPlayerPets(playerUuid);
         for (PetInstance p : pets) {
             if (p.isSelected()) {
                 p.setSelected(false);
-                plugin.getDatabaseManager().updatePet(p);
+                plugin.getDatabaseManager().updatePetAsync(p);
             }
         }
 
@@ -182,7 +249,14 @@ public class PetManager {
 
         Entity entity = findActivePetEntity(player.getUniqueId());
         if (entity != null) {
+            if (resolved == PetFollowMode.STAY) {
+                stayAnchors.put(player.getUniqueId(), entity.getLocation().clone());
+            } else {
+                stayAnchors.remove(player.getUniqueId());
+            }
             applyPetModePosture(player.getUniqueId(), entity);
+        } else if (resolved == PetFollowMode.FOLLOW) {
+            stayAnchors.remove(player.getUniqueId());
         }
 
         String path = resolved == PetFollowMode.FOLLOW
@@ -191,9 +265,7 @@ public class PetManager {
         String fallback = resolved == PetFollowMode.FOLLOW
                 ? "&aYour pet will follow you again."
                 : "&eYour pet is staying put.";
-        String msg = plugin.getConfig().getString(path, fallback);
-        player.sendMessage(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
-                .legacyAmpersand().deserialize(msg));
+        sendPetNotification(player, path, fallback, null, false);
     }
 
     public void setHideOtherPets(Player player, boolean enabled) {
@@ -206,7 +278,62 @@ public class PetManager {
         String fallback = enabled
                 ? "&aOther players' pets are now hidden."
                 : "&eOther players' pets are visible again.";
+        sendPetNotification(player, path, fallback, null, false);
+    }
+
+    public boolean isPetSoundsEnabled(UUID playerUuid) {
+        return plugin.getSettingsManager().isPetSoundsEnabled(playerUuid);
+    }
+
+    public boolean isPetNotificationsEnabled(UUID playerUuid) {
+        return plugin.getSettingsManager().isPetNotificationsEnabled(playerUuid);
+    }
+
+    public void setPetSoundsEnabled(Player player, boolean enabled) {
+        plugin.getSettingsManager().setPetSoundsEnabled(player.getUniqueId(), enabled);
+
+        String path = enabled
+                ? "messages.pet_sounds_enabled"
+                : "messages.pet_sounds_disabled";
+        String fallback = enabled
+                ? "&aYour pet sounds are now enabled."
+                : "&eYour pet sounds are now muted.";
+        sendPetNotification(player, path, fallback, null, false);
+    }
+
+    public void setPetNotificationsEnabled(Player player, boolean enabled) {
+        plugin.getSettingsManager().setPetNotificationsEnabled(player.getUniqueId(), enabled);
+
+        String path = enabled
+                ? "messages.pet_notifications_enabled"
+                : "messages.pet_notifications_disabled";
+        String fallback = enabled
+                ? "&aYour pet notifications are now enabled."
+                : "&eYour pet notifications are now muted.";
+        sendPetNotification(player, path, fallback, null, false);
+    }
+
+    public void sendPetNotification(Player player, String path, String fallback, Map<String, String> replacements) {
+        sendPetNotification(player, path, fallback, replacements, true);
+    }
+
+    public void sendPetNotification(Player player, String path, String fallback,
+                                    Map<String, String> replacements,
+                                    boolean requireNotificationsEnabled) {
+        if (player == null) {
+            return;
+        }
+        if (requireNotificationsEnabled && !isPetNotificationsEnabled(player.getUniqueId())) {
+            return;
+        }
+
         String msg = plugin.getConfig().getString(path, fallback);
+        if (replacements != null) {
+            for (Map.Entry<String, String> entry : replacements.entrySet()) {
+                msg = msg.replace(entry.getKey(), entry.getValue());
+            }
+        }
+
         player.sendMessage(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
                 .legacyAmpersand().deserialize(msg));
     }
@@ -234,7 +361,7 @@ public class PetManager {
             mob.setAggressive(false);
             mob.setTarget(null);
             mob.setCollidable(false);
-            // Mute bees' built-in loop; we trigger a short quiet buzz manually instead.
+            // Keep bees silent to avoid ambient buzzing noise.
             mob.setSilent(type.getEntityType() == EntityType.BEE);
             mob.setCanPickupItems(false);
             mob.setRemoveWhenFarAway(false);
@@ -270,6 +397,10 @@ public class PetManager {
         applyPetName(entity, pet);
         ensurePersistentAppearance(pet, type);
         applyPetAppearance(entity, pet, type);
+
+        if (plugin.getSettingsManager().isStayMode(player.getUniqueId())) {
+            stayAnchors.put(player.getUniqueId(), entity.getLocation().clone());
+        }
         applyPetModePosture(player.getUniqueId(), entity);
 
         pet.setEntityUuid(entity.getUniqueId());
@@ -282,13 +413,12 @@ public class PetManager {
 
         // Effects
         spawnLoc.getWorld().spawnParticle(Particle.HEART, spawnLoc.clone().add(0, 1, 0), 5, 0.3, 0.3, 0.3);
-        playPetSound(spawnLoc, type, 0.8f, 1.2f);
+        playPetSound(spawnLoc, type, 0.8f, 1.2f, player.getUniqueId());
 
-        String msg = plugin.getConfig().getString("messages.pet_spawned",
-                "&a%pet_name% &7has appeared by your side!");
-        msg = msg.replace("%pet_name%", pet.getDisplayName(type));
-        player.sendMessage(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
-                .legacyAmpersand().deserialize(msg));
+        sendPetNotification(player,
+            "messages.pet_spawned",
+            "&a%pet_name% &7has appeared by your side!",
+            Map.of("%pet_name%", pet.getDisplayName(type)));
 
         refreshPetVisibilityForAll();
     }
@@ -297,25 +427,25 @@ public class PetManager {
         UUID entityUuid = activePetEntities.remove(playerUuid);
         if (entityUuid == null) return;
 
+        stayAnchors.remove(playerUuid);
+
         removeHoverNameDisplay(entityUuid);
         clearHoverTargetsForPet(entityUuid);
 
-        for (World world : Bukkit.getWorlds()) {
-            for (Entity entity : world.getEntities()) {
-                if (entity.getUniqueId().equals(entityUuid)) {
-                    clearOwnerNoCollision(playerUuid, entity);
-                    Location loc = entity.getLocation();
-                    PetInstance pet = activePets.get(playerUuid);
-                    PetType type = pet == null ? null : plugin.getPetTypes().get(pet.getPetTypeId());
-                    if (type != null) {
-                        playPetSound(loc, type, 0.7f, 0.9f);
-                    }
-                    loc.getWorld().spawnParticle(Particle.CLOUD, loc.clone().add(0, 0.5, 0), 10, 0.3, 0.3, 0.3);
-                    entity.remove();
-                    break;
-                }
+        Entity entity = findEntityByUuid(entityUuid);
+        if (entity != null) {
+            clearOwnerNoCollision(playerUuid, entity);
+            Location loc = entity.getLocation();
+            PetInstance pet = activePets.get(playerUuid);
+            PetType type = pet == null ? null : plugin.getPetTypes().get(pet.getPetTypeId());
+            if (type != null) {
+                playPetSound(loc, type, 0.7f, 0.9f, playerUuid);
             }
+            loc.getWorld().spawnParticle(Particle.CLOUD, loc.clone().add(0, 0.5, 0), 10, 0.3, 0.3, 0.3);
+            entity.remove();
         }
+
+        idleEmoteAt.remove(entityUuid);
 
         // Remove player attribute
         Player player = Bukkit.getPlayer(playerUuid);
@@ -328,11 +458,10 @@ public class PetManager {
             if (player != null && pet != null) {
                 PetType type = plugin.getPetTypes().get(pet.getPetTypeId());
                 if (type != null) {
-                    String msg = plugin.getConfig().getString("messages.pet_despawned",
-                            "&7%pet_name% &7has returned to rest.");
-                    msg = msg.replace("%pet_name%", pet.getDisplayName(type));
-                    player.sendMessage(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
-                            .legacyAmpersand().deserialize(msg));
+                    sendPetNotification(player,
+                        "messages.pet_despawned",
+                        "&7%pet_name% &7has returned to rest.",
+                        Map.of("%pet_name%", pet.getDisplayName(type)));
                 }
             }
         }
@@ -348,29 +477,37 @@ public class PetManager {
         if (pet == null || type == null) {
             return;
         }
-        if (pet.getAppearanceVariant() != null || pet.getAppearanceSoundVariant() != null) {
+        if (pet.getAppearanceVariant() != null) {
             return;
         }
 
         switch (type.getEntityType()) {
             case FOX -> pet.setAppearanceVariant(randomFoxType().name());
-            case PIG -> pet.setAppearanceVariant(randomPigVariant());
-            case CHICKEN -> pet.setAppearanceVariant(randomChickenVariant());
+            case PIG, CHICKEN -> pet.setAppearanceVariant(randomClimateVariant());
             case RABBIT -> pet.setAppearanceVariant(randomRabbitType().name());
+            case HORSE -> pet.setAppearanceVariant(randomHorseVariant());
             default -> {
                 return;
             }
         }
 
         if (pet.getDatabaseId() > 0) {
-            plugin.getDatabaseManager().updatePet(pet);
+            plugin.getDatabaseManager().updatePetAsync(pet);
             syncCachedAppearance(pet);
         }
     }
 
     public UUID getPetOwner(Entity entity) {
         String uuid = entity.getPersistentDataContainer().get(PET_OWNER_KEY, PersistentDataType.STRING);
-        return uuid != null ? UUID.fromString(uuid) : null;
+        if (uuid == null) {
+            return null;
+        }
+
+        try {
+            return UUID.fromString(uuid);
+        } catch (IllegalArgumentException invalidUuid) {
+            return null;
+        }
     }
 
     public void renamePet(Player player, PetInstance pet, String requestedNickname) {
@@ -379,7 +516,7 @@ public class PetManager {
 
         pet.setNickname(nickname);
         syncCachedNickname(pet);
-        plugin.getDatabaseManager().updatePet(pet);
+        plugin.getDatabaseManager().updatePetAsync(pet);
 
         Entity entity = findActivePetEntity(player.getUniqueId());
         if (entity != null) {
@@ -390,11 +527,10 @@ public class PetManager {
 
         PetType type = plugin.getPetTypes().get(pet.getPetTypeId());
         String displayName = type != null ? pet.getDisplayName(type) : nickname;
-        String msg = plugin.getConfig().getString("messages.pet_renamed",
-                "&aYour pet is now named &e%pet_name%&a!");
-        msg = msg.replace("%pet_name%", displayName);
-        player.sendMessage(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
-                .legacyAmpersand().deserialize(msg));
+        sendPetNotification(player,
+            "messages.pet_renamed",
+            "&aYour pet is now named &e%pet_name%&a!",
+            Map.of("%pet_name%", displayName));
         plugin.getAdvancementManager().handlePetRenamed(player);
     }
 
@@ -402,22 +538,49 @@ public class PetManager {
     //  Player Attribute Bonuses
     // ══════════════════════════════════════════════════════════
 
+    public boolean arePetAbilitiesEnabled() {
+        return plugin.getConfig().getBoolean("pets.abilities.enabled", true);
+    }
+
     /** Apply the pet's attribute bonus to the player. */
     public void applyPlayerAttribute(Player player, PetInstance pet, PetType type) {
         removePlayerAttribute(player); // Clean first
+        if (!arePetAbilitiesEnabled()) return;
+        if (!type.hasPlayerAttribute()) return; // Storage pets have no stat bonus
 
         AttributeInstance attrInst = player.getAttribute(type.getPlayerAttribute());
         if (attrInst == null) return;
 
         double value = type.getAttributeAtLevel(pet.getLevel());
+        AttributeModifier.Operation operation = AttributeModifier.Operation.ADD_NUMBER;
+
+        // Gravity is treated as a scalar from base 1.0 (1 + amount).
+        // Example: amount -0.09 => 0.91x gravity, amount -0.9 => 0.1x gravity.
+        if (type.getPlayerAttribute() == Attribute.GRAVITY) {
+            operation = AttributeModifier.Operation.MULTIPLY_SCALAR_1;
+        }
+
         AttributeModifier modifier = new AttributeModifier(
-                PET_ATTRIBUTE_KEY, value, AttributeModifier.Operation.ADD_NUMBER);
+                PET_ATTRIBUTE_KEY, value, operation);
         attrInst.addModifier(modifier);
+        appliedPlayerAttributes.put(player.getUniqueId(), type.getPlayerAttribute());
     }
 
     /** Remove any pet attribute bonus from the player. */
     public void removePlayerAttribute(Player player) {
-        for (Attribute attr : Attribute.values()) {
+        Set<Attribute> candidateAttrs = new HashSet<>();
+        Attribute tracked = appliedPlayerAttributes.remove(player.getUniqueId());
+        if (tracked != null) {
+            candidateAttrs.add(tracked);
+        }
+
+        for (PetType type : plugin.getPetTypes().values()) {
+            if (type.hasPlayerAttribute()) {
+                candidateAttrs.add(type.getPlayerAttribute());
+            }
+        }
+
+        for (Attribute attr : candidateAttrs) {
             AttributeInstance inst = player.getAttribute(attr);
             if (inst == null) continue;
             for (AttributeModifier mod : new ArrayList<>(inst.getModifiers())) {
@@ -435,13 +598,30 @@ public class PetManager {
         applyPlayerAttribute(player, pet, type);
     }
 
+    /** Re-apply or clear player ability modifiers after config reloads. */
+    public void refreshAbilityStateForOnlinePlayers() {
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            removePlayerAttribute(player);
+        }
+
+        if (!arePetAbilitiesEnabled()) {
+            return;
+        }
+
+        for (Map.Entry<UUID, PetInstance> entry : activePets.entrySet()) {
+            Player player = Bukkit.getPlayer(entry.getKey());
+            if (player == null || !player.isOnline()) continue;
+            refreshPlayerAttribute(player, entry.getValue());
+        }
+    }
+
     // ══════════════════════════════════════════════════════════
     //  Following & Teleporting
     // ══════════════════════════════════════════════════════════
 
     private void followTick() {
-        double followDist = plugin.getConfig().getDouble("pets.follow_distance", 3.0);
-        double teleportDist = plugin.getConfig().getDouble("pets.teleport_distance", 20.0);
+        double followDist = plugin.getFollowDistance();
+        double teleportDist = plugin.getTeleportDistance();
 
         for (Map.Entry<UUID, UUID> entry : activePetEntities.entrySet()) {
             UUID playerUuid = entry.getKey();
@@ -450,13 +630,7 @@ public class PetManager {
             Player player = Bukkit.getPlayer(playerUuid);
             if (player == null || !player.isOnline()) continue;
 
-            Entity petEntity = null;
-            for (Entity e : player.getWorld().getEntities()) {
-                if (e.getUniqueId().equals(entityUuid)) {
-                    petEntity = e;
-                    break;
-                }
-            }
+            Entity petEntity = findEntityByUuid(entityUuid);
 
             if (petEntity == null) {
                 if (plugin.getConfig().getBoolean("pets.cross_dimension_teleport", true)) {
@@ -485,9 +659,12 @@ public class PetManager {
 
             if (plugin.getSettingsManager().isStayMode(playerUuid)) {
                 applyPetModePosture(playerUuid, petEntity);
+                enforceStayPosition(playerUuid, petEntity);
                 syncHoverNamePosition(petEntity);
                 continue;
             }
+
+            stayAnchors.remove(playerUuid);
 
             double distance = petEntity.getLocation().distance(player.getLocation());
 
@@ -514,7 +691,7 @@ public class PetManager {
 
     private void xpTick() {
         double xpPerTick = plugin.getConfig().getDouble("leveling.xp_per_interval", 2.0);
-        int maxLevel = plugin.getConfig().getInt("leveling.max_level", 10);
+        int maxLevel = plugin.getMaxLevel();
 
         for (Map.Entry<UUID, PetInstance> entry : activePets.entrySet()) {
             UUID playerUuid = entry.getKey();
@@ -535,12 +712,13 @@ public class PetManager {
 
                     PetType type = plugin.getPetTypes().get(pet.getPetTypeId());
                     if (type != null) {
-                        String msg = plugin.getConfig().getString("messages.pet_level_up",
-                                "&b&lLEVEL UP! &e%pet_name% &7is now level &e%level%&7!");
-                        msg = msg.replace("%pet_name%", pet.getDisplayName(type))
-                                .replace("%level%", String.valueOf(pet.getLevel()));
-                        player.sendMessage(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
-                                .legacyAmpersand().deserialize(msg));
+                        sendPetNotification(player,
+                            "messages.pet_level_up",
+                            "&b&lLEVEL UP! &e%pet_name% &7is now level &e%level%&7!",
+                            Map.of(
+                                "%pet_name%", pet.getDisplayName(type),
+                                "%level%", String.valueOf(pet.getLevel())
+                            ));
                         player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.5f);
                         player.getWorld().spawnParticle(Particle.TOTEM_OF_UNDYING,
                                 player.getLocation().add(0, 1, 0), 20, 0.5, 0.5, 0.5, 0.1);
@@ -554,7 +732,45 @@ public class PetManager {
                 }
             }
 
-            plugin.getDatabaseManager().updatePet(pet);
+            plugin.getDatabaseManager().updatePetAsync(pet);
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════
+    //  Special Ability Tick
+    // ══════════════════════════════════════════════════════════
+
+    private void abilityTick() {
+        if (!arePetAbilitiesEnabled()) return;
+
+        for (Map.Entry<UUID, PetInstance> entry : activePets.entrySet()) {
+            Player player = Bukkit.getPlayer(entry.getKey());
+            if (player == null || !player.isOnline()) continue;
+
+            PetType type = plugin.getPetTypes().get(entry.getValue().getPetTypeId());
+            if (type == null) continue;
+
+            if (type.getSpecialAbility() == PetType.SpecialAbility.UNDERWATER_VISION) {
+                applyUnderwaterVision(player);
+            }
+        }
+    }
+
+    /**
+     * Applies a short-duration Night Vision effect while the player's eyes are submerged.
+     * Re-applied every 2 seconds so it never expires while underwater, with no icon or particles
+     * to keep it seamless. Naturally wears off ~5 seconds after leaving water.
+     */
+    private void applyUnderwaterVision(Player player) {
+        if (player.getEyeLocation().getBlock().isLiquid()) {
+            player.addPotionEffect(new PotionEffect(
+                    PotionEffectType.NIGHT_VISION,
+                    100,    // 5 seconds — refreshed every 2s while underwater
+                    0,
+                    true,   // ambient: subtler particles
+                    false,  // no particles
+                    false   // no HUD icon
+            ));
         }
     }
 
@@ -575,26 +791,25 @@ public class PetManager {
         if (type == null) return;
 
         pet.setStatus(pet.getStatus().better());
-        plugin.getDatabaseManager().updatePet(pet);
+        plugin.getDatabaseManager().updatePetAsync(pet);
 
         // Hearts + mob sound
         UUID entityUuid = activePetEntities.get(player.getUniqueId());
         if (entityUuid != null) {
-            for (Entity e : player.getWorld().getEntities()) {
-                if (e.getUniqueId().equals(entityUuid)) {
-                    e.getWorld().spawnParticle(Particle.HEART, e.getLocation().add(0, 1, 0), 5, 0.3, 0.3, 0.3);
-                    playMobSound(e, type);
-                    break;
-                }
+            Entity entity = findEntityByUuid(entityUuid);
+            if (entity != null) {
+                entity.getWorld().spawnParticle(Particle.HEART, entity.getLocation().add(0, 1, 0), 5, 0.3, 0.3, 0.3);
+                playPetAmbientSound(entity, type);
             }
         }
 
-        String msg = plugin.getConfig().getString("messages.pet_fed",
-                "&a%pet_name% &7enjoyed the treat! Status: &e%status%");
-        msg = msg.replace("%pet_name%", pet.getDisplayName(type))
-                .replace("%status%", pet.getStatus().getDisplay());
-        player.sendMessage(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
-                .legacyAmpersand().deserialize(msg));
+        sendPetNotification(player,
+            "messages.pet_fed",
+            "&a%pet_name% &7enjoyed the treat! Status: &e%status%",
+            Map.of(
+                "%pet_name%", pet.getDisplayName(type),
+                "%status%", pet.getStatus().getDisplay()
+            ));
         plugin.getAdvancementManager().handlePetFed(player);
     }
 
@@ -606,22 +821,7 @@ public class PetManager {
         if (type == null) {
             return Collections.emptyList();
         }
-
-        PetMovementType movementType = type.getMovementType();
-        String path = "status.food_by_type." + movementType.name().toLowerCase();
-        List<String> configured = plugin.getConfig().getStringList(path);
-        if (configured.isEmpty()) {
-            configured = defaultFoods(movementType);
-        }
-
-        List<Material> allowed = new ArrayList<>();
-        for (String value : configured) {
-            Material material = Material.matchMaterial(value);
-            if (material != null) {
-                allowed.add(material);
-            }
-        }
-        return allowed;
+        return allowedFoodsByPetType.getOrDefault(type.getId(), Collections.emptyList());
     }
 
     public String getAllowedFoodsDisplay(PetType type) {
@@ -640,36 +840,39 @@ public class PetManager {
         if (type == null) return;
 
         pet.setStatus(pet.getStatus().better());
-        plugin.getDatabaseManager().updatePet(pet);
+        plugin.getDatabaseManager().updatePetAsync(pet);
 
         UUID entityUuid = activePetEntities.get(player.getUniqueId());
         if (entityUuid != null) {
-            for (Entity e : player.getWorld().getEntities()) {
-                if (e.getUniqueId().equals(entityUuid)) {
-                    // Hearts
-                    e.getWorld().spawnParticle(Particle.HEART,
-                            e.getLocation().add(0, 1, 0), 7, 0.3, 0.3, 0.3);
-                    // Happy jump
-                    if (e instanceof Mob mob) {
-                        mob.setVelocity(mob.getVelocity().setY(0.35));
-                    }
-                    playMobSound(e, type);
-                    break;
+            Entity entity = findEntityByUuid(entityUuid);
+            if (entity != null) {
+                // Hearts
+                entity.getWorld().spawnParticle(Particle.HEART,
+                        entity.getLocation().add(0, 1, 0), 7, 0.3, 0.3, 0.3);
+                // Happy jump
+                if (entity instanceof Mob mob) {
+                    mob.setVelocity(mob.getVelocity().setY(0.35));
                 }
             }
         }
 
-        String msg = plugin.getConfig().getString("messages.pet_petted",
-                "&d%pet_name% &7loves the attention! Status: &e%status%");
-        msg = msg.replace("%pet_name%", pet.getDisplayName(type))
-                .replace("%status%", pet.getStatus().getDisplay());
-        player.sendMessage(net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer
-                .legacyAmpersand().deserialize(msg));
+        sendPetNotification(player,
+            "messages.pet_petted",
+            "&d%pet_name% &7loves the attention! Status: &e%status%",
+            Map.of(
+                "%pet_name%", pet.getDisplayName(type),
+                "%status%", pet.getStatus().getDisplay()
+            ));
         plugin.getAdvancementManager().handlePetPetted(player);
     }
 
-    private void playMobSound(Entity entity, PetType type) {
-        playPetSound(entity.getLocation(), type, 1.0f, 1.3f);
+    public void playPetAmbientSound(Entity entity, PetType type) {
+        if (entity == null || type == null) {
+            return;
+        }
+
+        UUID ownerUuid = getPetOwner(entity);
+        playPetSound(entity.getLocation(), type, 1.0f, 1.3f, ownerUuid);
     }
 
     // ══════════════════════════════════════════════════════════
@@ -677,10 +880,10 @@ public class PetManager {
     // ══════════════════════════════════════════════════════════
 
     public void setLevel(Player player, PetInstance pet, int level) {
-        int maxLevel = plugin.getConfig().getInt("leveling.max_level", 10);
+        int maxLevel = plugin.getMaxLevel();
         pet.setLevel(Math.min(level, maxLevel));
         pet.setXp(0);
-        plugin.getDatabaseManager().updatePet(pet);
+        plugin.getDatabaseManager().updatePetAsync(pet);
         refreshPlayerAttribute(player, pet);
         plugin.getAdvancementManager().handlePetLevel(player, pet);
     }
@@ -800,7 +1003,6 @@ public class PetManager {
         for (PetInstance cachedPet : pets) {
             if (cachedPet.getDatabaseId() == pet.getDatabaseId()) {
                 cachedPet.setAppearanceVariant(pet.getAppearanceVariant());
-                cachedPet.setAppearanceSoundVariant(pet.getAppearanceSoundVariant());
                 break;
             }
         }
@@ -813,6 +1015,12 @@ public class PetManager {
 
     private Entity findEntityByUuid(UUID entityUuid) {
         if (entityUuid == null) return null;
+
+        Entity direct = Bukkit.getEntity(entityUuid);
+        if (direct != null) {
+            return direct;
+        }
+
         for (World world : Bukkit.getWorlds()) {
             for (Entity entity : world.getEntities()) {
                 if (entity.getUniqueId().equals(entityUuid)) {
@@ -834,6 +1042,8 @@ public class PetManager {
 
         if (entity instanceof Fox fox) {
             fox.setSitting(stayMode);
+            // Fox AI can still run panic/escape goals while sitting; make it unaware in stay mode.
+            fox.setAware(!stayMode);
         }
 
         if (stayMode && entity instanceof Mob mob) {
@@ -842,6 +1052,46 @@ public class PetManager {
             } catch (Exception ignored) {
             }
         }
+    }
+
+    private void enforceStayPosition(UUID playerUuid, Entity entity) {
+        Location current = entity.getLocation();
+        Location anchor = stayAnchors.get(playerUuid);
+
+        if (anchor == null || anchor.getWorld() == null || !anchor.getWorld().equals(current.getWorld())) {
+            stayAnchors.put(playerUuid, current.clone());
+            return;
+        }
+
+        if (entity instanceof Mob mob) {
+            try {
+                mob.getPathfinder().stopPathfinding();
+            } catch (Exception ignored) {
+            }
+        }
+
+        if (entity.getVelocity().lengthSquared() > STAY_VELOCITY_EPSILON_SQUARED) {
+            entity.setVelocity(new Vector(0, 0, 0));
+        }
+
+        double horizontal = horizontalDistance(current, anchor);
+        double vertical = Math.abs(current.getY() - anchor.getY());
+        if (horizontal <= STAY_MAX_HORIZONTAL_DRIFT && vertical <= STAY_MAX_VERTICAL_DRIFT) {
+            return;
+        }
+
+        // Safety snap only for large displacement (e.g. piston/water/explosion push).
+        Location target = anchor.clone();
+        target.setYaw(current.getYaw());
+        target.setPitch(current.getPitch());
+        entity.teleport(target);
+        entity.setVelocity(new Vector(0, 0, 0));
+    }
+
+    private double horizontalDistance(Location a, Location b) {
+        double dx = a.getX() - b.getX();
+        double dz = a.getZ() - b.getZ();
+        return Math.sqrt(dx * dx + dz * dz);
     }
 
     private void maybePlayIdleEmote(Player player, Entity entity) {
@@ -865,7 +1115,7 @@ public class PetManager {
 
         PetType type = plugin.getPetTypes().get(pet.getPetTypeId());
         if (type != null && Math.random() < 0.35) {
-            playMobSound(entity, type);
+            playPetAmbientSound(entity, type);
         }
     }
 
@@ -907,20 +1157,21 @@ public class PetManager {
                     }
                 }
             }
+            case HORSE -> {
+                if (entity instanceof Horse horse) {
+                    HorseAppearance appearance = parseHorseAppearance(pet.getAppearanceVariant());
+                    if (appearance != null) {
+                        horse.setColor(appearance.color());
+                        horse.setStyle(appearance.style());
+                    }
+                }
+            }
             default -> {
             }
         }
     }
 
-    private List<String> defaultFoods(PetMovementType movementType) {
-        return switch (movementType) {
-            case GROUND -> List.of("WHEAT", "CARROT", "APPLE", "BREAD");
-            case FLYING -> List.of("WHEAT_SEEDS", "MELON_SEEDS", "PUMPKIN_SEEDS", "BEETROOT_SEEDS", "TORCHFLOWER_SEEDS", "PITCHER_POD");
-            case WATER -> List.of("COD", "SALMON", "TROPICAL_FISH", "KELP");
-        };
-    }
-
-    private String formatMaterialName(Material material) {
+    public String formatMaterialName(Material material) {
         String[] words = material.name().toLowerCase().split("_");
         StringBuilder builder = new StringBuilder();
         for (String word : words) {
@@ -933,22 +1184,16 @@ public class PetManager {
     }
 
     private void applyOwnerNoCollision(Player player, Entity petEntity) {
-        if (!(petEntity instanceof LivingEntity livingEntity)) {
-            return;
-        }
+        if (!(petEntity instanceof LivingEntity livingEntity)) return;
 
         livingEntity.setCollidable(false);
-        Scoreboard scoreboard = Bukkit.getScoreboardManager().getMainScoreboard();
-        Team team = scoreboard.getTeam(collisionTeamName(player.getUniqueId()));
-        if (team == null) {
-            team = scoreboard.registerNewTeam(collisionTeamName(player.getUniqueId()));
-            team.setOption(Team.Option.COLLISION_RULE, Team.OptionStatus.NEVER);
-            team.setCanSeeFriendlyInvisibles(false);
-            team.setAllowFriendlyFire(false);
-        }
 
-        if (!team.hasEntity(player)) {
-            team.addEntity(player);
+        Scoreboard scoreboard = Bukkit.getScoreboardManager().getMainScoreboard();
+        String teamName = collisionTeamName(player.getUniqueId());
+        Team team = scoreboard.getTeam(teamName);
+        if (team == null) {
+            team = scoreboard.registerNewTeam(teamName);
+            team.setOption(Team.Option.COLLISION_RULE, Team.OptionStatus.NEVER);
         }
         if (!team.hasEntity(petEntity)) {
             team.addEntity(petEntity);
@@ -958,14 +1203,8 @@ public class PetManager {
     private void clearOwnerNoCollision(UUID playerUuid, Entity petEntity) {
         Scoreboard scoreboard = Bukkit.getScoreboardManager().getMainScoreboard();
         Team team = scoreboard.getTeam(collisionTeamName(playerUuid));
-        if (team == null) {
-            return;
-        }
+        if (team == null) return;
 
-        Player player = Bukkit.getPlayer(playerUuid);
-        if (player != null && team.hasEntity(player)) {
-            team.removeEntity(player);
-        }
         if (petEntity != null && team.hasEntity(petEntity)) {
             team.removeEntity(petEntity);
         }
@@ -1165,32 +1404,73 @@ public class PetManager {
     }
 
     private Sound getPetAmbientSound(PetType type) {
+        boolean baby = type.isBaby();
+
         return switch (type.getEntityType()) {
-            case CHICKEN -> Sound.ENTITY_CHICKEN_AMBIENT;
-            case PIG -> Sound.ENTITY_PIG_AMBIENT;
-            case BEE -> Sound.ENTITY_BEE_LOOP;
-            case DOLPHIN -> Sound.ENTITY_DOLPHIN_AMBIENT;
-            case FOX -> Sound.ENTITY_FOX_AMBIENT;
-            case GOAT -> Sound.ENTITY_GOAT_AMBIENT;
-            case RABBIT -> Sound.ENTITY_RABBIT_AMBIENT;
-            case NAUTILUS -> Sound.BLOCK_BUBBLE_COLUMN_WHIRLPOOL_INSIDE;
-            default -> Sound.ENTITY_ALLAY_AMBIENT_WITHOUT_ITEM;
+            case CHICKEN -> chooseAmbientSound(baby, "ENTITY_CHICKEN_AMBIENT", "ENTITY_BABY_CHICKEN_AMBIENT");
+            case PIG -> chooseAmbientSound(baby, "ENTITY_PIG_AMBIENT", "ENTITY_BABY_PIG_AMBIENT");
+            case COW -> chooseAmbientSound(baby, "ENTITY_COW_AMBIENT", "ENTITY_BABY_COW_AMBIENT");
+            case SHEEP -> chooseAmbientSound(baby, "ENTITY_SHEEP_AMBIENT", "ENTITY_BABY_SHEEP_AMBIENT");
+            case SQUID -> chooseAmbientSound(baby, "ENTITY_SQUID_AMBIENT");
+            case RABBIT -> chooseAmbientSound(baby, "ENTITY_RABBIT_AMBIENT", "ENTITY_BABY_RABBIT_AMBIENT");
+            case HORSE -> chooseAmbientSound(baby, "ENTITY_HORSE_AMBIENT", "ENTITY_BABY_HORSE_AMBIENT");
+            case DONKEY -> chooseAmbientSound(baby, "ENTITY_DONKEY_AMBIENT", "ENTITY_BABY_DONKEY_AMBIENT");
+            case MULE -> chooseAmbientSound(baby, "ENTITY_MULE_AMBIENT", "ENTITY_BABY_MULE_AMBIENT");
+            case DOLPHIN -> chooseAmbientSound(baby, "ENTITY_DOLPHIN_AMBIENT", "ENTITY_BABY_DOLPHIN_AMBIENT");
+            case NAUTILUS -> chooseAmbientSound(baby, "ENTITY_NAUTILUS_AMBIENT", "ENTITY_BABY_NAUTILUS_AMBIENT");
+            case ARMADILLO -> chooseAmbientSound(baby, "ENTITY_ARMADILLO_AMBIENT", "ENTITY_BABY_ARMADILLO_AMBIENT");
+            case MOOSHROOM -> chooseAmbientSound(baby, "ENTITY_MOOSHROOM_AMBIENT", "ENTITY_BABY_MOOSHROOM_AMBIENT");
+            case TURTLE -> chooseAmbientSound(baby, "ENTITY_TURTLE_AMBIENT_LAND", "ENTITY_TURTLE_SHAMBLE_BABY");
+            case LLAMA, TRADER_LLAMA -> chooseAmbientSound(baby, "ENTITY_LLAMA_AMBIENT", "ENTITY_BABY_LLAMA_AMBIENT");
+            case FOX -> chooseAmbientSound(baby, "ENTITY_FOX_AMBIENT", "ENTITY_BABY_FOX_AMBIENT");
+            case OCELOT -> chooseAmbientSound(baby, "ENTITY_OCELOT_AMBIENT", "ENTITY_BABY_OCELOT_AMBIENT");
+            case POLAR_BEAR -> chooseAmbientSound(baby, "ENTITY_POLAR_BEAR_AMBIENT", "ENTITY_BABY_POLAR_BEAR_AMBIENT");
+            case CAMEL -> chooseAmbientSound(baby, "ENTITY_CAMEL_AMBIENT", "ENTITY_BABY_CAMEL_AMBIENT");
+            case GOAT -> chooseAmbientSound(baby, "ENTITY_GOAT_AMBIENT", "ENTITY_BABY_GOAT_AMBIENT");
+            case PANDA -> chooseAmbientSound(baby, "ENTITY_PANDA_AMBIENT", "ENTITY_BABY_PANDA_AMBIENT");
+            default -> null;
         };
     }
 
-    private void playPetSound(Location location, PetType type, float volume, float pitch) {
+    private Sound chooseAmbientSound(boolean baby, String adultSoundName, String... babySoundNames) {
+        if (baby) {
+            Sound babySound = resolveAmbientSound(babySoundNames);
+            if (babySound != null) {
+                return babySound;
+            }
+        }
+        return resolveAmbientSound(adultSoundName);
+    }
+
+    private Sound resolveAmbientSound(String... soundNames) {
+        for (String soundName : soundNames) {
+            try {
+                Object candidate = Sound.class.getField(soundName).get(null);
+                if (candidate instanceof Sound sound) {
+                    return sound;
+                }
+            } catch (NoSuchFieldException | IllegalAccessException ignored) {
+                // Server API can differ by version; use the next candidate.
+            }
+        }
+        return null;
+    }
+
+    private void playPetSound(Location location, PetType type, float volume, float pitch, UUID ownerUuid) {
         if (location.getWorld() == null || type == null) {
             return;
         }
 
-        float adjustedVolume = volume;
-        float adjustedPitch = pitch;
-        if (type.getEntityType() == EntityType.BEE) {
-            adjustedVolume = Math.min(volume, 0.15f);
-            adjustedPitch = 1.0f;
+        if (ownerUuid != null && !isPetSoundsEnabled(ownerUuid)) {
+            return;
         }
 
-        location.getWorld().playSound(location, getPetAmbientSound(type), adjustedVolume, adjustedPitch);
+        Sound ambientSound = getPetAmbientSound(type);
+        if (ambientSound == null) {
+            return;
+        }
+
+        location.getWorld().playSound(location, ambientSound, volume, pitch);
     }
 
     private Fox.Type randomFoxType() {
@@ -1198,15 +1478,7 @@ public class PetManager {
         return values[ThreadLocalRandom.current().nextInt(values.length)];
     }
 
-    private String randomPigVariant() {
-        return switch (ThreadLocalRandom.current().nextInt(3)) {
-            case 0 -> "COLD";
-            case 1 -> "TEMPERATE";
-            default -> "WARM";
-        };
-    }
-
-    private String randomChickenVariant() {
+    private String randomClimateVariant() {
         return switch (ThreadLocalRandom.current().nextInt(3)) {
             case 0 -> "COLD";
             case 1 -> "TEMPERATE";
@@ -1226,22 +1498,52 @@ public class PetManager {
         return values[ThreadLocalRandom.current().nextInt(values.length)];
     }
 
+    private String randomHorseVariant() {
+        Horse.Color[] colors = Horse.Color.values();
+        Horse.Style[] styles = Horse.Style.values();
+
+        Horse.Color color = colors[ThreadLocalRandom.current().nextInt(colors.length)];
+        Horse.Style style = styles[ThreadLocalRandom.current().nextInt(styles.length)];
+        return color.name() + ":" + style.name();
+    }
+
+    private HorseAppearance parseHorseAppearance(String value) {
+        if (value == null || value.isBlank()) return null;
+
+        String[] parts = value.split(":", 2);
+        if (parts.length != 2) return null;
+
+        try {
+            Horse.Color color = Horse.Color.valueOf(parts[0]);
+            Horse.Style style = Horse.Style.valueOf(parts[1]);
+            return new HorseAppearance(color, style);
+        } catch (IllegalArgumentException ignored) {
+            return null;
+        }
+    }
+
+    private record HorseAppearance(Horse.Color color, Horse.Style style) {}
+
     private Pig.Variant parsePigVariant(String value) {
-        if (value == null) return null;
-        return switch (value) {
-            case "COLD" -> Pig.Variant.COLD;
-            case "TEMPERATE" -> Pig.Variant.TEMPERATE;
-            case "WARM" -> Pig.Variant.WARM;
-            default -> null;
-        };
+        return parseClimateVariant(value,
+                Pig.Variant.COLD,
+                Pig.Variant.TEMPERATE,
+                Pig.Variant.WARM);
     }
 
     private Chicken.Variant parseChickenVariant(String value) {
+        return parseClimateVariant(value,
+                Chicken.Variant.COLD,
+                Chicken.Variant.TEMPERATE,
+                Chicken.Variant.WARM);
+    }
+
+    private <T> T parseClimateVariant(String value, T cold, T temperate, T warm) {
         if (value == null) return null;
         return switch (value) {
-            case "COLD" -> Chicken.Variant.COLD;
-            case "TEMPERATE" -> Chicken.Variant.TEMPERATE;
-            case "WARM" -> Chicken.Variant.WARM;
+            case "COLD" -> cold;
+            case "TEMPERATE" -> temperate;
+            case "WARM" -> warm;
             default -> null;
         };
     }

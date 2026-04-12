@@ -3,8 +3,14 @@
 # ═══════════════════════════════════════════════════════════
 # Each pet gives the PLAYER an attribute bonus that scales with level (max 10).
 # Rarity is communicated via item name color — no explicit label needed.
+#
+# special_ability: NONE | UNDERWATER_VISION | STORAGE
+# storage_size:    5 (horse tier) | 9 (llama) | 14 (camel) | 18 (trader llama)
+# storage_glass:   Bukkit Material name for the filler pane
 
 pets:
+
+  # ── Common ─────────────────────────────────────────────────
 
   chicken:
     display_name: "Chicken"
@@ -14,9 +20,9 @@ pets:
     icon: CHICKEN_SPAWN_EGG
     description: "A feathery little friend."
     player_attribute:
-      type: ARMOR
-      value_per_level: 0.5
-      display: "♦ Armor"
+      type: FALL_DAMAGE_MULTIPLIER
+      value_per_level: -0.05
+      display: "❋ Fall Resistance"
 
   pig:
     display_name: "Pig"
@@ -29,6 +35,45 @@ pets:
       type: MAX_HEALTH
       value_per_level: 0.5
       display: "♥ Max Health"
+
+  cow:
+    display_name: "Cow"
+    entity_type: COW
+    rarity: COMMON
+    baby: true
+    icon: COW_SPAWN_EGG
+    description: "A well-fed pasture companion."
+    player_attribute:
+      type: MAX_ABSORPTION
+      value_per_level: 0.5
+      display: "☕ Max Absorption"
+
+  sheep:
+    display_name: "Sheep"
+    entity_type: SHEEP
+    rarity: COMMON
+    baby: true
+    icon: SHEEP_SPAWN_EGG
+    description: "A fluffy little shield."
+    player_attribute:
+      type: SAFE_FALL_DISTANCE
+      value_per_level: 0.5
+      display: "↧ Safe Fall Distance"
+
+  squid:
+    display_name: "Squid"
+    entity_type: SQUID
+    rarity: COMMON
+    baby: true
+    aquatic: true
+    icon: SQUID_SPAWN_EGG
+    description: "A mysterious ink-dweller of the deep."
+    player_attribute:
+      type: OXYGEN_BONUS
+      value_per_level: 1.0
+      display: "◎ Oxygen Bonus"
+
+  # ── Uncommon ───────────────────────────────────────────────
 
   bee:
     display_name: "Bee"
@@ -55,6 +100,44 @@ pets:
       value_per_level: 0.0265
       display: "⬆ Jump Height"
 
+  horse:
+    display_name: "Horse"
+    entity_type: HORSE
+    rarity: UNCOMMON
+    baby: true
+    icon: HORSE_SPAWN_EGG
+    description: "A trusty steed and pack companion."
+    special_ability: STORAGE
+    storage_size: 5
+    storage_group: horse
+    storage_glass: BROWN_STAINED_GLASS_PANE
+
+  donkey:
+    display_name: "Donkey"
+    entity_type: DONKEY
+    rarity: UNCOMMON
+    baby: true
+    icon: DONKEY_SPAWN_EGG
+    description: "A stubborn little pack animal."
+    special_ability: STORAGE
+    storage_size: 5
+    storage_group: horse
+    storage_glass: BROWN_STAINED_GLASS_PANE
+
+  mule:
+    display_name: "Mule"
+    entity_type: MULE
+    rarity: UNCOMMON
+    baby: true
+    icon: MULE_SPAWN_EGG
+    description: "Half horse, half donkey, all utility."
+    special_ability: STORAGE
+    storage_size: 5
+    storage_group: horse
+    storage_glass: BROWN_STAINED_GLASS_PANE
+
+  # ── Rare ───────────────────────────────────────────────────
+
   dolphin:
     display_name: "Dolphin"
     entity_type: DOLPHIN
@@ -68,18 +151,56 @@ pets:
       value_per_level: 1.0
       display: "◎ Oxygen Bonus"
 
-  nautilus:
-    display_name: "Nautilus"
-    entity_type: NAUTILUS
+  armadillo:
+    display_name: "Armadillo"
+    entity_type: ARMADILLO
     rarity: RARE
-    baby: false
-    aquatic: true
-    icon: NAUTILUS_SPAWN_EGG
-    description: "An ancient ocean dweller."
+    baby: true
+    icon: ARMADILLO_SPAWN_EGG
+    description: "A tiny armored guardian."
     player_attribute:
-      type: LUCK
+      type: ARMOR
       value_per_level: 0.5
-      display: "☆ Luck"
+      display: "⛨ Armor"
+
+  mooshroom:
+    display_name: "Mooshroom"
+    entity_type: MOOSHROOM
+    rarity: RARE
+    baby: true
+    icon: MOOSHROOM_SPAWN_EGG
+    description: "A cozy fungal companion."
+    player_attribute:
+      type: GRAVITY
+      value_per_level: -0.09
+      display: "⬇ Gravity"
+
+  turtle:
+    display_name: "Turtle"
+    entity_type: TURTLE
+    rarity: RARE
+    baby: true
+    aquatic: true
+    icon: TURTLE_SPAWN_EGG
+    description: "A calm ocean glider."
+    player_attribute:
+      type: WATER_MOVEMENT_EFFICIENCY
+      value_per_level: 0.5
+      display: "≈ Water Movement"
+
+  llama:
+    display_name: "Llama"
+    entity_type: LLAMA
+    rarity: RARE
+    baby: true
+    icon: LLAMA_SPAWN_EGG
+    description: "A woolly pack beast with a mean spit."
+    special_ability: STORAGE
+    storage_size: 9
+    storage_group: llama
+    storage_glass: WHITE_STAINED_GLASS_PANE
+
+  # ── Epic ───────────────────────────────────────────────────
 
   fox:
     display_name: "Fox"
@@ -93,6 +214,44 @@ pets:
       value_per_level: 0.005
       display: "⚡ Movement Speed"
 
+  ocelot:
+    display_name: "Ocelot"
+    entity_type: OCELOT
+    rarity: EPIC
+    baby: true
+    icon: OCELOT_SPAWN_EGG
+    description: "A fast and agile jungle stalker."
+    player_attribute:
+      type: BLOCK_BREAK_SPEED
+      value_per_level: 0.06
+      display: "⛏ Block Break Speed"
+
+  polar_bear:
+    display_name: "Polar Bear"
+    entity_type: POLAR_BEAR
+    rarity: EPIC
+    baby: true
+    icon: POLAR_BEAR_SPAWN_EGG
+    description: "An arctic bruiser with a heavy paw."
+    player_attribute:
+      type: SWEEPING_DAMAGE_RATIO
+      value_per_level: 0.1
+      display: "✦ Sweep Damage"
+
+  camel:
+    display_name: "Camel"
+    entity_type: CAMEL
+    rarity: EPIC
+    baby: true
+    icon: CAMEL_SPAWN_EGG
+    description: "A desert wanderer with room to spare."
+    special_ability: STORAGE
+    storage_size: 14
+    storage_group: camel
+    storage_glass: ORANGE_STAINED_GLASS_PANE
+
+  # ── Legendary ─────────────────────────────────────────────
+
   goat:
     display_name: "Goat"
     entity_type: GOAT
@@ -104,3 +263,27 @@ pets:
       type: ATTACK_DAMAGE
       value_per_level: 0.25
       display: "⚔ Attack Damage"
+
+  panda:
+    display_name: "Panda"
+    entity_type: PANDA
+    rarity: LEGENDARY
+    baby: true
+    icon: PANDA_SPAWN_EGG
+    description: "A legendary powerhouse with stubborn balance."
+    player_attribute:
+      type: BLOCK_INTERACTION_RANGE
+      value_per_level: 0.4
+      display: "▣ Block Reach"
+
+  trader_llama:
+    display_name: "Trader Llama"
+    entity_type: TRADER_LLAMA
+    rarity: LEGENDARY
+    baby: true
+    icon: TRADER_LLAMA_SPAWN_EGG
+    description: "A legendary merchant's companion."
+    special_ability: STORAGE
+    storage_size: 18
+    storage_group: trader_llama
+    storage_glass: BLUE_STAINED_GLASS_PANE

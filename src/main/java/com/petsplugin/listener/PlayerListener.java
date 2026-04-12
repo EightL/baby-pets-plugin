@@ -36,12 +36,8 @@ public class PlayerListener implements Listener {
         if (plugin.getConfig().getBoolean("pets.respawn_on_join", true)) {
             PetInstance selected = plugin.getPetManager().getSelectedPet(player.getUniqueId());
             if (selected != null) {
-                // Delay spawn to let player fully load
-                org.bukkit.Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                    if (player.isOnline()) {
-                        plugin.getPetManager().spawnPet(player, selected);
-                    }
-                }, 40L); // 2 second delay
+                // Delay spawn to let player fully load.
+                schedulePetRespawn(player, selected, 40L);
             }
         }
     }
@@ -56,6 +52,7 @@ public class PlayerListener implements Listener {
 
         // Save data (pets are saved on each update, but clear cache)
         plugin.getPetManager().clearCache(player.getUniqueId());
+        plugin.getPetManager().clearPlayerSessionState(player.getUniqueId());
         plugin.getSettingsManager().unloadPlayerSettings(player.getUniqueId());
     }
 
@@ -69,12 +66,7 @@ public class PlayerListener implements Listener {
             selected = plugin.getPetManager().getSelectedPet(player.getUniqueId());
         }
         if (selected != null) {
-            PetInstance finalSelected = selected;
-            org.bukkit.Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                if (player.isOnline()) {
-                    plugin.getPetManager().spawnPet(player, finalSelected);
-                }
-            }, 20L);
+            schedulePetRespawn(player, selected, 20L);
         }
     }
 
@@ -87,11 +79,18 @@ public class PlayerListener implements Listener {
         if (pet != null) {
             // Despawn in old world, respawn in new
             plugin.getPetManager().despawnPet(player.getUniqueId(), false);
-            org.bukkit.Bukkit.getScheduler().runTaskLater(plugin, () -> {
-                if (player.isOnline()) {
-                    plugin.getPetManager().spawnPet(player, pet);
-                }
-            }, 10L);
+            schedulePetRespawn(player, pet, 10L);
         }
+    }
+
+    private void schedulePetRespawn(Player player, PetInstance pet, long delayTicks) {
+        if (pet == null) {
+            return;
+        }
+        org.bukkit.Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            if (player.isOnline()) {
+                plugin.getPetManager().spawnPet(player, pet);
+            }
+        }, delayTicks);
     }
 }

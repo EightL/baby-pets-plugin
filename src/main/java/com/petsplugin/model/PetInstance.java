@@ -18,7 +18,6 @@ public class PetInstance {
     private final long obtainedAt;
     private PetStatus status;
     private String appearanceVariant;
-    private String appearanceSoundVariant;
 
     // Runtime-only
     private transient UUID entityUuid;
@@ -26,7 +25,7 @@ public class PetInstance {
     public PetInstance(int databaseId, UUID ownerUuid, String petTypeId,
                        String nickname, int level, double xp,
                        boolean selected, long obtainedAt, PetStatus status,
-                       String appearanceVariant, String appearanceSoundVariant) {
+                       String appearanceVariant) {
         this.databaseId = databaseId;
         this.ownerUuid = ownerUuid;
         this.petTypeId = petTypeId;
@@ -37,13 +36,12 @@ public class PetInstance {
         this.obtainedAt = obtainedAt;
         this.status = status;
         this.appearanceVariant = appearanceVariant;
-        this.appearanceSoundVariant = appearanceSoundVariant;
     }
 
     /** Create a new pet instance (for first-time creation). */
     public static PetInstance createNew(UUID ownerUuid, String petTypeId) {
         return new PetInstance(-1, ownerUuid, petTypeId, null, 1, 0.0,
-                false, System.currentTimeMillis(), PetStatus.CONTENT, null, null);
+                false, System.currentTimeMillis(), PetStatus.CONTENT, null);
     }
 
     // Getters & Setters
@@ -71,9 +69,6 @@ public class PetInstance {
 
     public String getAppearanceVariant() { return appearanceVariant; }
     public void setAppearanceVariant(String appearanceVariant) { this.appearanceVariant = appearanceVariant; }
-
-    public String getAppearanceSoundVariant() { return appearanceSoundVariant; }
-    public void setAppearanceSoundVariant(String appearanceSoundVariant) { this.appearanceSoundVariant = appearanceSoundVariant; }
 
     public UUID getEntityUuid() { return entityUuid; }
     public void setEntityUuid(UUID entityUuid) { this.entityUuid = entityUuid; }

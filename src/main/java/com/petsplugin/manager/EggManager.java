@@ -6,6 +6,7 @@ import com.petsplugin.model.Rarity;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
+import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.inventory.ItemStack;
@@ -16,6 +17,7 @@ import com.destroystokyo.paper.profile.PlayerProfile;
 import com.destroystokyo.paper.profile.ProfileProperty;
 
 import java.util.*;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * Manages pet egg items — creation, rarity rolling, and identification.
@@ -23,8 +25,8 @@ import java.util.*;
 public class EggManager {
 
     private final PetsPlugin plugin;
-    public final NamespacedKey EGG_RARITY_KEY;
-    public final NamespacedKey EGG_KEY;
+    private final NamespacedKey EGG_RARITY_KEY;
+    private final NamespacedKey EGG_KEY;
 
     public EggManager(PetsPlugin plugin) {
         this.plugin = plugin;
@@ -53,6 +55,8 @@ public class EggManager {
                 .append(Component.text("Pet Incubator").color(NamedTextColor.GOLD)
                         .decoration(TextDecoration.BOLD, true))
                 .append(Component.text(" to hatch!").color(NamedTextColor.YELLOW)));
+        lore.add(Component.text("Right-click to open Pet Collection.").color(NamedTextColor.AQUA)
+            .decoration(TextDecoration.ITALIC, false));
         meta.lore(lore);
 
         meta.getPersistentDataContainer().set(EGG_KEY, PersistentDataType.BYTE, (byte) 1);
@@ -89,7 +93,30 @@ public class EggManager {
      * Roll a random rarity for an egg based on configured weights.
      */
     public Rarity rollRarity() {
-        double roll = new Random().nextDouble() * 100.0;
+        ConfigurationSection weights = plugin.getConfig().getConfigurationSection("eggs.rarity_weights");
+        if (weights != null) {
+            double totalWeight = 0.0;
+            Map<Rarity, Double> byRarity = new EnumMap<>(Rarity.class);
+            for (Rarity rarity : Rarity.values()) {
+                double weight = Math.max(0.0, weights.getDouble(rarity.name(), 0.0));
+                byRarity.put(rarity, weight);
+                totalWeight += weight;
+            }
+
+            if (totalWeight > 0.0) {
+                double roll = ThreadLocalRandom.current().nextDouble(totalWeight);
+                double cursor = 0.0;
+                for (Rarity rarity : Rarity.values()) {
+                    cursor += byRarity.getOrDefault(rarity, 0.0);
+                    if (roll < cursor) {
+                        return rarity;
+                    }
+                }
+                return Rarity.LEGENDARY;
+            }
+        }
+
+        double roll = ThreadLocalRandom.current().nextDouble(100.0);
         double commonThreshold = plugin.getConfig().getDouble("eggs.loot_injection.common_threshold", 50.0);
         double uncommonThreshold = plugin.getConfig().getDouble("eggs.loot_injection.uncommon_threshold", 75.0);
         double rareThreshold = plugin.getConfig().getDouble("eggs.loot_injection.rare_threshold", 90.0);
@@ -120,6 +147,14 @@ public class EggManager {
         }
 
         return candidates.get(new Random().nextInt(candidates.size()));
+    }
+
+    public NamespacedKey getEggRarityKey() {
+        return EGG_RARITY_KEY;
+    }
+
+    public NamespacedKey getEggKey() {
+        return EGG_KEY;
     }
 
     private ItemStack getCustomSkull(String base64) {
