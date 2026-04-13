@@ -2,6 +2,7 @@ package com.petsplugin.listener;
 
 import com.petsplugin.PetsPlugin;
 import com.petsplugin.gui.PetStorageGUI;
+import com.petsplugin.model.PetFollowMode;
 import com.petsplugin.model.PetInstance;
 import com.petsplugin.model.PetType;
 import io.papermc.paper.event.player.PlayerNameEntityEvent;
@@ -108,6 +109,11 @@ public class PetInteractListener implements Listener {
             return;
         }
 
+        if (player.isSneaking()) {
+            toggleFollowMode(player);
+            return;
+        }
+
         boolean headPat = isHeadPat(entity, clickedY);
         boolean emptyHand = hand.getType().isAir();
         PetType type = plugin.getPetTypes().get(pet.getPetTypeId());
@@ -125,9 +131,15 @@ public class PetInteractListener implements Listener {
             return;
         }
 
-        if (player.isSneaking() || headPat || emptyHand) {
+        if (headPat || emptyHand) {
             handlePetting(player, pet);
         }
+    }
+
+    private void toggleFollowMode(Player player) {
+        PetFollowMode current = plugin.getSettingsManager().getFollowMode(player.getUniqueId());
+        PetFollowMode next = current == PetFollowMode.STAY ? PetFollowMode.FOLLOW : PetFollowMode.STAY;
+        plugin.getPetManager().setFollowMode(player, next);
     }
 
     @EventHandler

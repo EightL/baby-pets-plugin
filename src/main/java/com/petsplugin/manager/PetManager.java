@@ -46,6 +46,7 @@ public class PetManager {
     private final Map<UUID, Attribute> appliedPlayerAttributes = new ConcurrentHashMap<>();
     private final Map<UUID, Location> stayAnchors = new ConcurrentHashMap<>();
     private final Map<String, List<Material>> allowedFoodsByPetType = new ConcurrentHashMap<>();
+    private final Map<UUID, Object> selectionLocks = new ConcurrentHashMap<>();
 
     private final NamespacedKey PET_ENTITY_KEY;
     private final NamespacedKey PET_OWNER_KEY;
@@ -110,6 +111,7 @@ public class PetManager {
 
     public List<PetInstance> loadPlayerPets(UUID uuid) {
         List<PetInstance> pets = plugin.getDatabaseManager().loadPets(uuid);
+        PetInstance normalizedSelected = enforceSingleSelection(uuid, pets);
         playerPetsCache.put(uuid, pets);
         
         // Re-synchronize active pet reference to prevent desyncs from DB updates
@@ -122,6 +124,8 @@ public class PetManager {
                     break;
                 }
             }
+        } else if (normalizedSelected != null) {
+            activePets.put(uuid, normalizedSelected);
         }
         return pets;
     }
@@ -136,6 +140,7 @@ public class PetManager {
         activePets.remove(uuid);
         appliedPlayerAttributes.remove(uuid);
         stayAnchors.remove(uuid);
+        selectionLocks.remove(uuid);
     }
 
     public void refreshCache(UUID uuid) { loadPlayerPets(uuid); }
@@ -190,57 +195,54 @@ public class PetManager {
     // ══════════════════════════════════════════════════════════
 
     public void selectPet(UUID playerUuid, PetInstance pet) {
-        despawnPet(playerUuid, true);
-
-        List<PetInstance> pets = getPlayerPets(playerUuid);
-        for (PetInstance p : pets) {
-            if (p.isSelected()) {
-                p.setSelected(false);
-                plugin.getDatabaseManager().updatePetAsync(p);
-            }
+        if (pet == null) {
+            return;
         }
 
-        pet.setSelected(true);
-        plugin.getDatabaseManager().updatePetAsync(pet);
-        activePets.put(playerUuid, pet);
+        synchronized (selectionLock(playerUuid)) {
+            List<PetInstance> pets = getPlayerPets(playerUuid);
+            PetInstance target = findPetById(pets, pet.getDatabaseId());
+            if (target == null) {
+                return;
+            }
 
-        Player player = Bukkit.getPlayer(playerUuid);
-        if (player != null && player.isOnline()) {
-            spawnPet(player, pet);
+            despawnPet(playerUuid, true);
+
+            setSelectionInCache(pets, target.getDatabaseId());
+            plugin.getDatabaseManager().setSelectedPet(playerUuid, target.getDatabaseId());
+            activePets.put(playerUuid, target);
+
+            Player player = Bukkit.getPlayer(playerUuid);
+            if (player != null && player.isOnline()) {
+                spawnPet(player, target);
+            }
         }
     }
 
     public void deselectPet(UUID playerUuid) {
-        despawnPet(playerUuid, true);
+        synchronized (selectionLock(playerUuid)) {
+            despawnPet(playerUuid, true);
 
-        PetInstance active = activePets.remove(playerUuid);
-        if (active != null) {
-            active.setSelected(false);
-            plugin.getDatabaseManager().updatePetAsync(active);
-        }
+            activePets.remove(playerUuid);
 
-        List<PetInstance> pets = getPlayerPets(playerUuid);
-        for (PetInstance p : pets) {
-            if (p.isSelected()) {
-                p.setSelected(false);
-                plugin.getDatabaseManager().updatePetAsync(p);
+            List<PetInstance> pets = getPlayerPets(playerUuid);
+            setSelectionInCache(pets, -1);
+            plugin.getDatabaseManager().clearSelectedPet(playerUuid);
+
+            // Remove player attribute bonus
+            Player player = Bukkit.getPlayer(playerUuid);
+            if (player != null) {
+                removePlayerAttribute(player);
             }
-        }
-
-        // Remove player attribute bonus
-        Player player = Bukkit.getPlayer(playerUuid);
-        if (player != null) {
-            removePlayerAttribute(player);
         }
     }
 
     public PetInstance getActivePet(UUID playerUuid) { return activePets.get(playerUuid); }
 
     public PetInstance getSelectedPet(UUID playerUuid) {
-        for (PetInstance p : getPlayerPets(playerUuid)) {
-            if (p.isSelected()) return p;
+        synchronized (selectionLock(playerUuid)) {
+            return enforceSingleSelection(playerUuid, getPlayerPets(playerUuid));
         }
-        return null;
     }
 
     public void setFollowMode(Player player, PetFollowMode mode) {
@@ -484,6 +486,7 @@ public class PetManager {
         switch (type.getEntityType()) {
             case FOX -> pet.setAppearanceVariant(randomFoxType().name());
             case PIG, CHICKEN -> pet.setAppearanceVariant(randomClimateVariant());
+            case SHEEP -> pet.setAppearanceVariant(randomSheepColor().name());
             case RABBIT -> pet.setAppearanceVariant(randomRabbitType().name());
             case HORSE -> pet.setAppearanceVariant(randomHorseVariant());
             default -> {
@@ -1013,6 +1016,69 @@ public class PetManager {
         return findEntityByUuid(entityUuid);
     }
 
+    private Object selectionLock(UUID playerUuid) {
+        return selectionLocks.computeIfAbsent(playerUuid, ignored -> new Object());
+    }
+
+    private PetInstance findPetById(List<PetInstance> pets, int databaseId) {
+        for (PetInstance candidate : pets) {
+            if (candidate.getDatabaseId() == databaseId) {
+                return candidate;
+            }
+        }
+        return null;
+    }
+
+    private void setSelectionInCache(List<PetInstance> pets, int selectedPetId) {
+        for (PetInstance pet : pets) {
+            pet.setSelected(pet.getDatabaseId() == selectedPetId);
+        }
+    }
+
+    private PetInstance enforceSingleSelection(UUID playerUuid, List<PetInstance> pets) {
+        if (pets == null || pets.isEmpty()) {
+            return null;
+        }
+
+        PetInstance active = activePets.get(playerUuid);
+        PetInstance activeMatch = active == null ? null : findPetById(pets, active.getDatabaseId());
+
+        int selectedCount = 0;
+        PetInstance selected = null;
+        for (PetInstance pet : pets) {
+            if (!pet.isSelected()) {
+                continue;
+            }
+            selectedCount++;
+            if (selected == null || pet.getObtainedAt() > selected.getObtainedAt()) {
+                selected = pet;
+            }
+        }
+
+        boolean needsRepair = false;
+        PetInstance resolved = selected;
+
+        if (activeMatch != null && (selectedCount != 1 || selected == null
+                || activeMatch.getDatabaseId() != selected.getDatabaseId())) {
+            resolved = activeMatch;
+            needsRepair = true;
+        } else if (selectedCount > 1) {
+            needsRepair = true;
+        }
+
+        if (needsRepair) {
+            if (resolved != null) {
+                setSelectionInCache(pets, resolved.getDatabaseId());
+                plugin.getDatabaseManager().setSelectedPet(playerUuid, resolved.getDatabaseId());
+            } else {
+                setSelectionInCache(pets, -1);
+                plugin.getDatabaseManager().clearSelectedPet(playerUuid);
+            }
+        }
+
+        return resolved;
+    }
+
     private Entity findEntityByUuid(UUID entityUuid) {
         if (entityUuid == null) return null;
 
@@ -1040,17 +1106,48 @@ public class PetManager {
     private void applyPetModePosture(UUID playerUuid, Entity entity) {
         boolean stayMode = plugin.getSettingsManager().isStayMode(playerUuid);
 
-        if (entity instanceof Fox fox) {
-            fox.setSitting(stayMode);
-            // Fox AI can still run panic/escape goals while sitting; make it unaware in stay mode.
-            fox.setAware(!stayMode);
+        if (entity instanceof Panda panda) {
+            // Panda sit/back poses read oddly at this pet scale; keep a neutral idle stance.
+            panda.setSitting(false);
+            panda.setOnBack(false);
+        } else if (entity instanceof Fox fox) {
+            // Fox exposes a dedicated sleeping state in API, which reads better than sit for stay mode.
+            fox.setSleeping(stayMode);
+            if (!stayMode) {
+                fox.setSitting(false);
+            }
+        } else if (entity instanceof Sittable sittable) {
+            sittable.setSitting(stayMode);
         }
 
-        if (stayMode && entity instanceof Mob mob) {
-            try {
-                mob.getPathfinder().stopPathfinding();
-            } catch (Exception ignored) {
+        if (entity instanceof AbstractHorse horse) {
+            // Horse-like pets have idle/eating animations that fit a "stay" posture.
+            horse.setEating(stayMode);
+            horse.setEatingGrass(stayMode);
+        }
+
+        if (entity instanceof Armadillo armadillo) {
+            if (stayMode) {
+                armadillo.rollUp();
+            } else {
+                armadillo.rollOut();
             }
+        }
+
+        if (entity instanceof Mob mob) {
+            mob.setAI(!stayMode);
+            mob.setAware(!stayMode);
+            if (stayMode) {
+                mob.setTarget(null);
+                try {
+                    mob.getPathfinder().stopPathfinding();
+                } catch (Exception ignored) {
+                }
+            }
+        }
+
+        if (stayMode && entity.getVelocity().lengthSquared() > STAY_VELOCITY_EPSILON_SQUARED) {
+            entity.setVelocity(new Vector(0, 0, 0));
         }
     }
 
@@ -1146,6 +1243,14 @@ public class PetManager {
                     Chicken.Variant variant = parseChickenVariant(pet.getAppearanceVariant());
                     if (variant != null) {
                         chicken.setVariant(variant);
+                    }
+                }
+            }
+            case SHEEP -> {
+                if (entity instanceof Sheep sheep) {
+                    DyeColor color = parseSheepColor(pet.getAppearanceVariant());
+                    if (color != null) {
+                        sheep.setColor(color);
                     }
                 }
             }
@@ -1507,6 +1612,11 @@ public class PetManager {
         return color.name() + ":" + style.name();
     }
 
+    private DyeColor randomSheepColor() {
+        DyeColor[] colors = DyeColor.values();
+        return colors[ThreadLocalRandom.current().nextInt(colors.length)];
+    }
+
     private HorseAppearance parseHorseAppearance(String value) {
         if (value == null || value.isBlank()) return null;
 
@@ -1536,6 +1646,17 @@ public class PetManager {
                 Chicken.Variant.COLD,
                 Chicken.Variant.TEMPERATE,
                 Chicken.Variant.WARM);
+    }
+
+    private DyeColor parseSheepColor(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return DyeColor.valueOf(value);
+        } catch (IllegalArgumentException ignored) {
+            return null;
+        }
     }
 
     private <T> T parseClimateVariant(String value, T cold, T temperate, T warm) {

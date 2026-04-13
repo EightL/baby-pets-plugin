@@ -263,6 +263,36 @@ public class PetDatabaseManager {
         return pets;
     }
 
+    /**
+     * Atomically enforce exactly one selected pet for a player.
+     * Pass a negative petId to clear selection entirely.
+     */
+    public void setSelectedPet(UUID ownerUuid, int selectedPetId) {
+        if (!isConnectionReady("setSelectedPet")) {
+            return;
+        }
+
+        synchronized (dbLock) {
+            String sql = """
+                UPDATE player_pets
+                SET is_selected = CASE WHEN id = ? THEN 1 ELSE 0 END
+                WHERE uuid = ?
+            """;
+            try (PreparedStatement ps = connection.prepareStatement(sql)) {
+                ps.setInt(1, selectedPetId);
+                ps.setString(2, ownerUuid.toString());
+                ps.executeUpdate();
+            } catch (SQLException e) {
+                plugin.getLogger().log(Level.SEVERE, "Failed to set selected pet for " + ownerUuid, e);
+            }
+        }
+    }
+
+    /** Clear selected state for all pets owned by the player. */
+    public void clearSelectedPet(UUID ownerUuid) {
+        setSelectedPet(ownerUuid, -1);
+    }
+
     // ══════════════════════════════════════════════════════════
     //  Incubators
     // ══════════════════════════════════════════════════════════
