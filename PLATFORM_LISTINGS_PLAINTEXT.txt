@@ -1,0 +1,160 @@
+BETTER BABY PETS
+================
+
+Collect and raise baby animal companions that follow you around and give real, scaling stat bonuses.
+
+22 pets across 5 rarity tiers. Egg hatching via a custom Pet Incubator. Time-based leveling. A mood system. Pet storage. A full advancement tree. All on a single command (/pets).
+
+
+HOW IT WORKS
+------------
+
+Get a pet egg from a structure chest or via /pets give. Craft a Pet Incubator and right-click it with the egg to start incubation. After 20 minutes, the egg hatches into a random pet of that rarity.
+
+Open your collection with /pets, click a pet to select it, and it'll spawn at your side. Feed it, pet it, level it up — its stat bonus scales with level up to level 10.
+
+TIP 1:
+Eggs drop into vanilla structure chests automatically (8% base chance, configurable).
+Rarity of the egg determines the pool the pet is rolled from on hatch.
+
+TIP 2:
+Right-click your active pet to give affection, or feed it the right food for its type.
+Ground pets eat wheat/carrots/apples/bread. Flying pets eat seeds. Water pets eat fish.
+
+
+FEATURES
+--------
+
+Pets and rarities:
+- 22 pet types across 5 rarity tiers: Common, Uncommon, Rare, Epic, Legendary
+- Every stat-boosting pet provides a unique player attribute bonus that scales linearly with level
+- Storage pets unlock inventory slots that scale with level instead
+
+Pet leveling:
+- Time-based XP — pets gain XP passively while active, every 60 seconds
+- Scaling XP curve up to level 10
+- Attribute bonuses and storage slots increase every level
+
+Mood and care:
+- 5 mood states: Ecstatic, Happy, Content, Hungry, Sad
+- Mood drifts down over time; recover it by feeding or petting
+- Food type depends on the pet's movement category (ground / flying / water)
+
+Egg and incubation system:
+- Custom Pet Incubator block: crafted, visually composed of display entities, fully persistent
+- Particle effects scale with incubation progress
+- Broken incubators drop the egg and incubator item back
+- Loot injection into vanilla structure chests (togglable, configurable per rarity threshold)
+
+Pet storage:
+- Storage pets open a personal inventory GUI that scales slot count with pet level
+- Horse-tier: 5 slots. Llama: 9. Camel: 14. Trader Llama: 18.
+
+GUIs:
+- Pet Collection: all owned pets with level, rarity, mood, and stat info. Sortable.
+- Pet Detail: per-pet stats, rename with name tag, delete with confirmation
+- Pet Settings: per-player toggles (follow/stay, hide others, sounds, notifications)
+- Pet Storage: inventory GUI for storage pets
+
+Advancement tree:
+- 12 advancements tracking the full progression arc
+
+Additional systems:
+- Follow and Stay modes
+- Cross-dimension teleport
+- Respawn on join
+- Hover name above pet entity
+- Per-player toggles: hide other players' pets, sounds, notifications
+- Rename pets with a name tag in hand while right-clicking
+- Soft dependency on FishRework (optional)
+- SQLite-backed persistence
+
+Nearly everything is tunable in YAML configs.
+
+
+PET ROSTER
+----------
+
+Common:    Chicken (fall resistance), Pig (max health), Cow (max absorption),
+           Sheep (safe fall distance), Squid (oxygen bonus)
+
+Uncommon:  Bee (knockback resistance), Bunny (jump height),
+           Horse / Donkey / Mule (storage, 5 slots)
+
+Rare:      Dolphin (oxygen bonus), Armadillo (armor), Mooshroom (gravity reduction),
+           Turtle (water movement), Llama (storage, 9 slots)
+
+Epic:      Fox (movement speed), Ocelot (block break speed),
+           Polar Bear (sweep damage), Camel (storage, 14 slots)
+
+Legendary: Goat (attack damage), Panda (block reach),
+           Trader Llama (storage, 18 slots)
+
+
+REQUIREMENTS
+------------
+
+Server software: Paper 1.21+
+Java: 21+
+Hard dependencies: None
+Soft dependencies: FishRework (optional)
+
+
+INSTALLATION
+------------
+
+1. Drop the jar into your /plugins folder.
+2. Start the server once to generate configs.
+3. Tune config.yml and pets.yml to your liking.
+
+
+COMMANDS
+--------
+
+/pets                               - Open pet collection
+/pets info                          - Show active pet stats
+/pets settings                      - Open settings GUI
+/pets follow                        - Set active pet to follow
+/pets stay                          - Set active pet to stay
+/pets hideothers [on|off|toggle]    - Hide other players' pets
+/pets sounds [on|off|toggle]        - Toggle pet sounds
+/pets notifications [on|off|toggle] - Toggle chat notifications
+/pets select <id>                   - Select a pet by DB ID
+/pets deselect                      - Deselect current pet
+/pets help                          - Full command list
+
+Admin commands (requires pets.admin):
+
+/pets give <player> <rarity>        - Give a pet egg
+/pets givepet <pet_type>            - Add a pet to collection directly
+/pets setlevel <level>              - Set active pet's level
+/pets incubator                     - Give a Pet Incubator item
+/pets hatch                         - Instantly hatch incubating eggs
+/pets reload                        - Reload config without restart
+
+
+CONFIGURATION
+-------------
+
+config.yml  - Incubation time, leveling curve, XP intervals, follow/teleport distances,
+              mood food lists, messages, loot injection settings
+pets.yml    - Full pet roster: entity type, rarity, description, player attribute,
+              storage size, and more
+
+Individual systems (advancements, abilities, loot injection) can each be toggled independently.
+
+
+BALANCE DISCLAIMER
+------------------
+
+This plugin has not been heavily playtested.
+Leveling speed, mood decay, and attribute values are rough starting points.
+Feedback is welcome.
+
+
+FEEDBACK AND SUPPORT
+--------------------
+
+Bug reports, balance feedback, and suggestions are welcome.
+
+Discord: https://discord.gg/d8pZUe5TbP
