@@ -77,6 +77,7 @@ public class PetManager {
 
     public void initialize() {
         reloadConfigCache();
+        cleanupPersistedPetArtifacts();
         followTask = Bukkit.getScheduler().runTaskTimer(plugin, this::followTick, 10L, 5L);
         // XP task: every 60 seconds
         long xpInterval = plugin.getConfig().getLong("leveling.xp_interval_ticks", 1200L);
@@ -85,6 +86,7 @@ public class PetManager {
         hoverNamePositionTask = Bukkit.getScheduler().runTaskTimer(plugin, this::hoverNamePositionTick, 10L, 1L);
         // Special ability tick every 2 seconds (e.g. squid underwater vision)
         abilityTask = Bukkit.getScheduler().runTaskTimer(plugin, this::abilityTick, 20L, 40L);
+        restoreOnlinePlayers();
     }
 
     public void shutdown() {
@@ -103,6 +105,7 @@ public class PetManager {
         }
 
         appliedPlayerAttributes.clear();
+        cleanupCollisionTeams();
     }
 
     // ══════════════════════════════════════════════════════════
@@ -427,16 +430,10 @@ public class PetManager {
 
     public void despawnPet(UUID playerUuid, boolean notify) {
         UUID entityUuid = activePetEntities.remove(playerUuid);
-        if (entityUuid == null) return;
-
         stayAnchors.remove(playerUuid);
-
-        removeHoverNameDisplay(entityUuid);
-        clearHoverTargetsForPet(entityUuid);
 
         Entity entity = findEntityByUuid(entityUuid);
         if (entity != null) {
-            clearOwnerNoCollision(playerUuid, entity);
             Location loc = entity.getLocation();
             PetInstance pet = activePets.get(playerUuid);
             PetType type = pet == null ? null : plugin.getPetTypes().get(pet.getPetTypeId());
@@ -444,10 +441,12 @@ public class PetManager {
                 playPetSound(loc, type, 0.7f, 0.9f, playerUuid);
             }
             loc.getWorld().spawnParticle(Particle.CLOUD, loc.clone().add(0, 0.5, 0), 10, 0.3, 0.3, 0.3);
-            entity.remove();
         }
 
-        idleEmoteAt.remove(entityUuid);
+        if (entityUuid != null) {
+            removePetArtifacts(entity, playerUuid, entityUuid);
+        }
+        cleanupDuplicatePetsForOwner(playerUuid, entityUuid);
 
         // Remove player attribute
         Player player = Bukkit.getPlayer(playerUuid);
@@ -1016,6 +1015,61 @@ public class PetManager {
         return findEntityByUuid(entityUuid);
     }
 
+    private void cleanupPersistedPetArtifacts() {
+        int removedPets = 0;
+        int removedDisplays = 0;
+
+        for (World world : Bukkit.getWorlds()) {
+            for (Entity entity : new ArrayList<>(world.getEntities())) {
+                if (isPetEntity(entity)) {
+                    UUID ownerUuid = getPetOwner(entity);
+                    removePetArtifacts(entity, ownerUuid, entity.getUniqueId());
+                    removedPets++;
+                    continue;
+                }
+
+                if (isPetNameDisplay(entity)) {
+                    entity.remove();
+                    removedDisplays++;
+                }
+            }
+        }
+
+        activePetEntities.clear();
+        hoverNameDisplays.clear();
+        viewerHoverTargets.clear();
+        idleEmoteAt.clear();
+        cleanupCollisionTeams();
+
+        if (removedPets > 0 || removedDisplays > 0) {
+            plugin.getLogger().info("Removed " + removedPets + " stale pet entities and "
+                    + removedDisplays + " stale pet name displays during startup cleanup.");
+        }
+    }
+
+    private void restoreOnlinePlayers() {
+        if (Bukkit.getOnlinePlayers().isEmpty()) {
+            return;
+        }
+
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            for (Player player : Bukkit.getOnlinePlayers()) {
+                loadPlayerPets(player.getUniqueId());
+                plugin.getSettingsManager().loadPlayerSettings(player.getUniqueId());
+                refreshPetVisibility(player);
+
+                if (!plugin.getConfig().getBoolean("pets.respawn_on_join", true)) {
+                    continue;
+                }
+
+                PetInstance selected = getSelectedPet(player.getUniqueId());
+                if (selected != null) {
+                    spawnPet(player, selected);
+                }
+            }
+        }, 1L);
+    }
+
     private Object selectionLock(UUID playerUuid) {
         return selectionLocks.computeIfAbsent(playerUuid, ignored -> new Object());
     }
@@ -1096,6 +1150,46 @@ public class PetManager {
         }
 
         return null;
+    }
+
+    private boolean isPetNameDisplay(Entity entity) {
+        return entity.getPersistentDataContainer().has(PET_NAME_DISPLAY_KEY, PersistentDataType.STRING);
+    }
+
+    private void cleanupDuplicatePetsForOwner(UUID ownerUuid, UUID preservedEntityUuid) {
+        for (World world : Bukkit.getWorlds()) {
+            for (Entity entity : new ArrayList<>(world.getEntities())) {
+                if (!isPetEntity(entity)) {
+                    continue;
+                }
+
+                UUID entityOwner = getPetOwner(entity);
+                if (!ownerUuid.equals(entityOwner)) {
+                    continue;
+                }
+
+                if (preservedEntityUuid != null && preservedEntityUuid.equals(entity.getUniqueId())) {
+                    continue;
+                }
+
+                removePetArtifacts(entity, ownerUuid, entity.getUniqueId());
+            }
+        }
+    }
+
+    private void removePetArtifacts(Entity entity, UUID ownerUuid, UUID entityUuid) {
+        if (entityUuid != null) {
+            removeHoverNameDisplay(entityUuid);
+            clearHoverTargetsForPet(entityUuid);
+            idleEmoteAt.remove(entityUuid);
+        }
+
+        if (entity != null) {
+            if (ownerUuid != null) {
+                clearOwnerNoCollision(ownerUuid, entity);
+            }
+            entity.remove();
+        }
     }
 
     private boolean shouldHidePetFromViewer(Player viewer, UUID ownerUuid) {
@@ -1451,20 +1545,15 @@ public class PetManager {
     }
 
     private void removeHoverNameDisplay(UUID petEntityUuid) {
-        UUID displayUuid = hoverNameDisplays.remove(petEntityUuid);
-        if (displayUuid == null) return;
-
-        Entity display = findEntityByUuid(displayUuid);
+        Entity display = findHoverNameDisplay(petEntityUuid);
         if (display != null) {
             display.remove();
         }
+        hoverNameDisplays.remove(petEntityUuid);
     }
 
     private void syncHoverNamePosition(Entity petEntity) {
-        UUID displayUuid = hoverNameDisplays.get(petEntity.getUniqueId());
-        if (displayUuid == null) return;
-
-        Entity display = findEntityByUuid(displayUuid);
+        Entity display = findHoverNameDisplay(petEntity.getUniqueId());
         if (display == null) {
             hoverNameDisplays.remove(petEntity.getUniqueId());
             return;
@@ -1475,6 +1564,27 @@ public class PetManager {
 
     private Location getHoverNameLocation(Entity entity) {
         return entity.getLocation().add(0, entity.getHeight() + 0.25, 0);
+    }
+
+    private Entity findHoverNameDisplay(UUID petEntityUuid) {
+        UUID displayUuid = hoverNameDisplays.get(petEntityUuid);
+        Entity display = findEntityByUuid(displayUuid);
+        if (display != null) {
+            return display;
+        }
+
+        String parentUuid = petEntityUuid.toString();
+        for (World world : Bukkit.getWorlds()) {
+            for (Entity entity : world.getEntities()) {
+                String storedParent = entity.getPersistentDataContainer().get(PET_NAME_DISPLAY_KEY, PersistentDataType.STRING);
+                if (parentUuid.equals(storedParent)) {
+                    hoverNameDisplays.put(petEntityUuid, entity.getUniqueId());
+                    return entity;
+                }
+            }
+        }
+
+        return null;
     }
 
     private void clearHoverTargetsForPet(UUID petEntityUuid) {
@@ -1535,6 +1645,19 @@ public class PetManager {
             case PANDA -> chooseAmbientSound(baby, "ENTITY_PANDA_AMBIENT", "ENTITY_BABY_PANDA_AMBIENT");
             default -> null;
         };
+    }
+
+    private void cleanupCollisionTeams() {
+        if (Bukkit.getScoreboardManager() == null) {
+            return;
+        }
+
+        Scoreboard scoreboard = Bukkit.getScoreboardManager().getMainScoreboard();
+        for (Team team : new ArrayList<>(scoreboard.getTeams())) {
+            if (team.getName().startsWith("petnc_")) {
+                team.unregister();
+            }
+        }
     }
 
     private Sound chooseAmbientSound(boolean baby, String adultSoundName, String... babySoundNames) {
