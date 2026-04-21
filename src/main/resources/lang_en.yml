@@ -3,6 +3,7 @@ basegui.click_to_toggle: Click to toggle.
 basegui.commands_pets_follow_pets_stay: 'Commands: /pets follow, /pets stay'
 basegui.follow_keeps_your_active_pet: Follow keeps your active pet near you.
 basegui.stay_keeps_your_pet_in: Stay keeps your pet in place.
+
 deleteconfirmgui.cancel: CANCEL
 deleteconfirmgui.click_to_permanently_delete: Click to permanently delete
 deleteconfirmgui.confirm_delete: CONFIRM DELETE
@@ -11,15 +12,18 @@ deleteconfirmgui.go_back_to_collection: Go back to collection.
 deleteconfirmgui.permanently: ' permanently.'
 deleteconfirmgui.this_action_is_permanent: This action is PERMANENT!
 deleteconfirmgui.this_pet: this pet.
+
 eggmanager.a_mysterious_egg: A mysterious egg...
 eggmanager.pet_egg: Pet Egg
 eggmanager.pet_incubator: Pet Incubator
 eggmanager.place_in_a: 'Place in a '
 eggmanager.rightclick_to_open_pet_collection: Right-click to open Pet Collection.
 eggmanager.to_hatch: ' to hatch!'
+
 incubatorlistener.incubating: 'Incubating: '
 incubatorlistener.pet_egg: Pet Egg
 incubatorlistener.rightclick_with_a_pet_egg: Right-click with a Pet Egg to start incubation!
+
 incubatormanager.a_warm_chamber_for_hatching: A warm chamber for hatching
 incubatormanager.an_egg_to_start_incubation: an egg to start incubation!
 incubatormanager.click_to_view_in_collection: Click to view in collection
@@ -27,6 +31,7 @@ incubatormanager.mysterious_pet_eggs: mysterious pet eggs.
 incubatormanager.open_pet_collection: Open pet collection
 incubatormanager.pet_incubator: Pet Incubator
 incubatormanager.place_and_rightclick_with: Place and right-click with
+
 petcollectiongui.adjust_rarity_dyes_or_cycle: Adjust rarity dyes or cycle the hopper
   filter.
 petcollectiongui.and_pet_sound_preferences: and pet sound preferences.
@@ -49,6 +54,7 @@ petcollectiongui.rightclick_to_view_details: Right-click to view details
 petcollectiongui.settings: Settings
 petcollectiongui.the_recipe_works_in_a: The recipe works in a normal crafting table
 petcollectiongui.use_top_dyes_to_toggle: Use top dyes to toggle rarity filters.
+
 petdetailgui.active: ACTIVE
 petdetailgui.back: Back
 petdetailgui.care_guide: Care Guide
@@ -76,11 +82,14 @@ petdetailgui.this_pet_is_currently_vanityonly: This pet is currently vanity-only
 petdetailgui.this_pet_reached_max_level: This pet reached max level.
 petdetailgui.type: 'Type: '
 petdetailgui.underwater_night_vision: Underwater Night Vision
+
 petscommand.add_a_pet_directly_to: ' - Add a pet directly to your collection'
 petscommand.added: 'Added '
 petscommand.admin: ─── Admin ───
+petscommand.available_types: 'Available: %types%'
 petscommand.babypets_config_reloaded: '[BabyPets] Config reloaded!'
 petscommand.deselect_current_pet: ' - Deselect current pet'
+petscommand.gave_egg_to_player: 'Gave %rarity% egg to %player%'
 petscommand.gave_you_a_pet_incubator: Gave you a Pet Incubator!
 petscommand.get_an_incubator_item: ' - Get an incubator item'
 petscommand.give_an_egg: ' - Give an egg'
@@ -88,6 +97,7 @@ petscommand.hide_other_players_pets: ' - Hide other players'' pets'
 petscommand.id_must_be_a_number: ID must be a number.
 petscommand.instantly_hatch_your_incubating_eggs: ' - Instantly hatch your incubating
   eggs'
+petscommand.instantly_hatched_eggs: 'Instantly hatched %count% egg(s)!'
 petscommand.invalid_rarity_use_common_uncommon: 'Invalid rarity. Use: COMMON, UNCOMMON,
   RARE, EPIC, LEGENDARY'
 petscommand.level_must_be_a_number: Level must be a number.
@@ -118,6 +128,7 @@ petscommand.player_not_found: Player not found.
 petscommand.reload_config: ' - Reload config'
 petscommand.select_a_pet_by_db: ' - Select a pet by DB ID'
 petscommand.select_a_pet_first: Select a pet first!
+petscommand.set_pet_level_to: 'Set pet level to %level%.'
 petscommand.set_selected_pets_level: ' - Set selected pet''s level'
 petscommand.set_your_active_pet_to: ' - Set your active pet to follow'
 petscommand.show_active_pet_stats: ' - Show active pet stats'
@@ -127,14 +138,17 @@ petscommand.toggle_pet_chat_notifications: ' - Toggle pet chat notifications'
 petscommand.toggle_your_pet_sounds: ' - Toggle your pet sounds'
 petscommand.type: '  Type: '
 petscommand.unknown_pet_type: Unknown pet type.
+petscommand.unknown_pet_type_with_name: 'Unknown pet type: %type%'
 petscommand.unknown_subcommand_use_pets_help: Unknown subcommand. Use /pets help
 petscommand.usage_pets_give_player_rarity: 'Usage: /pets give <player> <rarity>'
 petscommand.usage_pets_givepet_pettype: 'Usage: /pets givepet <pet_type>'
 petscommand.usage_pets_select_petid: 'Usage: /pets select <pet_id>'
 petscommand.usage_pets_setlevel_level: 'Usage: /pets setlevel <level>'
+petscommand.usage_toggle: 'Usage: /pets %command% [on|off|toggle]'
 petscommand.you_dont_have_an_active: You don't have an active pet.
 petscommand.you_dont_have_any_eggs: You don't have any eggs incubating.
 petscommand.you_dont_have_permission_to: You don't have permission to use this command.
+
 petsettingsgui.back: Back
 petsettingsgui.click_to_toggle: Click to toggle.
 petsettingsgui.command_pets_hideothers: 'Command: /pets hideothers'
@@ -150,3 +164,118 @@ petsettingsgui.return_to_your_pet_collection: Return to your pet collection.
 petsettingsgui.spawn_levelup_feed_hatch_and: Spawn, level-up, feed, hatch, and similar
   notices.
 petsettingsgui.your_own_pet_always_stays: Your own pet always stays visible.
+
+
+# ==============================================================
+# CONFIG-DRIVEN CONTENT — generated from config files
+# ==============================================================
+
+# --- Pet Types ---
+pet.chicken.name: "Chicken"
+pet.chicken.desc: "A feathery little friend."
+pet.chicken.attribute: "❋ Fall Resistance"
+pet.pig.name: "Pig"
+pet.pig.desc: "A chubby pink companion."
+pet.pig.attribute: "♥ Max Health"
+pet.cow.name: "Cow"
+pet.cow.desc: "A well-fed pasture companion."
+pet.cow.attribute: "☕ Max Absorption"
+pet.sheep.name: "Sheep"
+pet.sheep.desc: "A fluffy little shield."
+pet.sheep.attribute: "↧ Safe Fall Distance"
+pet.squid.name: "Squid"
+pet.squid.desc: "A mysterious ink-dweller of the deep."
+pet.squid.attribute: "◎ Oxygen Bonus"
+pet.bee.name: "Bee"
+pet.bee.desc: "A tiny buzzing buddy."
+pet.bee.attribute: "⛨ Knockback Resist"
+pet.bunny.name: "Bunny"
+pet.bunny.desc: "A quick-footed hopper with many coats."
+pet.bunny.attribute: "⬆ Jump Height"
+pet.horse.name: "Horse"
+pet.horse.desc: "A trusty steed and pack companion."
+pet.donkey.name: "Donkey"
+pet.donkey.desc: "A stubborn little pack animal."
+pet.mule.name: "Mule"
+pet.mule.desc: "Half horse, half donkey, all utility."
+pet.dolphin.name: "Dolphin"
+pet.dolphin.desc: "A playful aquatic companion."
+pet.dolphin.attribute: "◎ Oxygen Bonus"
+pet.armadillo.name: "Armadillo"
+pet.armadillo.desc: "A tiny armored guardian."
+pet.armadillo.attribute: "⛨ Armor"
+pet.mooshroom.name: "Mooshroom"
+pet.mooshroom.desc: "A cozy fungal companion."
+pet.mooshroom.attribute: "⬇ Gravity"
+pet.turtle.name: "Turtle"
+pet.turtle.desc: "A calm ocean glider."
+pet.turtle.attribute: "≈ Water Movement"
+pet.llama.name: "Llama"
+pet.llama.desc: "A woolly pack beast with a mean spit."
+pet.fox.name: "Fox"
+pet.fox.desc: "A cunning, swift companion."
+pet.fox.attribute: "⚡ Movement Speed"
+pet.ocelot.name: "Ocelot"
+pet.ocelot.desc: "A fast and agile jungle stalker."
+pet.ocelot.attribute: "⛏ Block Break Speed"
+pet.polar_bear.name: "Polar Bear"
+pet.polar_bear.desc: "An arctic bruiser with a heavy paw."
+pet.polar_bear.attribute: "✦ Sweep Damage"
+pet.camel.name: "Camel"
+pet.camel.desc: "A desert wanderer with room to spare."
+pet.goat.name: "Goat"
+pet.goat.desc: "A stubborn powerhouse."
+pet.goat.attribute: "⚔ Attack Damage"
+pet.panda.name: "Panda"
+pet.panda.desc: "A legendary powerhouse with stubborn balance."
+pet.panda.attribute: "▣ Block Reach"
+pet.trader_llama.name: "Trader Llama"
+pet.trader_llama.desc: "A legendary merchant's companion."
+
+# --- Pet Follow Modes ---
+pet.mode.FOLLOW: "Follow"
+pet.mode.STAY: "Stay"
+# --- Pet Settings GUI toggle labels ---
+petsettingsgui.hide_other_pets: "Hide Other Players' Pets"
+petsettingsgui.pet_sounds: "Pet Sounds"
+petsettingsgui.pet_notifications: "Pet Notifications"
+ui.labels.on: "ON"
+ui.labels.off: "OFF"
+
+# --- GUI Titles & Labels ---
+petcollectiongui.title: "Pet Collection"
+petsettingsgui.title: "Pet Settings"
+petdetailgui.title: "Pet Details"
+deleteconfirmgui.title: "Delete Pet?"
+petstoragegui.title_suffix: "Storage"
+petdetailgui.growth_tracker: "growth tracker"
+petdetailgui.obtained: "Obtained: "
+petdetailgui.species: "Species: "
+basegui.mode_stay: "Mode: "
+basegui.mode_follow: "Mode: "
+basegui.follow_mode: "Follow Mode"
+
+petcollectiongui.collection: "Collection"
+petcollectiongui.collected: "collected"
+pagination.page: "Page "
+pagination.showing: "Showing: "
+petmanager.mode_follow: "Follow"
+petmanager.mode_stay: "Stay"
+ui.labels.max_level: "MAX LEVEL"
+ui.labels.bonus: "Bonus:"
+messages.pet_spawned: "&a%pet_name% &7has appeared by your side!"
+petdetailgui.growth: "Growth: "
+petdetailgui.per_level: "/level"
+petdetailgui.at_lv: "At Lv"
+ui.rarity.common: "Common"
+ui.rarity.uncommon: "Uncommon"
+ui.rarity.rare: "Rare"
+ui.rarity.epic: "Epic"
+ui.rarity.legendary: "Legendary"
+ui.status.hungry: "Hungry"
+ui.status.content: "Content"
+ui.status.happy: "Happy"
+ui.status.ecstatic: "Ecstatic"
+ui.labels.level: "Level"
+ui.labels.rarity: "Rarity"
+ui.labels.status: "Status"

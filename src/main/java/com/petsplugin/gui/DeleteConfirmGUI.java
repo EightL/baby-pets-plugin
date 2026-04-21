@@ -33,7 +33,7 @@ public class DeleteConfirmGUI extends BaseGUI {
     public DeleteConfirmGUI(PetsPlugin plugin, Player player, PetInstance pet, int returnPage,
                             PetCollectionGUI.FilterMode returnFilterMode,
                             Set<Rarity> returnRarityFilters) {
-        super(plugin, 3, "Delete Pet?");
+        super(plugin, 3, localizedTitle(plugin, "deleteconfirmgui.title", "Delete Pet?"));
         this.player = player;
         this.pet = pet;
         this.returnPage = returnPage;

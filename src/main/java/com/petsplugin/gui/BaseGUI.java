@@ -28,6 +28,11 @@ public abstract class BaseGUI implements InventoryHolder {
     protected final PetsPlugin plugin;
     protected final Inventory inventory;
 
+    /** Helper: resolve a GUI title via LanguageManager before passing to super(). */
+    protected static String localizedTitle(PetsPlugin plugin, String key, String fallback) {
+        return plugin.getLanguageManager().getString(key, fallback);
+    }
+
     public BaseGUI(PetsPlugin plugin, int rows, String title) {
         this.plugin = plugin;
         this.inventory = Bukkit.createInventory(this, rows * 9, Component.text(title));
@@ -103,9 +108,15 @@ public abstract class BaseGUI implements InventoryHolder {
 
         ItemStack item = new ItemStack(follow ? Material.LEAD : Material.BELL);
         ItemMeta meta = item.getItemMeta();
+        String modeOnLabel = plugin.getLanguageManager().getString("ui.labels.on", "ON");
+        String modeOffLabel = plugin.getLanguageManager().getString("ui.labels.off", "OFF");
+        String followLabel = plugin.getLanguageManager().getString("basegui.follow_mode", "Follow Mode");
+        String modeFollowLabel = plugin.getLanguageManager().getString("pet.mode.FOLLOW", "Follow");
+        String modeStayLabel = plugin.getLanguageManager().getString("pet.mode.STAY", "Stay");
         String title = includeCommandHint
-            ? "Follow Mode: " + (follow ? "ON" : "OFF")
-            : (follow ? "Mode: Follow" : "Mode: Stay");
+            ? followLabel + ": " + (follow ? modeOnLabel : modeOffLabel)
+            : (follow ? plugin.getLanguageManager().getString("basegui.mode_follow", "Mode: ") + modeFollowLabel
+                      : plugin.getLanguageManager().getString("basegui.mode_stay", "Mode: ") + modeStayLabel);
         meta.displayName(Component.text(title)
             .color(follow ? NamedTextColor.GREEN : NamedTextColor.GOLD)
             .decoration(TextDecoration.ITALIC, false));

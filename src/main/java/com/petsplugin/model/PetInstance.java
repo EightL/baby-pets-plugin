@@ -1,5 +1,6 @@
 package com.petsplugin.model;
 
+import com.petsplugin.manager.LanguageManager;
 import java.util.UUID;
 
 /**
@@ -76,5 +77,10 @@ public class PetInstance {
     /** Returns the display name: nickname if set, otherwise the pet type display name. */
     public String getDisplayName(PetType type) {
         return nickname != null && !nickname.isBlank() ? nickname : type.getDisplayName();
+    }
+
+    /** Returns the display name: nickname if set, otherwise the localized pet type name. */
+    public String getLocalizedDisplayName(PetType type, LanguageManager lm) {
+        return nickname != null && !nickname.isBlank() ? nickname : type.getLocalizedDisplayName(lm);
     }
 }

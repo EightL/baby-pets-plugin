@@ -333,7 +333,7 @@ public class PetManager {
             return;
         }
 
-        String msg = plugin.getConfig().getString(path, fallback);
+        String msg = plugin.getLanguageManager().getString(path, fallback);
         if (replacements != null) {
             for (Map.Entry<String, String> entry : replacements.entrySet()) {
                 msg = msg.replace(entry.getKey(), entry.getValue());
@@ -424,7 +424,7 @@ public class PetManager {
         sendPetNotification(player,
             "messages.pet_spawned",
             "&a%pet_name% &7has appeared by your side!",
-            Map.of("%pet_name%", pet.getDisplayName(type)));
+            Map.of("%pet_name%", pet.getLocalizedDisplayName(type, plugin.getLanguageManager())));
 
         refreshPetVisibilityForAll();
     }
@@ -463,7 +463,7 @@ public class PetManager {
                     sendPetNotification(player,
                         "messages.pet_despawned",
                         "&7%pet_name% &7has returned to rest.",
-                        Map.of("%pet_name%", pet.getDisplayName(type)));
+                        Map.of("%pet_name%", pet.getLocalizedDisplayName(type, plugin.getLanguageManager())));
                 }
             }
         }
@@ -529,7 +529,7 @@ public class PetManager {
         }
 
         PetType type = plugin.getPetTypes().get(pet.getPetTypeId());
-        String displayName = type != null ? pet.getDisplayName(type) : nickname;
+        String displayName = type != null ? pet.getLocalizedDisplayName(type, plugin.getLanguageManager()) : nickname;
         sendPetNotification(player,
             "messages.pet_renamed",
             "&aYour pet is now named &e%pet_name%&a!",
@@ -719,7 +719,7 @@ public class PetManager {
                             "messages.pet_level_up",
                             "&b&lLEVEL UP! &e%pet_name% &7is now level &e%level%&7!",
                             Map.of(
-                                "%pet_name%", pet.getDisplayName(type),
+                                "%pet_name%", pet.getLocalizedDisplayName(type, plugin.getLanguageManager()),
                                 "%level%", String.valueOf(pet.getLevel())
                             ));
                         player.playSound(player.getLocation(), Sound.ENTITY_PLAYER_LEVELUP, 1.0f, 1.5f);
@@ -810,7 +810,7 @@ public class PetManager {
             "messages.pet_fed",
             "&a%pet_name% &7enjoyed the treat! Status: &e%status%",
             Map.of(
-                "%pet_name%", pet.getDisplayName(type),
+                "%pet_name%", pet.getLocalizedDisplayName(type, plugin.getLanguageManager()),
                 "%status%", getLocalizedStatusDisplay(pet.getStatus())
             ));
         plugin.getAdvancementManager().handlePetFed(player);
@@ -900,7 +900,7 @@ public class PetManager {
             "messages.pet_petted",
             "&d%pet_name% &7loves the attention! Status: &e%status%",
             Map.of(
-                "%pet_name%", pet.getDisplayName(type),
+                "%pet_name%", pet.getLocalizedDisplayName(type, plugin.getLanguageManager()),
                 "%status%", getLocalizedStatusDisplay(pet.getStatus())
             ));
         plugin.getAdvancementManager().handlePetPetted(player);

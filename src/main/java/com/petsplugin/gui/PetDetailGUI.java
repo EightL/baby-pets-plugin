@@ -61,7 +61,7 @@ public class PetDetailGUI extends BaseGUI {
     public PetDetailGUI(PetsPlugin plugin, Player player, PetInstance pet, int returnPage,
                         PetCollectionGUI.FilterMode returnFilterMode,
                         Set<Rarity> returnRarityFilters) {
-        super(plugin, 6, "Pet Details");
+        super(plugin, 6, localizedTitle(plugin, "petdetailgui.title", "Pet Details"));
         this.player = player;
         this.pet = pet;
         this.returnPage = returnPage;
@@ -133,7 +133,7 @@ public class PetDetailGUI extends BaseGUI {
     private ItemStack createPetSummaryItem(PetType type, int maxLevel) {
         ItemStack item = new ItemStack(type.getIcon());
         ItemMeta meta = item.getItemMeta();
-        meta.displayName(Component.text(pet.getDisplayName(type))
+        meta.displayName(Component.text(pet.getLocalizedDisplayName(type, plugin.getLanguageManager()))
                 .color(type.getRarity().getColor())
                 .decoration(TextDecoration.ITALIC, false)
                 .decoration(TextDecoration.BOLD, true));
@@ -144,7 +144,7 @@ public class PetDetailGUI extends BaseGUI {
         String xpLabel = plugin.getPetManager().getLocalizedLabel("xp", "XP");
         String statusLabel = plugin.getPetManager().getLocalizedLabel("status", "Status");
         String maxLevelLabel = plugin.getPetManager().getLocalizedLabel("max_level", "MAX LEVEL");
-        lore.add(Component.text(type.getDescription())
+        lore.add(Component.text(type.getLocalizedDescription(plugin.getLanguageManager()))
                 .color(NamedTextColor.GRAY)
                 .decoration(TextDecoration.ITALIC, true));
         lore.add(Component.empty());
@@ -186,7 +186,7 @@ public class PetDetailGUI extends BaseGUI {
                 .decoration(TextDecoration.ITALIC, false));
 
         List<Component> lore = new ArrayList<>();
-        lore.add(Component.text(type.getDisplayName() + " growth tracker")
+        lore.add(Component.text(type.getLocalizedDisplayName(plugin.getLanguageManager()) + " " + plugin.getLanguageManager().getString("petdetailgui.growth_tracker", "growth tracker"))
                 .color(NamedTextColor.GRAY)
                 .decoration(TextDecoration.ITALIC, false));
         lore.add(Component.empty());
@@ -270,14 +270,14 @@ public class PetDetailGUI extends BaseGUI {
             } else {
                 // Normal stat-based pets
                 String sign = type.isNegativeAttribute() ? "" : "+";
-                lore.add(Component.text(type.getAttributeDisplay() + ": ").color(NamedTextColor.GRAY)
+                lore.add(Component.text(type.getLocalizedAttributeDisplay(plugin.getLanguageManager()) + ": ").color(NamedTextColor.GRAY)
                         .decoration(TextDecoration.ITALIC, false)
                         .append(Component.text(sign + type.formatAttributeBonus(pet.getLevel()))
                                 .color(NamedTextColor.GREEN)));
-                lore.add(Component.text("Growth: " + sign + type.formatAttributePerLevel() + "/level")
+                lore.add(Component.text(plugin.getLanguageManager().getString("petdetailgui.growth", "Growth: ") + sign + type.formatAttributePerLevel() + plugin.getLanguageManager().getString("petdetailgui.per_level", "/level"))
                         .color(NamedTextColor.DARK_GRAY)
                         .decoration(TextDecoration.ITALIC, false));
-                lore.add(Component.text("At Lv" + maxLevel + ": ").color(NamedTextColor.DARK_GRAY)
+                lore.add(Component.text(plugin.getLanguageManager().getString("petdetailgui.at_lv", "At Lv") + maxLevel + ": ").color(NamedTextColor.DARK_GRAY)
                         .decoration(TextDecoration.ITALIC, false)
                         .append(Component.text(sign + type.formatAttributeBonus(maxLevel))
                                 .color(NamedTextColor.YELLOW)));
@@ -340,7 +340,7 @@ public class PetDetailGUI extends BaseGUI {
 
         String date = new SimpleDateFormat("MMM dd, yyyy").format(new Date(pet.getObtainedAt()));
         meta.lore(List.of(
-                Component.text("Obtained: " + date).color(NamedTextColor.GRAY)
+                Component.text(plugin.getLanguageManager().getString("petdetailgui.obtained", "Obtained: ") + date).color(NamedTextColor.GRAY)
                         .decoration(TextDecoration.ITALIC, false),
                 plugin.getLanguageManager().getMessage("petdetailgui.selection", "Selection: ").color(NamedTextColor.GRAY)
                         .decoration(TextDecoration.ITALIC, false)
@@ -348,7 +348,7 @@ public class PetDetailGUI extends BaseGUI {
                                 ? plugin.getLanguageManager().getMessage("petdetailgui.active", "ACTIVE").color(NamedTextColor.GREEN)
                                         .decoration(TextDecoration.BOLD, true)
                                 : plugin.getLanguageManager().getMessage("petdetailgui.resting", "Resting").color(NamedTextColor.DARK_GRAY)),
-                Component.text("Species: " + type.getDisplayName()).color(NamedTextColor.GRAY)
+                Component.text(plugin.getLanguageManager().getString("petdetailgui.species", "Species: ") + type.getLocalizedDisplayName(plugin.getLanguageManager())).color(NamedTextColor.GRAY)
                         .decoration(TextDecoration.ITALIC, false)
         ));
         item.setItemMeta(meta);

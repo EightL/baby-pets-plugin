@@ -44,7 +44,7 @@ public class PetStorageGUI extends BaseGUI {
 
     public PetStorageGUI(PetsPlugin plugin, Player player, PetType type,
                          int petLevel, Map<Integer, ItemStack> savedItems) {
-        super(plugin, computeRows(type.getStorageSize()), type.getDisplayName() + " Storage");
+        super(plugin, computeRows(type.getStorageSize()), type.getLocalizedDisplayName(plugin.getLanguageManager()) + " " + localizedTitle(plugin, "petstoragegui.title_suffix", "Storage"));
         this.playerUuid = player.getUniqueId();
         this.storageGroup = type.getStorageGroup();
         this.storageGlass = type.getStorageGlass();

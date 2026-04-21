@@ -32,7 +32,7 @@ public class PetSettingsGUI extends BaseGUI {
     public PetSettingsGUI(PetsPlugin plugin, Player player, int returnPage,
                           PetCollectionGUI.FilterMode returnFilterMode,
                           Set<Rarity> returnRarityFilters) {
-        super(plugin, 3, "Pet Settings");
+        super(plugin, 3, localizedTitle(plugin, "petsettingsgui.title", "Pet Settings"));
         this.player = player;
         this.returnPage = returnPage;
         this.returnFilterMode = returnFilterMode == null ? PetCollectionGUI.FilterMode.ALL : returnFilterMode;
@@ -76,7 +76,9 @@ public class PetSettingsGUI extends BaseGUI {
 
         ItemStack item = new ItemStack(material);
         ItemMeta meta = item.getItemMeta();
-        meta.displayName(Component.text("Hide Other Players' Pets: " + (enabled ? "ON" : "OFF"))
+        meta.displayName(Component.text(
+                plugin.getLanguageManager().getString("petsettingsgui.hide_other_pets", "Hide Other Players' Pets") + ": " +
+                plugin.getLanguageManager().getString(enabled ? "ui.labels.on" : "ui.labels.off", enabled ? "ON" : "OFF"))
                 .color(enabled ? NamedTextColor.GREEN : NamedTextColor.RED)
                 .decoration(TextDecoration.ITALIC, false));
 
@@ -103,7 +105,9 @@ public class PetSettingsGUI extends BaseGUI {
 
         ItemStack item = new ItemStack(material);
         ItemMeta meta = item.getItemMeta();
-        meta.displayName(Component.text("Pet Sounds: " + (enabled ? "ON" : "OFF"))
+        meta.displayName(Component.text(
+                plugin.getLanguageManager().getString("petsettingsgui.pet_sounds", "Pet Sounds") + ": " +
+                plugin.getLanguageManager().getString(enabled ? "ui.labels.on" : "ui.labels.off", enabled ? "ON" : "OFF"))
                 .color(enabled ? NamedTextColor.GREEN : NamedTextColor.RED)
                 .decoration(TextDecoration.ITALIC, false));
 
@@ -128,7 +132,9 @@ public class PetSettingsGUI extends BaseGUI {
 
         ItemStack item = new ItemStack(material);
         ItemMeta meta = item.getItemMeta();
-        meta.displayName(Component.text("Pet Notifications: " + (enabled ? "ON" : "OFF"))
+        meta.displayName(Component.text(
+                plugin.getLanguageManager().getString("petsettingsgui.pet_notifications", "Pet Notifications") + ": " +
+                plugin.getLanguageManager().getString(enabled ? "ui.labels.on" : "ui.labels.off", enabled ? "ON" : "OFF"))
                 .color(enabled ? NamedTextColor.GREEN : NamedTextColor.RED)
                 .decoration(TextDecoration.ITALIC, false));
 

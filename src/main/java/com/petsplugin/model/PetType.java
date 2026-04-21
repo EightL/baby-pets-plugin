@@ -1,5 +1,6 @@
 package com.petsplugin.model;
 
+import com.petsplugin.manager.LanguageManager;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Registry;
@@ -102,9 +103,15 @@ public class PetType {
     // Getters
     public String getId() { return id; }
     public String getDisplayName() { return displayName; }
+    public String getLocalizedDisplayName(LanguageManager lm) {
+        return lm.getString("pet." + id + ".name", displayName);
+    }
     public EntityType getEntityType() { return entityType; }
     public Rarity getRarity() { return rarity; }
     public String getDescription() { return description; }
+    public String getLocalizedDescription(LanguageManager lm) {
+        return lm.getString("pet." + id + ".desc", description);
+    }
     public Material getIcon() { return icon; }
     public boolean isBaby() { return baby; }
     public SpecialAbility getSpecialAbility() { return specialAbility; }
@@ -124,6 +131,9 @@ public class PetType {
     public boolean hasPlayerAttribute() { return hasPlayerAttribute; }
     public Attribute getPlayerAttribute() { return playerAttribute; }
     public String getAttributeDisplay() { return attributeDisplay; }
+    public String getLocalizedAttributeDisplay(LanguageManager lm) {
+        return lm.getString("pet." + id + ".attribute", attributeDisplay);
+    }
 
     /**
      * How many storage slots are active at the given level.

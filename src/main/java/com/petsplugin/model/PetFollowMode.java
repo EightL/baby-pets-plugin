@@ -1,5 +1,7 @@
 package com.petsplugin.model;
 
+import com.petsplugin.manager.LanguageManager;
+
 public enum PetFollowMode {
     FOLLOW("follow", "Follow"),
     STAY("stay", "Stay");
@@ -18,6 +20,10 @@ public enum PetFollowMode {
 
     public String getDisplayName() {
         return displayName;
+    }
+
+    public String getLocalizedDisplayName(LanguageManager lm) {
+        return lm.getString("pet.mode." + this.name(), displayName);
     }
 
     public static PetFollowMode fromInput(String input) {

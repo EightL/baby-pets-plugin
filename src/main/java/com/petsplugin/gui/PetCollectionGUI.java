@@ -104,7 +104,7 @@ public class PetCollectionGUI extends BaseGUI {
 
     public PetCollectionGUI(PetsPlugin plugin, Player player, int page, FilterMode filterMode,
                             Set<Rarity> activeRarityFilters) {
-        super(plugin, 6, "Pet Collection");
+        super(plugin, 6, localizedTitle(plugin, "petcollectiongui.title", "Pet Collection"));
         this.player = player;
         this.page = page;
         this.filterMode = filterMode == null ? FilterMode.ALL : filterMode;
@@ -160,7 +160,7 @@ public class PetCollectionGUI extends BaseGUI {
             ItemStack item = new ItemStack(type.getIcon());
             ItemMeta meta = item.getItemMeta();
 
-            Component name = Component.text(pet.getDisplayName(type))
+            Component name = Component.text(pet.getLocalizedDisplayName(type, plugin.getLanguageManager()))
                     .color(type.getRarity().getColor())
                     .decoration(TextDecoration.ITALIC, false);
 
@@ -174,7 +174,7 @@ public class PetCollectionGUI extends BaseGUI {
             meta.displayName(name);
 
             List<Component> lore = new ArrayList<>();
-            lore.add(Component.text(type.getDescription()).color(NamedTextColor.GRAY)
+            lore.add(Component.text(type.getLocalizedDescription(plugin.getLanguageManager())).color(NamedTextColor.GRAY)
                     .decoration(TextDecoration.ITALIC, true));
             lore.add(Component.empty());
                 lore.add(Component.text(rarityLabel + ": ").color(NamedTextColor.GRAY)
@@ -219,7 +219,7 @@ public class PetCollectionGUI extends BaseGUI {
                         .decoration(TextDecoration.ITALIC, false));
                 } else {
                     String sign = type.isNegativeAttribute() ? "" : "+";
-                    lore.add(Component.text(" " + type.getAttributeDisplay() + ": ").color(NamedTextColor.GRAY)
+                    lore.add(Component.text(" " + type.getLocalizedAttributeDisplay(plugin.getLanguageManager()) + ": ").color(NamedTextColor.GRAY)
                         .decoration(TextDecoration.ITALIC, false)
                         .append(Component.text(sign + type.formatAttributeBonus(pet.getLevel()))
                             .color(NamedTextColor.GREEN)));
@@ -331,7 +331,7 @@ public class PetCollectionGUI extends BaseGUI {
             PetInstance pet = visiblePets.get(petIndex);
             if (event.isLeftClick()) {
                 PetType type = plugin.getPetTypes().get(pet.getPetTypeId());
-                String displayName = type != null ? pet.getDisplayName(type) : pet.getPetTypeId();
+                String displayName = type != null ? pet.getLocalizedDisplayName(type, plugin.getLanguageManager()) : pet.getPetTypeId();
                 if (pet.isSelected()) {
                     plugin.getPetManager().deselectPet(player.getUniqueId());
                     plugin.getPetManager().sendPetNotification(player,
@@ -407,12 +407,12 @@ public class PetCollectionGUI extends BaseGUI {
                                        boolean filteringByRarity, boolean selected) {
         ItemStack item = new ItemStack(rarityDye(rarity));
         ItemMeta meta = item.getItemMeta();
-        meta.displayName(Component.text(rarityTitle(rarity) + " Collection")
+        meta.displayName(Component.text(rarityTitle(rarity) + " " + plugin.getLanguageManager().getString("petcollectiongui.collection", "Collection"))
                 .color(rarity.getColor())
                 .decoration(TextDecoration.ITALIC, false));
 
         List<Component> lore = new ArrayList<>();
-        lore.add(Component.text(owned + "/" + total + " collected")
+        lore.add(Component.text(owned + "/" + total + " " + plugin.getLanguageManager().getString("petcollectiongui.collected", "collected"))
                 .color(NamedTextColor.YELLOW)
                 .decoration(TextDecoration.ITALIC, false));
         lore.add(Component.empty());
@@ -662,7 +662,7 @@ public class PetCollectionGUI extends BaseGUI {
             return "";
         }
 
-        String name = pet.getDisplayName(type);
+        String name = pet.getLocalizedDisplayName(type, plugin.getLanguageManager());
         return name == null ? "" : name.toLowerCase(Locale.ROOT);
     }
 }

@@ -148,8 +148,12 @@ public class PetsCommand implements CommandExecutor, TabExecutor {
 
         ItemStack egg = plugin.getEggManager().createEgg(rarity);
         target.getInventory().addItem(egg);
-        player.sendMessage(Component.text("Gave " + rarity.name() + " egg to " + target.getName())
-                .color(NamedTextColor.GREEN));
+        player.sendMessage(plugin.getLanguageManager().getMessage(
+                "petscommand.gave_egg_to_player",
+                "Gave %rarity% egg to %player%",
+                "rarity", rarity.name(),
+                "player", target.getName()
+        ).color(NamedTextColor.GREEN));
         return true;
     }
 
@@ -166,9 +170,16 @@ public class PetsCommand implements CommandExecutor, TabExecutor {
         String petTypeId = args[1].toLowerCase();
         PetType type = plugin.getPetTypes().get(petTypeId);
         if (type == null) {
-            player.sendMessage(Component.text("Unknown pet type: " + args[1]).color(NamedTextColor.RED));
-            player.sendMessage(Component.text("Available: " + String.join(", ", plugin.getPetTypes().keySet()))
-                    .color(NamedTextColor.GRAY));
+            player.sendMessage(plugin.getLanguageManager().getMessage(
+                    "petscommand.unknown_pet_type_with_name",
+                    "Unknown pet type: %type%",
+                    "type", args[1]
+            ).color(NamedTextColor.RED));
+            player.sendMessage(plugin.getLanguageManager().getMessage(
+                    "petscommand.available_types",
+                    "Available: %types%",
+                    "types", String.join(", ", plugin.getPetTypes().keySet())
+            ).color(NamedTextColor.GRAY));
             return true;
         }
 
@@ -178,7 +189,7 @@ public class PetsCommand implements CommandExecutor, TabExecutor {
         plugin.getPetManager().refreshCache(player.getUniqueId());
 
         player.sendMessage(plugin.getLanguageManager().getMessage("petscommand.added", "Added ").color(NamedTextColor.GREEN)
-                .append(Component.text(type.getDisplayName()).color(type.getRarity().getColor()))
+                .append(Component.text(type.getLocalizedDisplayName(plugin.getLanguageManager())).color(type.getRarity().getColor()))
                 .append(plugin.getLanguageManager().getMessage("petscommand.to_your_collection", " to your collection.").color(NamedTextColor.GREEN)));
         return true;
     }
@@ -190,8 +201,11 @@ public class PetsCommand implements CommandExecutor, TabExecutor {
 
         int hatched = plugin.getIncubatorManager().instantHatch(player.getUniqueId());
         if (hatched > 0) {
-            player.sendMessage(Component.text("Instantly hatched " + hatched + " egg(s)!")
-                    .color(NamedTextColor.GREEN));
+            player.sendMessage(plugin.getLanguageManager().getMessage(
+                    "petscommand.instantly_hatched_eggs",
+                    "Instantly hatched %count% egg(s)!",
+                    "count", String.valueOf(hatched)
+            ).color(NamedTextColor.GREEN));
             plugin.getPetManager().refreshCache(player.getUniqueId());
         } else {
             player.sendMessage(plugin.getLanguageManager().getMessage("petscommand.you_dont_have_any_eggs", "You don't have any eggs incubating.")
@@ -283,10 +297,10 @@ public class PetsCommand implements CommandExecutor, TabExecutor {
         String statusLabel = plugin.getPetManager().getLocalizedLabel("status", "Status");
         String bonusLabel = plugin.getPetManager().getLocalizedLabel("bonus", "Bonus");
 
-        player.sendMessage(Component.text("─── " + pet.getDisplayName(type) + " ───")
+        player.sendMessage(Component.text("─── " + pet.getLocalizedDisplayName(type, plugin.getLanguageManager()) + " ───")
                 .color(type.getRarity().getColor()));
         player.sendMessage(plugin.getLanguageManager().getMessage("petscommand.type", "  Type: ").color(NamedTextColor.GRAY)
-                .append(Component.text(type.getDisplayName()).color(NamedTextColor.WHITE)));
+                .append(Component.text(type.getLocalizedDisplayName(plugin.getLanguageManager())).color(NamedTextColor.WHITE)));
         player.sendMessage(Component.text("  " + rarityLabel + ": ").color(NamedTextColor.GRAY)
             .append(Component.text(plugin.getPetManager().getLocalizedRarity(type.getRarity()))
                 .color(type.getRarity().getColor())));
@@ -344,8 +358,11 @@ public class PetsCommand implements CommandExecutor, TabExecutor {
             int level = Integer.parseInt(args[1]);
             if (level < 1) level = 1;
             plugin.getPetManager().setLevel(player, pet, level);
-            player.sendMessage(Component.text("Set pet level to " + pet.getLevel() + ".")
-                    .color(NamedTextColor.GREEN));
+            player.sendMessage(plugin.getLanguageManager().getMessage(
+                    "petscommand.set_pet_level_to",
+                    "Set pet level to %level%.",
+                    "level", String.valueOf(pet.getLevel())
+            ).color(NamedTextColor.GREEN));
         } catch (NumberFormatException e) {
             player.sendMessage(plugin.getLanguageManager().getMessage("petscommand.level_must_be_a_number", "Level must be a number.").color(NamedTextColor.RED));
         }
@@ -440,8 +457,11 @@ public class PetsCommand implements CommandExecutor, TabExecutor {
         if (args.length >= 2) {
             String value = args[1].toLowerCase();
             if (!value.equals("on") && !value.equals("off") && !value.equals("toggle")) {
-                player.sendMessage(Component.text("Usage: /pets " + usageKey + " [on|off|toggle]")
-                        .color(NamedTextColor.RED));
+                player.sendMessage(plugin.getLanguageManager().getMessage(
+                        "petscommand.usage_toggle",
+                        "Usage: /pets %command% [on|off|toggle]",
+                        "command", usageKey
+                ).color(NamedTextColor.RED));
                 return true;
             }
 

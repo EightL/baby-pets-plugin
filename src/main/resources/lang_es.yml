@@ -1,109 +1,116 @@
-basegui.back: Back
-basegui.click_to_toggle: Click to toggle.
-basegui.commands_pets_follow_pets_stay: 'Commands: /pets follow, /pets stay'
-basegui.follow_keeps_your_active_pet: Follow keeps your active pet near you.
-basegui.stay_keeps_your_pet_in: Stay keeps your pet in place.
-deleteconfirmgui.cancel: CANCEL
-deleteconfirmgui.click_to_permanently_delete: Click to permanently delete
-deleteconfirmgui.confirm_delete: CONFIRM DELETE
-deleteconfirmgui.deleted: 'Deleted '
-deleteconfirmgui.go_back_to_collection: Go back to collection.
-deleteconfirmgui.permanently: ' permanently.'
-deleteconfirmgui.this_action_is_permanent: This action is PERMANENT!
-deleteconfirmgui.this_pet: this pet.
-eggmanager.a_mysterious_egg: A mysterious egg...
-eggmanager.pet_egg: Pet Egg
-eggmanager.pet_incubator: Pet Incubator
-eggmanager.place_in_a: 'Place in a '
-eggmanager.rightclick_to_open_pet_collection: Right-click to open Pet Collection.
-eggmanager.to_hatch: ' to hatch!'
-incubatorlistener.incubating: 'Incubating: '
-incubatorlistener.pet_egg: Pet Egg
-incubatorlistener.rightclick_with_a_pet_egg: Right-click with a Pet Egg to start incubation!
-incubatormanager.a_warm_chamber_for_hatching: A warm chamber for hatching
-incubatormanager.an_egg_to_start_incubation: an egg to start incubation!
-incubatormanager.click_to_view_in_collection: Click to view in collection
-incubatormanager.mysterious_pet_eggs: mysterious pet eggs.
-incubatormanager.open_pet_collection: Open pet collection
-incubatormanager.pet_incubator: Pet Incubator
-incubatormanager.place_and_rightclick_with: Place and right-click with
-petcollectiongui.adjust_rarity_dyes_or_cycle: Adjust rarity dyes or cycle the hopper
-  filter.
-petcollectiongui.and_pet_sound_preferences: and pet sound preferences.
-petcollectiongui.and_shows_in_the_vanilla: and shows in the vanilla recipe book.
-petcollectiongui.click_to_cycle_filters: Click to cycle filters
-petcollectiongui.click_to_open: Click to open
-petcollectiongui.craft_this_to_start_hatching: Craft this to start hatching eggs.
-petcollectiongui.crafting_output: Crafting Output
-petcollectiongui.excluded_by_current_filter: Excluded by current filter.
-petcollectiongui.included_in_current_filter: Included in current filter.
+basegui.back: Atrás
+basegui.click_to_toggle: Haz clic para alternar.
+basegui.commands_pets_follow_pets_stay: 'Comandos: /pets follow, /pets stay'
+basegui.follow_keeps_your_active_pet: Seguir mantiene a tu mascota activa cerca de ti.
+basegui.stay_keeps_your_pet_in: Quieto mantiene a tu mascota en su lugar.
+
+deleteconfirmgui.cancel: CANCELAR
+deleteconfirmgui.click_to_permanently_delete: Haz clic para eliminar permanentemente
+deleteconfirmgui.confirm_delete: CONFIRMAR ELIMINACIÓN
+deleteconfirmgui.deleted: 'Se eliminó '
+deleteconfirmgui.go_back_to_collection: Volver a la colección.
+deleteconfirmgui.permanently: ' permanentemente.'
+deleteconfirmgui.this_action_is_permanent: ¡Esta acción es PERMANENTE!
+deleteconfirmgui.this_pet: esta mascota.
+
+eggmanager.a_mysterious_egg: Un huevo misterioso...
+eggmanager.pet_egg: Huevo de mascota
+eggmanager.pet_incubator: Incubadora de mascotas
+eggmanager.place_in_a: 'Colócalo en una '
+eggmanager.rightclick_to_open_pet_collection: Clic derecho para abrir la colección de mascotas.
+eggmanager.to_hatch: ' para eclosionar!'
+
+incubatorlistener.incubating: 'Incubando: '
+incubatorlistener.pet_egg: Huevo de mascota
+incubatorlistener.rightclick_with_a_pet_egg: ¡Haz clic derecho con un Huevo de mascota para iniciar la incubación!
+
+incubatormanager.a_warm_chamber_for_hatching: Una cámara cálida para incubar
+incubatormanager.an_egg_to_start_incubation: un huevo para iniciar la incubación!
+incubatormanager.click_to_view_in_collection: Haz clic para ver en la colección
+incubatormanager.mysterious_pet_eggs: misteriosos huevos de mascota.
+incubatormanager.open_pet_collection: Abrir colección de mascotas
+incubatormanager.pet_incubator: Incubadora de mascotas
+incubatormanager.place_and_rightclick_with: Coloca y haz clic derecho con
+
+petcollectiongui.adjust_rarity_dyes_or_cycle: Ajusta los tintes de rareza o cambia el filtro de la tolva.
+petcollectiongui.and_pet_sound_preferences: y las preferencias de sonido de las mascotas.
+petcollectiongui.and_shows_in_the_vanilla: y aparece en el libro de recetas del juego base.
+petcollectiongui.click_to_cycle_filters: Haz clic para cambiar los filtros
+petcollectiongui.click_to_open: Haz clic para abrir
+petcollectiongui.craft_this_to_start_hatching: Fabrica esto para empezar a incubar huevos.
+petcollectiongui.crafting_output: Resultado de fabricación
+petcollectiongui.excluded_by_current_filter: Excluido por el filtro actual.
+petcollectiongui.included_in_current_filter: Incluido en el filtro actual.
 petcollectiongui.leftclick_to_deselect: Clic izquierdo para deseleccionar
 petcollectiongui.leftclick_to_select: Clic izquierdo para seleccionar
 petcollectiongui.leftclick_toggle_this_rarity: 'Clic izquierdo: alternar esta rareza'
-petcollectiongui.level_type_name_then_back: Nivel, tipo, nombre y todos.
-petcollectiongui.manage_follow_mode_visibility: Manage follow mode, visibility,
+petcollectiongui.level_type_name_then_back: Nivel, tipo, nombre y volver al inicio.
+petcollectiongui.manage_follow_mode_visibility: Gestiona el modo de seguimiento, la visibilidad,
 petcollectiongui.no_pets_match: Ninguna mascota coincide
-petcollectiongui.no_rarity_filter_active: Ningún filtro activo.
-petcollectiongui.rightclick_clear_rarity_filters: 'Clic derecho: quitar filtros'
+petcollectiongui.no_rarity_filter_active: No hay ningún filtro de rareza activo.
+petcollectiongui.rightclick_clear_rarity_filters: 'Clic derecho: quitar filtros de rareza'
 petcollectiongui.rightclick_to_view_details: Clic derecho para ver detalles
-petcollectiongui.settings: Opciones
-petcollectiongui.the_recipe_works_in_a: The recipe works in a normal crafting table
-petcollectiongui.use_top_dyes_to_toggle: Use top dyes to toggle rarity filters.
-petdetailgui.active: ACTIVO
-petdetailgui.back: Back
-petdetailgui.care_guide: Care Guide
-petdetailgui.completion: 'Completion: '
-petdetailgui.current_xp: 'Current XP: '
-petdetailgui.delete_pet: Delete Pet
-petdetailgui.feed_and_pet_regularly_to: Feed and pet regularly to improve mood.
-petdetailgui.foods: 'Foods: '
-petdetailgui.meter: 'Meter: '
-petdetailgui.mood: 'Mood: '
-petdetailgui.next_level_xp: 'Next Level XP: '
-petdetailgui.no_more_xp_is_required: No more XP is required.
-petdetailgui.permanently_delete_this_pet: Permanently delete this pet!
-petdetailgui.pet_abilities_are_disabled_in: Pet abilities are disabled in config.
-petdetailgui.profile: Profile
-petdetailgui.progress: Progress
-petdetailgui.resting: Resting
-petdetailgui.rightclick_with_empty_hand_to: Right-click with empty hand to open bag
-petdetailgui.selection: 'Selection: '
-petdetailgui.slots_unlock_as_the_pet: Slots unlock as the pet levels up
-petdetailgui.special: 'Special: '
-petdetailgui.status_meter: Status Meter
-petdetailgui.storage: 'Storage: '
-petdetailgui.this_pet_is_currently_vanityonly: This pet is currently vanity-only.
-petdetailgui.this_pet_reached_max_level: This pet reached max level.
-petdetailgui.type: 'Type: '
-petdetailgui.underwater_night_vision: Underwater Night Vision
-petscommand.add_a_pet_directly_to: ' - Add a pet directly to your collection'
-petscommand.added: 'Added '
-petscommand.admin: ─── Admin ───
-petscommand.babypets_config_reloaded: '[BabyPets] Config reloaded!'
-petscommand.deselect_current_pet: ' - Deselect current pet'
-petscommand.gave_you_a_pet_incubator: Gave you a Pet Incubator!
-petscommand.get_an_incubator_item: ' - Get an incubator item'
-petscommand.give_an_egg: ' - Give an egg'
-petscommand.hide_other_players_pets: ' - Hide other players'' pets'
-petscommand.id_must_be_a_number: ID must be a number.
-petscommand.instantly_hatch_your_incubating_eggs: ' - Instantly hatch your incubating
-  eggs'
-petscommand.invalid_rarity_use_common_uncommon: 'Invalid rarity. Use: COMMON, UNCOMMON,
-  RARE, EPIC, LEGENDARY'
-petscommand.level_must_be_a_number: Level must be a number.
-petscommand.no_permission: No permission.
-petscommand.only_players_can_use_this: Only players can use this command.
-petscommand.open_pet_collection: ' - Open pet collection'
-petscommand.open_pet_settings: ' - Open pet settings'
-petscommand.pet_deselected: Pet deselected.
-petscommand.pet_not_found_with_that: Pet not found with that ID.
+petcollectiongui.settings: Ajustes
+petcollectiongui.the_recipe_works_in_a: La receta funciona en una mesa de trabajo normal
+petcollectiongui.use_top_dyes_to_toggle: Usa los tintes superiores para alternar los filtros de rareza.
+
+petdetailgui.active: ACTIVA
+petdetailgui.back: Atrás
+petdetailgui.care_guide: Guía de cuidado
+petdetailgui.completion: 'Completado: '
+petdetailgui.current_xp: 'XP actual: '
+petdetailgui.delete_pet: Eliminar mascota
+petdetailgui.feed_and_pet_regularly_to: Aliméntala y acaríciala con regularidad para mejorar su estado de ánimo.
+petdetailgui.foods: 'Alimentos: '
+petdetailgui.meter: 'Medidor: '
+petdetailgui.mood: 'Estado de ánimo: '
+petdetailgui.next_level_xp: 'XP para el siguiente nivel: '
+petdetailgui.no_more_xp_is_required: No se necesita más XP.
+petdetailgui.permanently_delete_this_pet: ¡Elimina esta mascota permanentemente!
+petdetailgui.pet_abilities_are_disabled_in: Las habilidades de las mascotas están desactivadas en la configuración.
+petdetailgui.profile: Perfil
+petdetailgui.progress: Progreso
+petdetailgui.resting: Descansando
+petdetailgui.rightclick_with_empty_hand_to: Haz clic derecho con la mano vacía para abrir la bolsa
+petdetailgui.selection: 'Selección: '
+petdetailgui.slots_unlock_as_the_pet: Las ranuras se desbloquean a medida que la mascota sube de nivel
+petdetailgui.special: 'Especial: '
+petdetailgui.status_meter: Medidor de estado
+petdetailgui.storage: 'Almacenamiento: '
+petdetailgui.this_pet_is_currently_vanityonly: Esta mascota es actualmente solo cosmética.
+petdetailgui.this_pet_reached_max_level: Esta mascota alcanzó el nivel máximo.
+petdetailgui.type: 'Tipo: '
+petdetailgui.underwater_night_vision: Visión nocturna bajo el agua
+
+petscommand.add_a_pet_directly_to: ' - Añade una mascota directamente a tu colección'
+petscommand.added: 'Se añadió '
+petscommand.admin: ─── Administración ───
+petscommand.available_types: 'Disponibles: %types%'
+petscommand.babypets_config_reloaded: '[BabyPets] ¡Configuración recargada!'
+petscommand.deselect_current_pet: ' - Deselecciona la mascota actual'
+petscommand.gave_egg_to_player: 'Se dio un huevo %rarity% a %player%'
+petscommand.gave_you_a_pet_incubator: ¡Te dio una Incubadora de mascotas!
+petscommand.get_an_incubator_item: ' - Obtén una incubadora'
+petscommand.give_an_egg: ' - Da un huevo'
+petscommand.hide_other_players_pets: ' - Oculta las mascotas de otros jugadores'
+petscommand.id_must_be_a_number: El ID debe ser un número.
+petscommand.instantly_hatch_your_incubating_eggs: ' - Eclosiona al instante tus huevos en incubación'
+petscommand.instantly_hatched_eggs: '¡Se eclosionaron %count% huevo(s) al instante!'
+petscommand.invalid_rarity_use_common_uncommon: 'Rareza inválida. Usa: COMMON, UNCOMMON, RARE, EPIC, LEGENDARY'
+petscommand.level_must_be_a_number: El nivel debe ser un número.
+petscommand.no_permission: No tienes permiso.
+petscommand.only_players_can_use_this: Solo los jugadores pueden usar este comando.
+petscommand.open_pet_collection: ' - Abre la colección de mascotas'
+petscommand.open_pet_settings: ' - Abre los ajustes de mascotas'
+petscommand.pet_deselected: Mascota deseleccionada.
+petscommand.pet_not_found_with_that: No se encontró una mascota con ese ID.
 petscommand.pets: /pets
 petscommand.pets_deselect: /pets deselect
 petscommand.pets_follow: /pets follow
 petscommand.pets_give_player_rarity: /pets give <player> <rarity>
 petscommand.pets_givepet_pettype: /pets givepet <pet_type>
 petscommand.pets_hatch: /pets hatch
-petscommand.pets_help: ─── Pets Help ───
+petscommand.pets_help: ─── Ayuda de mascotas ───
 petscommand.pets_hideothers_onofftoggle: /pets hideothers [on|off|toggle]
 petscommand.pets_incubator: /pets incubator
 petscommand.pets_info: /pets info
@@ -114,46 +121,125 @@ petscommand.pets_setlevel_level: /pets setlevel <level>
 petscommand.pets_settings: /pets settings
 petscommand.pets_sounds_onofftoggle: /pets sounds [on|off|toggle]
 petscommand.pets_stay: /pets stay
-petscommand.player_not_found: Player not found.
-petscommand.reload_config: ' - Reload config'
-petscommand.select_a_pet_by_db: ' - Select a pet by DB ID'
-petscommand.select_a_pet_first: Select a pet first!
-petscommand.set_selected_pets_level: ' - Set selected pet''s level'
-petscommand.set_your_active_pet_to: ' - Set your active pet to follow'
-petscommand.show_active_pet_stats: ' - Show active pet stats'
-petscommand.tell_your_active_pet_to: ' - Tell your active pet to stay'
-petscommand.to_your_collection: ' to your collection.'
-petscommand.toggle_pet_chat_notifications: ' - Toggle pet chat notifications'
-petscommand.toggle_your_pet_sounds: ' - Toggle your pet sounds'
-petscommand.type: '  Type: '
-petscommand.unknown_pet_type: Unknown pet type.
-petscommand.unknown_subcommand_use_pets_help: Unknown subcommand. Use /pets help
-petscommand.usage_pets_give_player_rarity: 'Usage: /pets give <player> <rarity>'
-petscommand.usage_pets_givepet_pettype: 'Usage: /pets givepet <pet_type>'
-petscommand.usage_pets_select_petid: 'Usage: /pets select <pet_id>'
-petscommand.usage_pets_setlevel_level: 'Usage: /pets setlevel <level>'
-petscommand.you_dont_have_an_active: You don't have an active pet.
-petscommand.you_dont_have_any_eggs: You don't have any eggs incubating.
-petscommand.you_dont_have_permission_to: You don't have permission to use this command.
-petsettingsgui.back: Back
-petsettingsgui.click_to_toggle: Click to toggle.
-petsettingsgui.command_pets_hideothers: 'Command: /pets hideothers'
-petsettingsgui.command_pets_notifications_onofftoggle: 'Command: /pets notifications
+petscommand.player_not_found: Jugador no encontrado.
+petscommand.reload_config: ' - Recarga la configuración'
+petscommand.select_a_pet_by_db: ' - Selecciona una mascota por ID de BD'
+petscommand.select_a_pet_first: ¡Selecciona primero una mascota!
+petscommand.set_pet_level_to: 'Nivel de mascota establecido a %level%.'
+petscommand.set_selected_pets_level: ' - Establece el nivel de la mascota seleccionada'
+petscommand.set_your_active_pet_to: ' - Pon tu mascota activa a seguir'
+petscommand.show_active_pet_stats: ' - Muestra las estadísticas de la mascota activa'
+petscommand.tell_your_active_pet_to: ' - Dile a tu mascota activa que se quede'
+petscommand.to_your_collection: ' a tu colección.'
+petscommand.toggle_pet_chat_notifications: ' - Alterna las notificaciones de chat de mascotas'
+petscommand.toggle_your_pet_sounds: ' - Alterna los sonidos de tu mascota'
+petscommand.type: '  Tipo: '
+petscommand.unknown_pet_type: Tipo de mascota desconocido.
+petscommand.unknown_pet_type_with_name: 'Tipo de mascota desconocido: %type%'
+petscommand.unknown_subcommand_use_pets_help: Subcomando desconocido. Usa /pets help
+petscommand.usage_pets_give_player_rarity: 'Uso: /pets give <jugador> <rareza>'
+petscommand.usage_pets_givepet_pettype: 'Uso: /pets givepet <tipo_mascota>'
+petscommand.usage_pets_select_petid: 'Uso: /pets select <id_mascota>'
+petscommand.usage_pets_setlevel_level: 'Uso: /pets setlevel <nivel>'
+petscommand.usage_toggle: 'Uso: /pets %command% [on|off|toggle]'
+petscommand.you_dont_have_an_active: No tienes una mascota activa.
+petscommand.you_dont_have_any_eggs: No tienes huevos incubando.
+petscommand.you_dont_have_permission_to: No tienes permiso para usar este comando.
+
+petsettingsgui.back: Atrás
+petsettingsgui.click_to_toggle: Haz clic para alternar.
+petsettingsgui.command_pets_hideothers: 'Comando: /pets hideothers'
+petsettingsgui.command_pets_notifications_onofftoggle: 'Comando: /pets notifications
   [on|off|toggle]'
-petsettingsgui.command_pets_sounds_onofftoggle: 'Command: /pets sounds [on|off|toggle]'
-petsettingsgui.controls_ambient_sounds_from_your: Controls ambient sounds from your
-  own pet.
-petsettingsgui.controls_pet_event_chat_messages: Controls pet event chat messages.
-petsettingsgui.keeps_nearby_companion_mobs_less: Keeps nearby companion mobs less
-  cluttered.
-petsettingsgui.return_to_your_pet_collection: Return to your pet collection.
-petsettingsgui.spawn_levelup_feed_hatch_and: Spawn, level-up, feed, hatch, and similar
-  notices.
-petsettingsgui.your_own_pet_always_stays: Your own pet always stays visible.
+petsettingsgui.command_pets_sounds_onofftoggle: 'Comando: /pets sounds [on|off|toggle]'
+petsettingsgui.controls_ambient_sounds_from_your: Controla los sonidos ambientales
+  de tu propia mascota.
+petsettingsgui.controls_pet_event_chat_messages: Controla los mensajes de chat de eventos
+  de mascotas.
+petsettingsgui.keeps_nearby_companion_mobs_less: Mantiene las mascotas cercanas de otros
+  jugadores menos abarrotadas.
+petsettingsgui.return_to_your_pet_collection: Volver a tu colección de mascotas.
+petsettingsgui.spawn_levelup_feed_hatch_and: Aparición, subida de nivel, alimentación,
+  eclosión y avisos similares.
+petsettingsgui.your_own_pet_always_stays: Tu propia mascota siempre permanece visible.
 
-ui.labels.rarity: 'Rareza'
-ui.labels.level: 'Nivel'
-ui.labels.xp: 'Experiencia'
-ui.labels.status: 'Estado'
-ui.rarity.epic: 'ÉPICA'
+# ==============================================================
+# CONTENIDO CONFIGURADO — generado de los archivos de configuración
+# ==============================================================
 
+# --- Pet Types ---
+pet.chicken.name: "Pollito"
+pet.chicken.desc: "Un amiguito con plumas."
+pet.chicken.attribute: "❋ Resistencia a Caídas"
+pet.pig.name: "Cerdito"
+pet.pig.desc: "Un rollizo compañero rosado."
+pet.pig.attribute: "♥ Vida Máxima"
+pet.cow.name: "Vaquita"
+pet.cow.desc: "Un compañero de pradera bien alimentado."
+pet.cow.attribute: "☕ Absorción Máxima"
+pet.sheep.name: "Ovejita"
+pet.sheep.desc: "Un pequeño escudo esponjoso."
+pet.sheep.attribute: "↧ Distancia de Caída Segura"
+pet.squid.name: "Calamar"
+pet.squid.desc: "Un misterioso morador de tinta de las profundidades."
+pet.squid.attribute: "◎ Bono de Oxígeno"
+pet.bee.name: "Abejita"
+pet.bee.desc: "Un pequeño amigo zumbante."
+pet.bee.attribute: "⛨ Resistencia al Retroceso"
+pet.bunny.name: "Conejito"
+pet.bunny.desc: "Un saltarín de patas rápidas con muchos pelajes."
+pet.bunny.attribute: "⬆ Altura de Salto"
+pet.horse.name: "Caballo"
+pet.horse.desc: "Un fiel corcel y compañero de equipaje."
+pet.donkey.name: "Burro"
+pet.donkey.desc: "Un pequeño animal de carga testarudo."
+pet.mule.name: "Mula"
+pet.mule.desc: "Mitad caballo, mitad burro, toda utilidad."
+pet.dolphin.name: "Delfín"
+pet.dolphin.desc: "Un compañero acuático juguetón."
+pet.dolphin.attribute: "◎ Bono de Oxígeno"
+pet.armadillo.name: "Armadillo"
+pet.armadillo.desc: "Un pequeño guardián acorazado."
+pet.armadillo.attribute: "⛨ Armadura"
+pet.mooshroom.name: "Champiñón Vacuno"
+pet.mooshroom.desc: "Un compañero fúngico acogedor."
+pet.mooshroom.attribute: "⬇ Gravedad"
+pet.turtle.name: "Tortuga"
+pet.turtle.desc: "Un tranquilo planeador oceánico."
+pet.turtle.attribute: "≈ Movimiento en Agua"
+pet.llama.name: "Llama"
+pet.llama.desc: "Una bestia de carga lanuda con un buen escupitajo."
+pet.fox.name: "Zorro"
+pet.fox.desc: "Un compañero astuto y veloz."
+pet.fox.attribute: "⚡ Velocidad de Movimiento"
+pet.ocelot.name: "Ocelote"
+pet.ocelot.desc: "Un veloz y ágil acechador de la jungla."
+pet.ocelot.attribute: "⛏ Velocidad de Romper Bloques"
+pet.polar_bear.name: "Oso Polar"
+pet.polar_bear.desc: "Un rudo ártico con zarpa pesada."
+pet.polar_bear.attribute: "✦ Daño en Área"
+pet.camel.name: "Camello"
+pet.camel.desc: "Un viajero del desierto con espacio de sobra."
+pet.goat.name: "Cabra"
+pet.goat.desc: "Un poderoso testarudo."
+pet.goat.attribute: "⚔ Daño de Ataque"
+pet.panda.name: "Panda"
+pet.panda.desc: "Un poderoso legendario con equilibrio testarudo."
+pet.panda.attribute: "▣ Alcance de Bloques"
+pet.trader_llama.name: "Llama Comerciante"
+pet.trader_llama.desc: "El compañero legendario de un mercader."
+
+# --- Modos de Seguimiento ---
+pet.mode.FOLLOW: "Seguir"
+pet.mode.STAY: "Quieto"
+# --- Pet Settings GUI toggle labels ---
+petsettingsgui.hide_other_pets: "Ocultar Mascotas de Otros Jugadores"
+petsettingsgui.pet_sounds: "Sonidos de Mascotas"
+petsettingsgui.pet_notifications: "Notificaciones de Mascotas"
+ui.labels.on: "ACTIVADO"
+ui.labels.off: "DESACTIVADO"
+petcollectiongui.title: "Colección de Mascotas"
+petsettingsgui.title: "Ajustes de Mascotas"
+petdetailgui.title: "Detalles de Mascota"
+deleteconfirmgui.title: "¿Eliminar Mascota?"
+petstoragegui.title_suffix: "Almacenamiento"
