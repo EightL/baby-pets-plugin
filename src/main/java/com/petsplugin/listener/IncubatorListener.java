@@ -157,13 +157,13 @@ public class IncubatorListener implements Listener {
                 long minutes = remainingSec / 60;
                 long seconds = remainingSec % 60;
 
-                player.sendMessage(Component.text("Incubating: ").color(NamedTextColor.GRAY)
-                        .append(Component.text("Pet Egg")
+                player.sendMessage(plugin.getLanguageManager().getMessage("incubatorlistener.incubating", "Incubating: ").color(NamedTextColor.GRAY)
+                        .append(plugin.getLanguageManager().getMessage("incubatorlistener.pet_egg", "Pet Egg")
                                 .color(state.getEggRarity().getColor()))
                         .append(Component.text(" — " + minutes + "m " + seconds + "s remaining")
                                 .color(NamedTextColor.YELLOW)));
             } else {
-                player.sendMessage(Component.text("Right-click with a Pet Egg to start incubation!")
+                player.sendMessage(plugin.getLanguageManager().getMessage("incubatorlistener.rightclick_with_a_pet_egg", "Right-click with a Pet Egg to start incubation!")
                         .color(NamedTextColor.YELLOW));
             }
         }

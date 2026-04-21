@@ -57,12 +57,12 @@ public class PetSettingsGUI extends BaseGUI {
     private ItemStack createBackBarrierItem() {
         ItemStack item = new ItemStack(Material.BARRIER);
         ItemMeta meta = item.getItemMeta();
-        meta.displayName(Component.text("Back")
+        meta.displayName(plugin.getLanguageManager().getMessage("petsettingsgui.back", "Back")
                 .color(NamedTextColor.RED)
                 .decoration(TextDecoration.ITALIC, false));
         meta.lore(List.of(
                 Component.empty(),
-                Component.text("Return to your pet collection.")
+                plugin.getLanguageManager().getMessage("petsettingsgui.return_to_your_pet_collection", "Return to your pet collection.")
                         .color(NamedTextColor.GRAY)
                         .decoration(TextDecoration.ITALIC, false)
         ));
@@ -82,14 +82,14 @@ public class PetSettingsGUI extends BaseGUI {
 
         List<Component> lore = new ArrayList<>();
         lore.add(Component.empty());
-        lore.add(Component.text("Keeps nearby companion mobs less cluttered.").color(NamedTextColor.GRAY)
+        lore.add(plugin.getLanguageManager().getMessage("petsettingsgui.keeps_nearby_companion_mobs_less", "Keeps nearby companion mobs less cluttered.").color(NamedTextColor.GRAY)
                 .decoration(TextDecoration.ITALIC, false));
-        lore.add(Component.text("Your own pet always stays visible.").color(NamedTextColor.GRAY)
+        lore.add(plugin.getLanguageManager().getMessage("petsettingsgui.your_own_pet_always_stays", "Your own pet always stays visible.").color(NamedTextColor.GRAY)
                 .decoration(TextDecoration.ITALIC, false));
-        lore.add(Component.text("Command: /pets hideothers").color(NamedTextColor.DARK_GRAY)
+        lore.add(plugin.getLanguageManager().getMessage("petsettingsgui.command_pets_hideothers", "Command: /pets hideothers").color(NamedTextColor.DARK_GRAY)
                 .decoration(TextDecoration.ITALIC, false));
         lore.add(Component.empty());
-        lore.add(Component.text("Click to toggle.").color(NamedTextColor.YELLOW)
+        lore.add(plugin.getLanguageManager().getMessage("petsettingsgui.click_to_toggle", "Click to toggle.").color(NamedTextColor.YELLOW)
                 .decoration(TextDecoration.ITALIC, false));
 
         meta.lore(lore);
@@ -109,12 +109,12 @@ public class PetSettingsGUI extends BaseGUI {
 
         List<Component> lore = new ArrayList<>();
         lore.add(Component.empty());
-        lore.add(Component.text("Controls ambient sounds from your own pet.").color(NamedTextColor.GRAY)
+        lore.add(plugin.getLanguageManager().getMessage("petsettingsgui.controls_ambient_sounds_from_your", "Controls ambient sounds from your own pet.").color(NamedTextColor.GRAY)
                 .decoration(TextDecoration.ITALIC, false));
-        lore.add(Component.text("Command: /pets sounds [on|off|toggle]").color(NamedTextColor.DARK_GRAY)
+        lore.add(plugin.getLanguageManager().getMessage("petsettingsgui.command_pets_sounds_onofftoggle", "Command: /pets sounds [on|off|toggle]").color(NamedTextColor.DARK_GRAY)
                 .decoration(TextDecoration.ITALIC, false));
         lore.add(Component.empty());
-        lore.add(Component.text("Click to toggle.").color(NamedTextColor.YELLOW)
+        lore.add(plugin.getLanguageManager().getMessage("petsettingsgui.click_to_toggle", "Click to toggle.").color(NamedTextColor.YELLOW)
                 .decoration(TextDecoration.ITALIC, false));
 
         meta.lore(lore);
@@ -134,14 +134,14 @@ public class PetSettingsGUI extends BaseGUI {
 
         List<Component> lore = new ArrayList<>();
         lore.add(Component.empty());
-        lore.add(Component.text("Controls pet event chat messages.").color(NamedTextColor.GRAY)
+        lore.add(plugin.getLanguageManager().getMessage("petsettingsgui.controls_pet_event_chat_messages", "Controls pet event chat messages.").color(NamedTextColor.GRAY)
                 .decoration(TextDecoration.ITALIC, false));
-        lore.add(Component.text("Spawn, level-up, feed, hatch, and similar notices.").color(NamedTextColor.GRAY)
+        lore.add(plugin.getLanguageManager().getMessage("petsettingsgui.spawn_levelup_feed_hatch_and", "Spawn, level-up, feed, hatch, and similar notices.").color(NamedTextColor.GRAY)
                 .decoration(TextDecoration.ITALIC, false));
-        lore.add(Component.text("Command: /pets notifications [on|off|toggle]").color(NamedTextColor.DARK_GRAY)
+        lore.add(plugin.getLanguageManager().getMessage("petsettingsgui.command_pets_notifications_onofftoggle", "Command: /pets notifications [on|off|toggle]").color(NamedTextColor.DARK_GRAY)
                 .decoration(TextDecoration.ITALIC, false));
         lore.add(Component.empty());
-        lore.add(Component.text("Click to toggle.").color(NamedTextColor.YELLOW)
+        lore.add(plugin.getLanguageManager().getMessage("petsettingsgui.click_to_toggle", "Click to toggle.").color(NamedTextColor.YELLOW)
                 .decoration(TextDecoration.ITALIC, false));
 
         meta.lore(lore);

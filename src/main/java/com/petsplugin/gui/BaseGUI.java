@@ -91,7 +91,7 @@ public abstract class BaseGUI implements InventoryHolder {
     protected void setBackButton(int slot) {
         ItemStack back = new ItemStack(Material.ARROW);
         ItemMeta meta = back.getItemMeta();
-        meta.displayName(Component.text("Back").color(NamedTextColor.GRAY)
+        meta.displayName(plugin.getLanguageManager().getMessage("basegui.back", "Back").color(NamedTextColor.GRAY)
                 .decoration(TextDecoration.ITALIC, false));
         back.setItemMeta(meta);
         inventory.setItem(slot, back);
@@ -112,16 +112,16 @@ public abstract class BaseGUI implements InventoryHolder {
 
         List<Component> lore = new ArrayList<>();
         lore.add(Component.empty());
-        lore.add(Component.text("Follow keeps your active pet near you.").color(NamedTextColor.GRAY)
+        lore.add(plugin.getLanguageManager().getMessage("basegui.follow_keeps_your_active_pet", "Follow keeps your active pet near you.").color(NamedTextColor.GRAY)
             .decoration(TextDecoration.ITALIC, false));
-        lore.add(Component.text("Stay keeps your pet in place.").color(NamedTextColor.GRAY)
+        lore.add(plugin.getLanguageManager().getMessage("basegui.stay_keeps_your_pet_in", "Stay keeps your pet in place.").color(NamedTextColor.GRAY)
             .decoration(TextDecoration.ITALIC, false));
         if (includeCommandHint) {
-            lore.add(Component.text("Commands: /pets follow, /pets stay").color(NamedTextColor.DARK_GRAY)
+            lore.add(plugin.getLanguageManager().getMessage("basegui.commands_pets_follow_pets_stay", "Commands: /pets follow, /pets stay").color(NamedTextColor.DARK_GRAY)
                 .decoration(TextDecoration.ITALIC, false));
         }
         lore.add(Component.empty());
-        lore.add(Component.text("Click to toggle.").color(NamedTextColor.YELLOW)
+        lore.add(plugin.getLanguageManager().getMessage("basegui.click_to_toggle", "Click to toggle.").color(NamedTextColor.YELLOW)
             .decoration(TextDecoration.ITALIC, false));
 
         meta.lore(lore);

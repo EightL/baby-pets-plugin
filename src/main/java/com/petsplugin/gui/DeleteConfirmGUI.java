@@ -59,11 +59,12 @@ public class DeleteConfirmGUI extends BaseGUI {
                 .color(NamedTextColor.RED)
                 .decoration(TextDecoration.ITALIC, false));
         meta.lore(List.of(
-                Component.text("Level " + pet.getLevel() + " " + type.getRarity().name())
+                Component.text("Level " + pet.getLevel() + " "
+                        + plugin.getPetManager().getLocalizedRarity(type.getRarity()))
                         .color(type.getRarity().getColor())
                         .decoration(TextDecoration.ITALIC, false),
                 Component.empty(),
-                Component.text("This action is PERMANENT!").color(NamedTextColor.DARK_RED)
+                plugin.getLanguageManager().getMessage("deleteconfirmgui.this_action_is_permanent", "This action is PERMANENT!").color(NamedTextColor.DARK_RED)
                         .decoration(TextDecoration.ITALIC, false)
                         .decoration(TextDecoration.BOLD, true)
         ));
@@ -73,13 +74,13 @@ public class DeleteConfirmGUI extends BaseGUI {
         // Confirm button (slot 11)
         ItemStack confirm = new ItemStack(Material.LIME_WOOL);
         ItemMeta confirmMeta = confirm.getItemMeta();
-        confirmMeta.displayName(Component.text("CONFIRM DELETE").color(NamedTextColor.GREEN)
+        confirmMeta.displayName(plugin.getLanguageManager().getMessage("deleteconfirmgui.confirm_delete", "CONFIRM DELETE").color(NamedTextColor.GREEN)
                 .decoration(TextDecoration.ITALIC, false)
                 .decoration(TextDecoration.BOLD, true));
         confirmMeta.lore(List.of(
-                Component.text("Click to permanently delete").color(NamedTextColor.GRAY)
+                plugin.getLanguageManager().getMessage("deleteconfirmgui.click_to_permanently_delete", "Click to permanently delete").color(NamedTextColor.GRAY)
                         .decoration(TextDecoration.ITALIC, false),
-                Component.text("this pet.").color(NamedTextColor.GRAY)
+                plugin.getLanguageManager().getMessage("deleteconfirmgui.this_pet", "this pet.").color(NamedTextColor.GRAY)
                         .decoration(TextDecoration.ITALIC, false)
         ));
         confirm.setItemMeta(confirmMeta);
@@ -88,11 +89,11 @@ public class DeleteConfirmGUI extends BaseGUI {
         // Cancel button (slot 15)
         ItemStack cancel = new ItemStack(Material.RED_WOOL);
         ItemMeta cancelMeta = cancel.getItemMeta();
-        cancelMeta.displayName(Component.text("CANCEL").color(NamedTextColor.RED)
+        cancelMeta.displayName(plugin.getLanguageManager().getMessage("deleteconfirmgui.cancel", "CANCEL").color(NamedTextColor.RED)
                 .decoration(TextDecoration.ITALIC, false)
                 .decoration(TextDecoration.BOLD, true));
         cancelMeta.lore(List.of(
-                Component.text("Go back to collection.").color(NamedTextColor.GRAY)
+                plugin.getLanguageManager().getMessage("deleteconfirmgui.go_back_to_collection", "Go back to collection.").color(NamedTextColor.GRAY)
                         .decoration(TextDecoration.ITALIC, false)
         ));
         cancel.setItemMeta(cancelMeta);
@@ -111,9 +112,9 @@ public class DeleteConfirmGUI extends BaseGUI {
 
             PetType type = plugin.getPetTypes().get(pet.getPetTypeId());
             String name = type != null ? pet.getDisplayName(type) : pet.getPetTypeId();
-            player.sendMessage(Component.text("Deleted ").color(NamedTextColor.RED)
+            player.sendMessage(plugin.getLanguageManager().getMessage("deleteconfirmgui.deleted", "Deleted ").color(NamedTextColor.RED)
                     .append(Component.text(name).color(NamedTextColor.YELLOW))
-                    .append(Component.text(" permanently.").color(NamedTextColor.RED)));
+                    .append(plugin.getLanguageManager().getMessage("deleteconfirmgui.permanently", " permanently.").color(NamedTextColor.RED)));
             player.playSound(player.getLocation(), Sound.ENTITY_ITEM_BREAK, 1f, 0.8f);
 
             new PetCollectionGUI(plugin, player, returnPage, returnFilterMode, returnRarityFilters).open(player);

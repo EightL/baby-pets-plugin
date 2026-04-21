@@ -2,6 +2,7 @@
 #  Baby Pets — Configuration
 # ══════════════════════════════════════════════════════════
 config_version: 2
+locale: "es"
 
 database:
   file: "pets.db"
@@ -106,3 +107,27 @@ messages:
   egg_placed: "&7Egg placed in incubator. Hatching in &e%time%&7..."
   incubator_busy: "&cThis incubator already has an egg!"
   feed_cooldown: "&cYou can feed again in %seconds%s."
+
+# ══════════════════════════════════════════════════════════
+#  UI Text (for GUI/tooltip labels)
+# ══════════════════════════════════════════════════════════
+ui:
+  labels:
+    rarity: "Rarity"
+    level: "Level"
+    xp: "XP"
+    status: "Status"
+    bonus: "Bonus"
+    max_level: "MAX LEVEL"
+  rarity:
+    common: "Common"
+    uncommon: "Uncommon"
+    rare: "Rare"
+    epic: "Epic"
+    legendary: "Legendary"
+  status:
+    ecstatic: "Ecstatic"
+    happy: "Happy"
+    content: "Content"
+    hungry: "Hungry"
+    sad: "Sad"

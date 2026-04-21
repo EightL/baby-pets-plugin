@@ -89,19 +89,19 @@ public class IncubatorManager {
     public ItemStack createIncubatorItem() {
         ItemStack item = new ItemStack(Material.SMOKER);
         ItemMeta meta = item.getItemMeta();
-        meta.displayName(Component.text("Pet Incubator").color(NamedTextColor.GOLD)
+        meta.displayName(plugin.getLanguageManager().getMessage("incubatormanager.pet_incubator", "Pet Incubator").color(NamedTextColor.GOLD)
                 .decoration(TextDecoration.ITALIC, false)
                 .decoration(TextDecoration.BOLD, true));
 
         List<Component> lore = new ArrayList<>();
-        lore.add(Component.text("A warm chamber for hatching").color(NamedTextColor.GRAY)
+        lore.add(plugin.getLanguageManager().getMessage("incubatormanager.a_warm_chamber_for_hatching", "A warm chamber for hatching").color(NamedTextColor.GRAY)
                 .decoration(TextDecoration.ITALIC, false));
-        lore.add(Component.text("mysterious pet eggs.").color(NamedTextColor.GRAY)
+        lore.add(plugin.getLanguageManager().getMessage("incubatormanager.mysterious_pet_eggs", "mysterious pet eggs.").color(NamedTextColor.GRAY)
                 .decoration(TextDecoration.ITALIC, false));
         lore.add(Component.empty());
-        lore.add(Component.text("Place and right-click with").color(NamedTextColor.YELLOW)
+        lore.add(plugin.getLanguageManager().getMessage("incubatormanager.place_and_rightclick_with", "Place and right-click with").color(NamedTextColor.YELLOW)
                 .decoration(TextDecoration.ITALIC, false));
-        lore.add(Component.text("an egg to start incubation!").color(NamedTextColor.YELLOW)
+        lore.add(plugin.getLanguageManager().getMessage("incubatormanager.an_egg_to_start_incubation", "an egg to start incubation!").color(NamedTextColor.YELLOW)
                 .decoration(TextDecoration.ITALIC, false));
 
         meta.lore(lore);
@@ -459,11 +459,11 @@ public class IncubatorManager {
             "&a&lHATCH! &7Your egg hatched into a &e%pet_name%&7!",
             java.util.Map.of("%pet_name%", type.getDisplayName()));
         owner.sendMessage(
-                Component.text("Click to view in collection")
+                plugin.getLanguageManager().getMessage("incubatormanager.click_to_view_in_collection", "Click to view in collection")
                         .color(NamedTextColor.AQUA)
                         .decoration(TextDecoration.ITALIC, false)
                         .clickEvent(ClickEvent.runCommand("/pets"))
-                        .hoverEvent(HoverEvent.showText(Component.text("Open pet collection")
+                        .hoverEvent(HoverEvent.showText(plugin.getLanguageManager().getMessage("incubatormanager.open_pet_collection", "Open pet collection")
                                 .color(NamedTextColor.YELLOW)))
         );
     }

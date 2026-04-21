@@ -142,6 +142,12 @@ public class PetCollectionGUI extends BaseGUI {
         int startIndex = page * PETS_PER_PAGE;
         int endIndex = Math.min(startIndex + PETS_PER_PAGE, visiblePets.size());
         boolean abilitiesEnabled = plugin.getPetManager().arePetAbilitiesEnabled();
+        String rarityLabel = plugin.getPetManager().getLocalizedLabel("rarity", "Rarity");
+        String levelLabel = plugin.getPetManager().getLocalizedLabel("level", "Level");
+        String xpLabel = plugin.getPetManager().getLocalizedLabel("xp", "XP");
+        String statusLabel = plugin.getPetManager().getLocalizedLabel("status", "Status");
+        String bonusLabel = plugin.getPetManager().getLocalizedLabel("bonus", "Bonus");
+        String maxLevelLabel = plugin.getPetManager().getLocalizedLabel("max_level", "MAX LEVEL");
 
         for (int i = startIndex; i < endIndex; i++) {
             int slotIdx = i - startIndex;
@@ -171,18 +177,19 @@ public class PetCollectionGUI extends BaseGUI {
             lore.add(Component.text(type.getDescription()).color(NamedTextColor.GRAY)
                     .decoration(TextDecoration.ITALIC, true));
             lore.add(Component.empty());
-            lore.add(Component.text("Rarity: ").color(NamedTextColor.GRAY)
+                lore.add(Component.text(rarityLabel + ": ").color(NamedTextColor.GRAY)
                     .decoration(TextDecoration.ITALIC, false)
-                    .append(Component.text(type.getRarity().name()).color(type.getRarity().getColor())));
+                    .append(Component.text(plugin.getPetManager().getLocalizedRarity(type.getRarity()))
+                        .color(type.getRarity().getColor())));
 
             int maxLevel = plugin.getMaxLevel();
-            lore.add(Component.text("Level: ").color(NamedTextColor.GRAY)
+                lore.add(Component.text(levelLabel + ": ").color(NamedTextColor.GRAY)
                     .decoration(TextDecoration.ITALIC, false)
                     .append(Component.text(pet.getLevel() + "/" + maxLevel).color(NamedTextColor.YELLOW)));
 
             if (pet.getLevel() < maxLevel) {
                 double nextXp = plugin.getPetManager().getXpForLevel(pet.getLevel() + 1);
-                lore.add(Component.text("XP: ").color(NamedTextColor.GRAY)
+                lore.add(Component.text(xpLabel + ": ").color(NamedTextColor.GRAY)
                         .decoration(TextDecoration.ITALIC, false)
                         .append(Component.text(String.format("%.0f/%.0f", pet.getXp(), nextXp))
                                 .color(NamedTextColor.AQUA)));
@@ -196,14 +203,14 @@ public class PetCollectionGUI extends BaseGUI {
                 lore.add(Component.text(bar.toString()).color(NamedTextColor.GREEN)
                         .decoration(TextDecoration.ITALIC, false));
             } else {
-                lore.add(Component.text("MAX LEVEL").color(NamedTextColor.GOLD)
+                lore.add(Component.text(maxLevelLabel).color(NamedTextColor.GOLD)
                         .decoration(TextDecoration.ITALIC, false)
                         .decoration(TextDecoration.BOLD, true));
             }
 
             lore.add(Component.empty());
             if (abilitiesEnabled) {
-                lore.add(Component.text("Bonus: ").color(NamedTextColor.GOLD)
+                lore.add(Component.text(bonusLabel + ": ").color(NamedTextColor.GOLD)
                         .decoration(TextDecoration.ITALIC, false));
                 if (type.getSpecialAbility() == PetType.SpecialAbility.STORAGE) {
                     int activeSlots = type.computeActiveStorageSlots(pet.getLevel(), maxLevel);
@@ -218,20 +225,21 @@ public class PetCollectionGUI extends BaseGUI {
                             .color(NamedTextColor.GREEN)));
                 }
             }
-            lore.add(Component.text(" Status: ").color(NamedTextColor.GRAY)
+                lore.add(Component.text(statusLabel + ": ").color(NamedTextColor.GRAY)
                     .decoration(TextDecoration.ITALIC, false)
-                    .append(Component.text(pet.getStatus().getDisplay()).color(NamedTextColor.YELLOW)));
+                    .append(Component.text(plugin.getPetManager().getLocalizedStatusDisplay(pet.getStatus()))
+                        .color(NamedTextColor.YELLOW)));
             lore.add(Component.empty());
 
             if (pet.isSelected()) {
-                lore.add(Component.text("Left-click to deselect").color(NamedTextColor.RED)
+                lore.add(plugin.getLanguageManager().getMessage("petcollectiongui.leftclick_to_deselect", "Left-click to deselect").color(NamedTextColor.RED)
                         .decoration(TextDecoration.ITALIC, false));
-                lore.add(Component.text("Right-click to view details").color(NamedTextColor.YELLOW)
+                lore.add(plugin.getLanguageManager().getMessage("petcollectiongui.rightclick_to_view_details", "Right-click to view details").color(NamedTextColor.YELLOW)
                         .decoration(TextDecoration.ITALIC, false));
             } else {
-                lore.add(Component.text("Left-click to select").color(NamedTextColor.GREEN)
+                lore.add(plugin.getLanguageManager().getMessage("petcollectiongui.leftclick_to_select", "Left-click to select").color(NamedTextColor.GREEN)
                         .decoration(TextDecoration.ITALIC, false));
-                lore.add(Component.text("Right-click to view details").color(NamedTextColor.YELLOW)
+                lore.add(plugin.getLanguageManager().getMessage("petcollectiongui.rightclick_to_view_details", "Right-click to view details").color(NamedTextColor.YELLOW)
                         .decoration(TextDecoration.ITALIC, false));
             }
 
@@ -409,21 +417,21 @@ public class PetCollectionGUI extends BaseGUI {
                 .decoration(TextDecoration.ITALIC, false));
         lore.add(Component.empty());
         if (!filteringByRarity) {
-            lore.add(Component.text("No rarity filter active.")
+            lore.add(plugin.getLanguageManager().getMessage("petcollectiongui.no_rarity_filter_active", "No rarity filter active.")
                     .color(NamedTextColor.GRAY)
                     .decoration(TextDecoration.ITALIC, false));
         } else if (selected) {
-            lore.add(Component.text("Included in current filter.")
+            lore.add(plugin.getLanguageManager().getMessage("petcollectiongui.included_in_current_filter", "Included in current filter.")
                     .color(NamedTextColor.GREEN)
                     .decoration(TextDecoration.ITALIC, false));
         } else {
-            lore.add(Component.text("Excluded by current filter.")
+            lore.add(plugin.getLanguageManager().getMessage("petcollectiongui.excluded_by_current_filter", "Excluded by current filter.")
                     .color(NamedTextColor.DARK_GRAY)
                     .decoration(TextDecoration.ITALIC, false));
         }
-        lore.add(Component.text("Left-click: toggle this rarity").color(NamedTextColor.GRAY)
+        lore.add(plugin.getLanguageManager().getMessage("petcollectiongui.leftclick_toggle_this_rarity", "Left-click: toggle this rarity").color(NamedTextColor.GRAY)
                 .decoration(TextDecoration.ITALIC, false));
-        lore.add(Component.text("Right-click: clear rarity filters").color(NamedTextColor.DARK_GRAY)
+        lore.add(plugin.getLanguageManager().getMessage("petcollectiongui.rightclick_clear_rarity_filters", "Right-click: clear rarity filters").color(NamedTextColor.DARK_GRAY)
                 .decoration(TextDecoration.ITALIC, false));
         meta.lore(lore);
 
@@ -447,13 +455,7 @@ public class PetCollectionGUI extends BaseGUI {
     }
 
     private String rarityTitle(Rarity rarity) {
-        return switch (rarity) {
-            case COMMON -> "Common";
-            case UNCOMMON -> "Uncommon";
-            case RARE -> "Rare";
-            case EPIC -> "Epic";
-            case LEGENDARY -> "Legendary";
-        };
+        return plugin.getPetManager().getLocalizedRarity(rarity);
     }
 
     private ItemStack createPageArrow(boolean enabled, boolean next) {
@@ -492,11 +494,11 @@ public class PetCollectionGUI extends BaseGUI {
                 .color(NamedTextColor.GOLD)
                 .decoration(TextDecoration.ITALIC, false));
         filterMeta.lore(List.of(
-                Component.text("Click to cycle filters").color(NamedTextColor.GRAY)
+                plugin.getLanguageManager().getMessage("petcollectiongui.click_to_cycle_filters", "Click to cycle filters").color(NamedTextColor.GRAY)
                         .decoration(TextDecoration.ITALIC, false),
-            Component.text("Level, type, name, then back to all.").color(NamedTextColor.GRAY)
+            plugin.getLanguageManager().getMessage("petcollectiongui.level_type_name_then_back", "Level, type, name, then back to all.").color(NamedTextColor.GRAY)
                 .decoration(TextDecoration.ITALIC, false),
-            Component.text("Use top dyes to toggle rarity filters.").color(NamedTextColor.GRAY)
+            plugin.getLanguageManager().getMessage("petcollectiongui.use_top_dyes_to_toggle", "Use top dyes to toggle rarity filters.").color(NamedTextColor.GRAY)
                         .decoration(TextDecoration.ITALIC, false)
         ));
         filterItem.setItemMeta(filterMeta);
@@ -506,16 +508,16 @@ public class PetCollectionGUI extends BaseGUI {
     private ItemStack createSettingsButton() {
         ItemStack settingsBtn = new ItemStack(Material.COMPARATOR);
         ItemMeta settingsMeta = settingsBtn.getItemMeta();
-        settingsMeta.displayName(Component.text("Settings").color(NamedTextColor.AQUA)
+        settingsMeta.displayName(plugin.getLanguageManager().getMessage("petcollectiongui.settings", "Settings").color(NamedTextColor.AQUA)
                 .decoration(TextDecoration.ITALIC, false));
         settingsMeta.lore(List.of(
                 Component.empty(),
-                Component.text("Manage follow mode, visibility,").color(NamedTextColor.GRAY)
+                plugin.getLanguageManager().getMessage("petcollectiongui.manage_follow_mode_visibility", "Manage follow mode, visibility,").color(NamedTextColor.GRAY)
                         .decoration(TextDecoration.ITALIC, false),
-                Component.text("and pet sound preferences.").color(NamedTextColor.GRAY)
+                plugin.getLanguageManager().getMessage("petcollectiongui.and_pet_sound_preferences", "and pet sound preferences.").color(NamedTextColor.GRAY)
                         .decoration(TextDecoration.ITALIC, false),
                 Component.empty(),
-                Component.text("Click to open").color(NamedTextColor.GREEN)
+                plugin.getLanguageManager().getMessage("petcollectiongui.click_to_open", "Click to open").color(NamedTextColor.GREEN)
                         .decoration(TextDecoration.ITALIC, false)
         ));
         settingsBtn.setItemMeta(settingsMeta);
@@ -551,11 +553,11 @@ public class PetCollectionGUI extends BaseGUI {
         ItemStack result = plugin.getIncubatorManager().createIncubatorItem().clone();
         ItemMeta resultMeta = result.getItemMeta();
         List<Component> lore = new ArrayList<>();
-        lore.add(Component.text("Craft this to start hatching eggs.").color(NamedTextColor.GRAY)
+        lore.add(plugin.getLanguageManager().getMessage("petcollectiongui.craft_this_to_start_hatching", "Craft this to start hatching eggs.").color(NamedTextColor.GRAY)
                 .decoration(TextDecoration.ITALIC, false));
-        lore.add(Component.text("The recipe works in a normal crafting table").color(NamedTextColor.GRAY)
+        lore.add(plugin.getLanguageManager().getMessage("petcollectiongui.the_recipe_works_in_a", "The recipe works in a normal crafting table").color(NamedTextColor.GRAY)
                 .decoration(TextDecoration.ITALIC, false));
-        lore.add(Component.text("and shows in the vanilla recipe book.").color(NamedTextColor.GRAY)
+        lore.add(plugin.getLanguageManager().getMessage("petcollectiongui.and_shows_in_the_vanilla", "and shows in the vanilla recipe book.").color(NamedTextColor.GRAY)
                 .decoration(TextDecoration.ITALIC, false));
         resultMeta.lore(lore);
         result.setItemMeta(resultMeta);
@@ -574,11 +576,11 @@ public class PetCollectionGUI extends BaseGUI {
 
         ItemStack item = new ItemStack(Material.COMPASS);
         ItemMeta meta = item.getItemMeta();
-        meta.displayName(Component.text("No Pets Match")
+        meta.displayName(plugin.getLanguageManager().getMessage("petcollectiongui.no_pets_match", "No Pets Match")
                 .color(NamedTextColor.RED)
                 .decoration(TextDecoration.ITALIC, false));
         meta.lore(List.of(
-            Component.text("Adjust rarity dyes or cycle the hopper filter.").color(NamedTextColor.GRAY)
+            plugin.getLanguageManager().getMessage("petcollectiongui.adjust_rarity_dyes_or_cycle", "Adjust rarity dyes or cycle the hopper filter.").color(NamedTextColor.GRAY)
                         .decoration(TextDecoration.ITALIC, false)
         ));
         item.setItemMeta(meta);
@@ -588,7 +590,7 @@ public class PetCollectionGUI extends BaseGUI {
     private ItemStack createRecipeArrow() {
         ItemStack arrow = new ItemStack(Material.SPECTRAL_ARROW);
         ItemMeta meta = arrow.getItemMeta();
-        meta.displayName(Component.text("Crafting Output")
+        meta.displayName(plugin.getLanguageManager().getMessage("petcollectiongui.crafting_output", "Crafting Output")
                 .color(NamedTextColor.YELLOW)
                 .decoration(TextDecoration.ITALIC, false));
         arrow.setItemMeta(meta);

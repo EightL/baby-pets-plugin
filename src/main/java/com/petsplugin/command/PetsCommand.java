@@ -34,12 +34,12 @@ public class PetsCommand implements CommandExecutor, TabExecutor {
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
         if (!(sender instanceof Player player)) {
-            sender.sendMessage(Component.text("Only players can use this command.").color(NamedTextColor.RED));
+            sender.sendMessage(plugin.getLanguageManager().getMessage("petscommand.only_players_can_use_this", "Only players can use this command.").color(NamedTextColor.RED));
             return true;
         }
 
         if (!player.hasPermission("pets.use")) {
-            player.sendMessage(Component.text("You don't have permission to use this command.")
+            player.sendMessage(plugin.getLanguageManager().getMessage("petscommand.you_dont_have_permission_to", "You don't have permission to use this command.")
                     .color(NamedTextColor.RED));
             return true;
         }
@@ -68,7 +68,7 @@ public class PetsCommand implements CommandExecutor, TabExecutor {
             case "reload" -> handleReload(player);
             case "incubator" -> handleIncubator(player);
             default -> {
-                player.sendMessage(Component.text("Unknown subcommand. Use /pets help")
+                player.sendMessage(plugin.getLanguageManager().getMessage("petscommand.unknown_subcommand_use_pets_help", "Unknown subcommand. Use /pets help")
                         .color(NamedTextColor.RED));
                 yield true;
             }
@@ -76,42 +76,42 @@ public class PetsCommand implements CommandExecutor, TabExecutor {
     }
 
     private boolean handleHelp(Player player) {
-        player.sendMessage(Component.text("─── Pets Help ───").color(NamedTextColor.GOLD));
-        player.sendMessage(Component.text("/pets").color(NamedTextColor.YELLOW)
-                .append(Component.text(" - Open pet collection").color(NamedTextColor.GRAY)));
-        player.sendMessage(Component.text("/pets info").color(NamedTextColor.YELLOW)
-                .append(Component.text(" - Show active pet stats").color(NamedTextColor.GRAY)));
-        player.sendMessage(Component.text("/pets settings").color(NamedTextColor.YELLOW)
-                .append(Component.text(" - Open pet settings").color(NamedTextColor.GRAY)));
-        player.sendMessage(Component.text("/pets follow").color(NamedTextColor.YELLOW)
-                .append(Component.text(" - Set your active pet to follow").color(NamedTextColor.GRAY)));
-        player.sendMessage(Component.text("/pets stay").color(NamedTextColor.YELLOW)
-                .append(Component.text(" - Tell your active pet to stay").color(NamedTextColor.GRAY)));
-        player.sendMessage(Component.text("/pets hideothers [on|off|toggle]").color(NamedTextColor.YELLOW)
-                .append(Component.text(" - Hide other players' pets").color(NamedTextColor.GRAY)));
-        player.sendMessage(Component.text("/pets sounds [on|off|toggle]").color(NamedTextColor.YELLOW)
-            .append(Component.text(" - Toggle your pet sounds").color(NamedTextColor.GRAY)));
-        player.sendMessage(Component.text("/pets notifications [on|off|toggle]").color(NamedTextColor.YELLOW)
-            .append(Component.text(" - Toggle pet chat notifications").color(NamedTextColor.GRAY)));
-        player.sendMessage(Component.text("/pets select <id>").color(NamedTextColor.YELLOW)
-                .append(Component.text(" - Select a pet by DB ID").color(NamedTextColor.GRAY)));
-        player.sendMessage(Component.text("/pets deselect").color(NamedTextColor.YELLOW)
-                .append(Component.text(" - Deselect current pet").color(NamedTextColor.GRAY)));
+        player.sendMessage(plugin.getLanguageManager().getMessage("petscommand.pets_help", "─── Pets Help ───").color(NamedTextColor.GOLD));
+        player.sendMessage(plugin.getLanguageManager().getMessage("petscommand.pets", "/pets").color(NamedTextColor.YELLOW)
+                .append(plugin.getLanguageManager().getMessage("petscommand.open_pet_collection", " - Open pet collection").color(NamedTextColor.GRAY)));
+        player.sendMessage(plugin.getLanguageManager().getMessage("petscommand.pets_info", "/pets info").color(NamedTextColor.YELLOW)
+                .append(plugin.getLanguageManager().getMessage("petscommand.show_active_pet_stats", " - Show active pet stats").color(NamedTextColor.GRAY)));
+        player.sendMessage(plugin.getLanguageManager().getMessage("petscommand.pets_settings", "/pets settings").color(NamedTextColor.YELLOW)
+                .append(plugin.getLanguageManager().getMessage("petscommand.open_pet_settings", " - Open pet settings").color(NamedTextColor.GRAY)));
+        player.sendMessage(plugin.getLanguageManager().getMessage("petscommand.pets_follow", "/pets follow").color(NamedTextColor.YELLOW)
+                .append(plugin.getLanguageManager().getMessage("petscommand.set_your_active_pet_to", " - Set your active pet to follow").color(NamedTextColor.GRAY)));
+        player.sendMessage(plugin.getLanguageManager().getMessage("petscommand.pets_stay", "/pets stay").color(NamedTextColor.YELLOW)
+                .append(plugin.getLanguageManager().getMessage("petscommand.tell_your_active_pet_to", " - Tell your active pet to stay").color(NamedTextColor.GRAY)));
+        player.sendMessage(plugin.getLanguageManager().getMessage("petscommand.pets_hideothers_onofftoggle", "/pets hideothers [on|off|toggle]").color(NamedTextColor.YELLOW)
+                .append(plugin.getLanguageManager().getMessage("petscommand.hide_other_players_pets", " - Hide other players' pets").color(NamedTextColor.GRAY)));
+        player.sendMessage(plugin.getLanguageManager().getMessage("petscommand.pets_sounds_onofftoggle", "/pets sounds [on|off|toggle]").color(NamedTextColor.YELLOW)
+            .append(plugin.getLanguageManager().getMessage("petscommand.toggle_your_pet_sounds", " - Toggle your pet sounds").color(NamedTextColor.GRAY)));
+        player.sendMessage(plugin.getLanguageManager().getMessage("petscommand.pets_notifications_onofftoggle", "/pets notifications [on|off|toggle]").color(NamedTextColor.YELLOW)
+            .append(plugin.getLanguageManager().getMessage("petscommand.toggle_pet_chat_notifications", " - Toggle pet chat notifications").color(NamedTextColor.GRAY)));
+        player.sendMessage(plugin.getLanguageManager().getMessage("petscommand.pets_select_id", "/pets select <id>").color(NamedTextColor.YELLOW)
+                .append(plugin.getLanguageManager().getMessage("petscommand.select_a_pet_by_db", " - Select a pet by DB ID").color(NamedTextColor.GRAY)));
+        player.sendMessage(plugin.getLanguageManager().getMessage("petscommand.pets_deselect", "/pets deselect").color(NamedTextColor.YELLOW)
+                .append(plugin.getLanguageManager().getMessage("petscommand.deselect_current_pet", " - Deselect current pet").color(NamedTextColor.GRAY)));
 
         if (player.hasPermission("pets.admin")) {
-            player.sendMessage(Component.text("─── Admin ───").color(NamedTextColor.RED));
-            player.sendMessage(Component.text("/pets give <player> <rarity>").color(NamedTextColor.YELLOW)
-                    .append(Component.text(" - Give an egg").color(NamedTextColor.GRAY)));
-                player.sendMessage(Component.text("/pets givepet <pet_type>").color(NamedTextColor.YELLOW)
-                    .append(Component.text(" - Add a pet directly to your collection").color(NamedTextColor.GRAY)));
-            player.sendMessage(Component.text("/pets setlevel <level>").color(NamedTextColor.YELLOW)
-                    .append(Component.text(" - Set selected pet's level").color(NamedTextColor.GRAY)));
-            player.sendMessage(Component.text("/pets incubator").color(NamedTextColor.YELLOW)
-                    .append(Component.text(" - Get an incubator item").color(NamedTextColor.GRAY)));
-                player.sendMessage(Component.text("/pets hatch").color(NamedTextColor.YELLOW)
-                    .append(Component.text(" - Instantly hatch your incubating eggs").color(NamedTextColor.GRAY)));
-            player.sendMessage(Component.text("/pets reload").color(NamedTextColor.YELLOW)
-                    .append(Component.text(" - Reload config").color(NamedTextColor.GRAY)));
+            player.sendMessage(plugin.getLanguageManager().getMessage("petscommand.admin", "─── Admin ───").color(NamedTextColor.RED));
+            player.sendMessage(plugin.getLanguageManager().getMessage("petscommand.pets_give_player_rarity", "/pets give <player> <rarity>").color(NamedTextColor.YELLOW)
+                    .append(plugin.getLanguageManager().getMessage("petscommand.give_an_egg", " - Give an egg").color(NamedTextColor.GRAY)));
+                player.sendMessage(plugin.getLanguageManager().getMessage("petscommand.pets_givepet_pettype", "/pets givepet <pet_type>").color(NamedTextColor.YELLOW)
+                    .append(plugin.getLanguageManager().getMessage("petscommand.add_a_pet_directly_to", " - Add a pet directly to your collection").color(NamedTextColor.GRAY)));
+            player.sendMessage(plugin.getLanguageManager().getMessage("petscommand.pets_setlevel_level", "/pets setlevel <level>").color(NamedTextColor.YELLOW)
+                    .append(plugin.getLanguageManager().getMessage("petscommand.set_selected_pets_level", " - Set selected pet's level").color(NamedTextColor.GRAY)));
+            player.sendMessage(plugin.getLanguageManager().getMessage("petscommand.pets_incubator", "/pets incubator").color(NamedTextColor.YELLOW)
+                    .append(plugin.getLanguageManager().getMessage("petscommand.get_an_incubator_item", " - Get an incubator item").color(NamedTextColor.GRAY)));
+                player.sendMessage(plugin.getLanguageManager().getMessage("petscommand.pets_hatch", "/pets hatch").color(NamedTextColor.YELLOW)
+                    .append(plugin.getLanguageManager().getMessage("petscommand.instantly_hatch_your_incubating_eggs", " - Instantly hatch your incubating eggs").color(NamedTextColor.GRAY)));
+            player.sendMessage(plugin.getLanguageManager().getMessage("petscommand.pets_reload", "/pets reload").color(NamedTextColor.YELLOW)
+                    .append(plugin.getLanguageManager().getMessage("petscommand.reload_config", " - Reload config").color(NamedTextColor.GRAY)));
         }
         return true;
     }
@@ -127,13 +127,13 @@ public class PetsCommand implements CommandExecutor, TabExecutor {
         }
 
         if (args.length < 3) {
-            player.sendMessage(Component.text("Usage: /pets give <player> <rarity>").color(NamedTextColor.RED));
+            player.sendMessage(plugin.getLanguageManager().getMessage("petscommand.usage_pets_give_player_rarity", "Usage: /pets give <player> <rarity>").color(NamedTextColor.RED));
             return true;
         }
 
         Player target = Bukkit.getPlayer(args[1]);
         if (target == null) {
-            player.sendMessage(Component.text("Player not found.").color(NamedTextColor.RED));
+            player.sendMessage(plugin.getLanguageManager().getMessage("petscommand.player_not_found", "Player not found.").color(NamedTextColor.RED));
             return true;
         }
 
@@ -141,7 +141,7 @@ public class PetsCommand implements CommandExecutor, TabExecutor {
         try {
             rarity = Rarity.valueOf(args[2].toUpperCase());
         } catch (IllegalArgumentException e) {
-            player.sendMessage(Component.text("Invalid rarity. Use: COMMON, UNCOMMON, RARE, EPIC, LEGENDARY")
+            player.sendMessage(plugin.getLanguageManager().getMessage("petscommand.invalid_rarity_use_common_uncommon", "Invalid rarity. Use: COMMON, UNCOMMON, RARE, EPIC, LEGENDARY")
                     .color(NamedTextColor.RED));
             return true;
         }
@@ -159,7 +159,7 @@ public class PetsCommand implements CommandExecutor, TabExecutor {
         }
 
         if (args.length < 2) {
-            player.sendMessage(Component.text("Usage: /pets givepet <pet_type>").color(NamedTextColor.RED));
+            player.sendMessage(plugin.getLanguageManager().getMessage("petscommand.usage_pets_givepet_pettype", "Usage: /pets givepet <pet_type>").color(NamedTextColor.RED));
             return true;
         }
 
@@ -177,9 +177,9 @@ public class PetsCommand implements CommandExecutor, TabExecutor {
         plugin.getDatabaseManager().insertPet(pet);
         plugin.getPetManager().refreshCache(player.getUniqueId());
 
-        player.sendMessage(Component.text("Added ").color(NamedTextColor.GREEN)
+        player.sendMessage(plugin.getLanguageManager().getMessage("petscommand.added", "Added ").color(NamedTextColor.GREEN)
                 .append(Component.text(type.getDisplayName()).color(type.getRarity().getColor()))
-                .append(Component.text(" to your collection.").color(NamedTextColor.GREEN)));
+                .append(plugin.getLanguageManager().getMessage("petscommand.to_your_collection", " to your collection.").color(NamedTextColor.GREEN)));
         return true;
     }
 
@@ -194,7 +194,7 @@ public class PetsCommand implements CommandExecutor, TabExecutor {
                     .color(NamedTextColor.GREEN));
             plugin.getPetManager().refreshCache(player.getUniqueId());
         } else {
-            player.sendMessage(Component.text("You don't have any eggs incubating.")
+            player.sendMessage(plugin.getLanguageManager().getMessage("petscommand.you_dont_have_any_eggs", "You don't have any eggs incubating.")
                     .color(NamedTextColor.RED));
         }
         return true;
@@ -202,7 +202,7 @@ public class PetsCommand implements CommandExecutor, TabExecutor {
 
     private boolean handleSelect(Player player, String[] args) {
         if (args.length < 2) {
-            player.sendMessage(Component.text("Usage: /pets select <pet_id>").color(NamedTextColor.RED));
+            player.sendMessage(plugin.getLanguageManager().getMessage("petscommand.usage_pets_select_petid", "Usage: /pets select <pet_id>").color(NamedTextColor.RED));
             return true;
         }
 
@@ -215,16 +215,16 @@ public class PetsCommand implements CommandExecutor, TabExecutor {
                     return true;
                 }
             }
-            player.sendMessage(Component.text("Pet not found with that ID.").color(NamedTextColor.RED));
+            player.sendMessage(plugin.getLanguageManager().getMessage("petscommand.pet_not_found_with_that", "Pet not found with that ID.").color(NamedTextColor.RED));
         } catch (NumberFormatException e) {
-            player.sendMessage(Component.text("ID must be a number.").color(NamedTextColor.RED));
+            player.sendMessage(plugin.getLanguageManager().getMessage("petscommand.id_must_be_a_number", "ID must be a number.").color(NamedTextColor.RED));
         }
         return true;
     }
 
     private boolean handleDeselect(Player player) {
         plugin.getPetManager().deselectPet(player.getUniqueId());
-        player.sendMessage(Component.text("Pet deselected.").color(NamedTextColor.GRAY));
+        player.sendMessage(plugin.getLanguageManager().getMessage("petscommand.pet_deselected", "Pet deselected.").color(NamedTextColor.GRAY));
         return true;
     }
 
@@ -266,40 +266,47 @@ public class PetsCommand implements CommandExecutor, TabExecutor {
             pet = plugin.getPetManager().getSelectedPet(player.getUniqueId());
         }
         if (pet == null) {
-            player.sendMessage(Component.text("You don't have an active pet.").color(NamedTextColor.RED));
+            player.sendMessage(plugin.getLanguageManager().getMessage("petscommand.you_dont_have_an_active", "You don't have an active pet.").color(NamedTextColor.RED));
             return true;
         }
 
         PetType type = plugin.getPetTypes().get(pet.getPetTypeId());
         if (type == null) {
-            player.sendMessage(Component.text("Unknown pet type.").color(NamedTextColor.RED));
+            player.sendMessage(plugin.getLanguageManager().getMessage("petscommand.unknown_pet_type", "Unknown pet type.").color(NamedTextColor.RED));
             return true;
         }
 
         int maxLevel = plugin.getMaxLevel();
+        String rarityLabel = plugin.getPetManager().getLocalizedLabel("rarity", "Rarity");
+        String levelLabel = plugin.getPetManager().getLocalizedLabel("level", "Level");
+        String xpLabel = plugin.getPetManager().getLocalizedLabel("xp", "XP");
+        String statusLabel = plugin.getPetManager().getLocalizedLabel("status", "Status");
+        String bonusLabel = plugin.getPetManager().getLocalizedLabel("bonus", "Bonus");
 
         player.sendMessage(Component.text("─── " + pet.getDisplayName(type) + " ───")
                 .color(type.getRarity().getColor()));
-        player.sendMessage(Component.text("  Type: ").color(NamedTextColor.GRAY)
+        player.sendMessage(plugin.getLanguageManager().getMessage("petscommand.type", "  Type: ").color(NamedTextColor.GRAY)
                 .append(Component.text(type.getDisplayName()).color(NamedTextColor.WHITE)));
-        player.sendMessage(Component.text("  Rarity: ").color(NamedTextColor.GRAY)
-                .append(Component.text(type.getRarity().name()).color(type.getRarity().getColor())));
-        player.sendMessage(Component.text("  Level: ").color(NamedTextColor.GRAY)
+        player.sendMessage(Component.text("  " + rarityLabel + ": ").color(NamedTextColor.GRAY)
+            .append(Component.text(plugin.getPetManager().getLocalizedRarity(type.getRarity()))
+                .color(type.getRarity().getColor())));
+        player.sendMessage(Component.text("  " + levelLabel + ": ").color(NamedTextColor.GRAY)
                 .append(Component.text(pet.getLevel() + "/" + maxLevel).color(NamedTextColor.YELLOW)));
 
         if (pet.getLevel() < maxLevel) {
             double nextXp = plugin.getPetManager().getXpForLevel(pet.getLevel() + 1);
-            player.sendMessage(Component.text("  XP: ").color(NamedTextColor.GRAY)
+            player.sendMessage(Component.text("  " + xpLabel + ": ").color(NamedTextColor.GRAY)
                     .append(Component.text(String.format("%.0f/%.0f", pet.getXp(), nextXp))
                             .color(NamedTextColor.AQUA)));
         }
 
-        player.sendMessage(Component.text("  Status: ").color(NamedTextColor.GRAY)
-                .append(Component.text(pet.getStatus().getDisplay()).color(NamedTextColor.YELLOW)));
+        player.sendMessage(Component.text("  " + statusLabel + ": ").color(NamedTextColor.GRAY)
+            .append(Component.text(plugin.getPetManager().getLocalizedStatusDisplay(pet.getStatus()))
+                .color(NamedTextColor.YELLOW)));
         if (plugin.getPetManager().arePetAbilitiesEnabled()) {
             if (type.getSpecialAbility() == PetType.SpecialAbility.STORAGE) {
                 int activeSlots = type.computeActiveStorageSlots(pet.getLevel(), maxLevel);
-                player.sendMessage(Component.text("  Bonus: ").color(NamedTextColor.GRAY)
+            player.sendMessage(Component.text("  " + bonusLabel + ": ").color(NamedTextColor.GRAY)
                         .append(Component.text("+" + activeSlots + " storage space")
                                 .color(NamedTextColor.GREEN)));
             } else {
@@ -320,7 +327,7 @@ public class PetsCommand implements CommandExecutor, TabExecutor {
         }
 
         if (args.length < 2) {
-            player.sendMessage(Component.text("Usage: /pets setlevel <level>").color(NamedTextColor.RED));
+            player.sendMessage(plugin.getLanguageManager().getMessage("petscommand.usage_pets_setlevel_level", "Usage: /pets setlevel <level>").color(NamedTextColor.RED));
             return true;
         }
 
@@ -329,7 +336,7 @@ public class PetsCommand implements CommandExecutor, TabExecutor {
             pet = plugin.getPetManager().getSelectedPet(player.getUniqueId());
         }
         if (pet == null) {
-            player.sendMessage(Component.text("Select a pet first!").color(NamedTextColor.RED));
+            player.sendMessage(plugin.getLanguageManager().getMessage("petscommand.select_a_pet_first", "Select a pet first!").color(NamedTextColor.RED));
             return true;
         }
 
@@ -340,7 +347,7 @@ public class PetsCommand implements CommandExecutor, TabExecutor {
             player.sendMessage(Component.text("Set pet level to " + pet.getLevel() + ".")
                     .color(NamedTextColor.GREEN));
         } catch (NumberFormatException e) {
-            player.sendMessage(Component.text("Level must be a number.").color(NamedTextColor.RED));
+            player.sendMessage(plugin.getLanguageManager().getMessage("petscommand.level_must_be_a_number", "Level must be a number.").color(NamedTextColor.RED));
         }
         return true;
     }
@@ -350,7 +357,7 @@ public class PetsCommand implements CommandExecutor, TabExecutor {
             return true;
         }
         plugin.reload();
-        player.sendMessage(Component.text("[BabyPets] Config reloaded!").color(NamedTextColor.GREEN));
+        player.sendMessage(plugin.getLanguageManager().getMessage("petscommand.babypets_config_reloaded", "[BabyPets] Config reloaded!").color(NamedTextColor.GREEN));
         return true;
     }
 
@@ -359,7 +366,7 @@ public class PetsCommand implements CommandExecutor, TabExecutor {
             return true;
         }
         player.getInventory().addItem(plugin.getIncubatorManager().createIncubatorItem());
-        player.sendMessage(Component.text("Gave you a Pet Incubator!").color(NamedTextColor.GREEN));
+        player.sendMessage(plugin.getLanguageManager().getMessage("petscommand.gave_you_a_pet_incubator", "Gave you a Pet Incubator!").color(NamedTextColor.GREEN));
         return true;
     }
 
@@ -422,7 +429,7 @@ public class PetsCommand implements CommandExecutor, TabExecutor {
         if (player.hasPermission("pets.admin")) {
             return true;
         }
-        player.sendMessage(Component.text("No permission.").color(NamedTextColor.RED));
+        player.sendMessage(plugin.getLanguageManager().getMessage("petscommand.no_permission", "No permission.").color(NamedTextColor.RED));
         return false;
     }
 

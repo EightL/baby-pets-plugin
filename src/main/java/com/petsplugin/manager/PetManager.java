@@ -6,6 +6,7 @@ import com.petsplugin.model.PetFollowMode;
 import com.petsplugin.model.PetMovementType;
 import com.petsplugin.model.PetStatus;
 import com.petsplugin.model.PetType;
+import com.petsplugin.model.Rarity;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.*;
@@ -810,7 +811,7 @@ public class PetManager {
             "&a%pet_name% &7enjoyed the treat! Status: &e%status%",
             Map.of(
                 "%pet_name%", pet.getDisplayName(type),
-                "%status%", pet.getStatus().getDisplay()
+                "%status%", getLocalizedStatusDisplay(pet.getStatus())
             ));
         plugin.getAdvancementManager().handlePetFed(player);
     }
@@ -830,6 +831,43 @@ public class PetManager {
         return getAllowedFoods(type).stream()
                 .map(this::formatMaterialName)
                 .collect(Collectors.joining(", "));
+    }
+
+    public String getLocalizedLabel(String key, String fallback) {
+        return plugin.getLanguageManager().getString("ui.labels." + key, fallback);
+    }
+
+    public String getLocalizedRarity(Rarity rarity) {
+        if (rarity == null) {
+            return "";
+        }
+        String path = "ui.rarity." + rarity.name().toLowerCase(Locale.ROOT);
+        return plugin.getLanguageManager().getString(path, defaultRarityName(rarity));
+    }
+
+    public String getLocalizedStatusName(PetStatus status) {
+        if (status == null) {
+            return "";
+        }
+        String path = "ui.status." + status.name().toLowerCase(Locale.ROOT);
+        return plugin.getLanguageManager().getString(path, status.getDefaultName());
+    }
+
+    public String getLocalizedStatusDisplay(PetStatus status) {
+        if (status == null) {
+            return "";
+        }
+        return status.getIcon() + " " + getLocalizedStatusName(status);
+    }
+
+    private String defaultRarityName(Rarity rarity) {
+        return switch (rarity) {
+            case COMMON -> "Common";
+            case UNCOMMON -> "Uncommon";
+            case RARE -> "Rare";
+            case EPIC -> "Epic";
+            case LEGENDARY -> "Legendary";
+        };
     }
 
     // ══════════════════════════════════════════════════════════
@@ -863,7 +901,7 @@ public class PetManager {
             "&d%pet_name% &7loves the attention! Status: &e%status%",
             Map.of(
                 "%pet_name%", pet.getDisplayName(type),
-                "%status%", pet.getStatus().getDisplay()
+                "%status%", getLocalizedStatusDisplay(pet.getStatus())
             ));
         plugin.getAdvancementManager().handlePetPetted(player);
     }

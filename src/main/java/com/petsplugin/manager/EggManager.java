@@ -42,20 +42,20 @@ public class EggManager {
         ItemStack egg = getCustomSkull(base64);
 
         SkullMeta meta = (SkullMeta) egg.getItemMeta();
-        meta.displayName(Component.text("Pet Egg")
+        meta.displayName(plugin.getLanguageManager().getMessage("eggmanager.pet_egg", "Pet Egg")
                 .color(rarity.getColor())
                 .decoration(TextDecoration.ITALIC, false));
 
         List<Component> lore = new ArrayList<>();
-        lore.add(Component.text("A mysterious egg...").color(NamedTextColor.GRAY)
+        lore.add(plugin.getLanguageManager().getMessage("eggmanager.a_mysterious_egg", "A mysterious egg...").color(NamedTextColor.GRAY)
                 .decoration(TextDecoration.ITALIC, true));
         lore.add(Component.empty());
-        lore.add(Component.text("Place in a ").color(NamedTextColor.YELLOW)
+        lore.add(plugin.getLanguageManager().getMessage("eggmanager.place_in_a", "Place in a ").color(NamedTextColor.YELLOW)
                 .decoration(TextDecoration.ITALIC, false)
-                .append(Component.text("Pet Incubator").color(NamedTextColor.GOLD)
+                .append(plugin.getLanguageManager().getMessage("eggmanager.pet_incubator", "Pet Incubator").color(NamedTextColor.GOLD)
                         .decoration(TextDecoration.BOLD, true))
-                .append(Component.text(" to hatch!").color(NamedTextColor.YELLOW)));
-        lore.add(Component.text("Right-click to open Pet Collection.").color(NamedTextColor.AQUA)
+                .append(plugin.getLanguageManager().getMessage("eggmanager.to_hatch", " to hatch!").color(NamedTextColor.YELLOW)));
+        lore.add(plugin.getLanguageManager().getMessage("eggmanager.rightclick_to_open_pet_collection", "Right-click to open Pet Collection.").color(NamedTextColor.AQUA)
             .decoration(TextDecoration.ITALIC, false));
         meta.lore(lore);
 

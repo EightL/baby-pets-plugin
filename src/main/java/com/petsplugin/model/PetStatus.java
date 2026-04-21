@@ -4,20 +4,30 @@ package com.petsplugin.model;
  * Pet mood/status affects gameplay slightly and is managed via feeding and petting.
  */
 public enum PetStatus {
-    ECSTATIC("✦ Ecstatic"),
-    HAPPY("☺ Happy"),
-    CONTENT("◉ Content"),
-    HUNGRY("◎ Hungry"),
-    SAD("☹ Sad");
+    ECSTATIC("✦", "Ecstatic"),
+    HAPPY("☺", "Happy"),
+    CONTENT("◉", "Content"),
+    HUNGRY("◎", "Hungry"),
+    SAD("☹", "Sad");
 
-    private final String display;
+    private final String icon;
+    private final String defaultName;
 
-    PetStatus(String display) {
-        this.display = display;
+    PetStatus(String icon, String defaultName) {
+        this.icon = icon;
+        this.defaultName = defaultName;
     }
 
     public String getDisplay() {
-        return display;
+        return icon + " " + defaultName;
+    }
+
+    public String getIcon() {
+        return icon;
+    }
+
+    public String getDefaultName() {
+        return defaultName;
     }
 
     /** Get the next better status (capped at ECSTATIC). */

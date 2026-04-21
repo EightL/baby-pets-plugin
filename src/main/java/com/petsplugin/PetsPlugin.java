@@ -7,6 +7,7 @@ import com.petsplugin.manager.EggManager;
 import com.petsplugin.manager.IncubatorManager;
 import com.petsplugin.manager.PetAdvancementManager;
 import com.petsplugin.manager.PetManager;
+import com.petsplugin.manager.LanguageManager;
 import com.petsplugin.manager.PetSettingsManager;
 import com.petsplugin.model.PetType;
 import com.petsplugin.storage.PetDatabaseManager;
@@ -32,6 +33,7 @@ public class PetsPlugin extends JavaPlugin {
     private PetManager petManager;
     private PetSettingsManager settingsManager;
     private PetAdvancementManager advancementManager;
+    private LanguageManager languageManager;
 
     private Map<String, PetType> petTypes = new LinkedHashMap<>();
 
@@ -63,6 +65,8 @@ public class PetsPlugin extends JavaPlugin {
         eggManager = new EggManager(this);
         incubatorManager = new IncubatorManager(this);
         settingsManager = new PetSettingsManager(this);
+        languageManager = new LanguageManager(this);
+        languageManager.initialize();
         petManager = new PetManager(this);
         advancementManager = new PetAdvancementManager(this);
         petManager.reloadConfigCache();
@@ -108,6 +112,9 @@ public class PetsPlugin extends JavaPlugin {
         if (petManager != null) {
             petManager.reloadConfigCache();
             petManager.refreshAbilityStateForOnlinePlayers();
+        }
+        if (languageManager != null) {
+            languageManager.reload();
         }
         if (advancementManager != null) {
             advancementManager.loadAdvancements();
@@ -164,6 +171,7 @@ public class PetsPlugin extends JavaPlugin {
     public PetManager getPetManager() { return petManager; }
     public PetSettingsManager getSettingsManager() { return settingsManager; }
     public PetAdvancementManager getAdvancementManager() { return advancementManager; }
+    public LanguageManager getLanguageManager() { return languageManager; }
     public Map<String, PetType> getPetTypes() { return petTypes; }
     public int getMaxLevel() { return maxLevel; }
     public double getFollowDistance() { return followDistance; }
