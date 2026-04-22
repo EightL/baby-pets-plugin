@@ -18,6 +18,7 @@ import org.bukkit.inventory.meta.ItemMeta;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -110,13 +111,17 @@ public abstract class BaseGUI implements InventoryHolder {
         ItemMeta meta = item.getItemMeta();
         String modeOnLabel = plugin.getLanguageManager().getString("ui.labels.on", "ON");
         String modeOffLabel = plugin.getLanguageManager().getString("ui.labels.off", "OFF");
-        String followLabel = plugin.getLanguageManager().getString("basegui.follow_mode", "Follow Mode");
         String modeFollowLabel = plugin.getLanguageManager().getString("pet.mode.FOLLOW", "Follow");
         String modeStayLabel = plugin.getLanguageManager().getString("pet.mode.STAY", "Stay");
         String title = includeCommandHint
-            ? followLabel + ": " + (follow ? modeOnLabel : modeOffLabel)
-            : (follow ? plugin.getLanguageManager().getString("basegui.mode_follow", "Mode: ") + modeFollowLabel
-                      : plugin.getLanguageManager().getString("basegui.mode_stay", "Mode: ") + modeStayLabel);
+            ? plugin.getLanguageManager().getString(
+                    "basegui.follow_mode",
+                    "Follow Mode: %state%",
+                    Map.of("state", follow ? modeOnLabel : modeOffLabel))
+            : plugin.getLanguageManager().getString(
+                    follow ? "basegui.mode_follow" : "basegui.mode_stay",
+                    "Mode: %mode%",
+                    Map.of("mode", follow ? modeFollowLabel : modeStayLabel));
         meta.displayName(Component.text(title)
             .color(follow ? NamedTextColor.GREEN : NamedTextColor.GOLD)
             .decoration(TextDecoration.ITALIC, false));

@@ -266,11 +266,9 @@ public class PetManager {
         }
 
         String path = resolved == PetFollowMode.FOLLOW
-                ? "messages.pet_mode_follow"
-                : "messages.pet_mode_stay";
-        String fallback = resolved == PetFollowMode.FOLLOW
-                ? "&aYour pet will follow you again."
-                : "&eYour pet is staying put.";
+                ? "petmanager.pet_follow_enabled"
+                : "petmanager.pet_follow_staying";
+        String fallback = path;
         sendPetNotification(player, path, fallback, null, false);
     }
 
@@ -461,8 +459,8 @@ public class PetManager {
                 PetType type = plugin.getPetTypes().get(pet.getPetTypeId());
                 if (type != null) {
                     sendPetNotification(player,
-                        "messages.pet_despawned",
-                        "&7%pet_name% &7has returned to rest.",
+                        "petmanager.pet_returned_to_rest",
+                        "petmanager.pet_returned_to_rest",
                         Map.of("%pet_name%", pet.getLocalizedDisplayName(type, plugin.getLanguageManager())));
                 }
             }
@@ -807,8 +805,8 @@ public class PetManager {
         }
 
         sendPetNotification(player,
-            "messages.pet_fed",
-            "&a%pet_name% &7enjoyed the treat! Status: &e%status%",
+            "petmanager.pet_treat_status",
+            "petmanager.pet_treat_status",
             Map.of(
                 "%pet_name%", pet.getLocalizedDisplayName(type, plugin.getLanguageManager()),
                 "%status%", getLocalizedStatusDisplay(pet.getStatus())
@@ -897,8 +895,8 @@ public class PetManager {
         }
 
         sendPetNotification(player,
-            "messages.pet_petted",
-            "&d%pet_name% &7loves the attention! Status: &e%status%",
+            "petmanager.pet_attention_status",
+            "petmanager.pet_attention_status",
             Map.of(
                 "%pet_name%", pet.getLocalizedDisplayName(type, plugin.getLanguageManager()),
                 "%status%", getLocalizedStatusDisplay(pet.getStatus())

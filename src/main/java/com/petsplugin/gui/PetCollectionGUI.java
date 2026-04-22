@@ -36,23 +36,25 @@ import java.util.Set;
 public class PetCollectionGUI extends BaseGUI {
 
     public enum FilterMode {
-        ALL("ALL"),
-        LEVEL_DESC("Level: Desc."),
-        LEVEL_ASC("Level: Asc."),
-        TYPE_GROUND("Type: Ground"),
-        TYPE_FLYING("Type: Flying"),
-        TYPE_WATER("Type: Water"),
-        NAME_ASC("Name: A -> Z"),
-        NAME_DESC("Name: Z -> A");
+        ALL("petcollectiongui.filter.all", "ALL"),
+        LEVEL_DESC("petcollectiongui.filter.level_desc", "Level: Desc."),
+        LEVEL_ASC("petcollectiongui.filter.level_asc", "Level: Asc."),
+        TYPE_GROUND("petcollectiongui.filter.type_ground", "Type: Ground"),
+        TYPE_FLYING("petcollectiongui.filter.type_flying", "Type: Flying"),
+        TYPE_WATER("petcollectiongui.filter.type_water", "Type: Water"),
+        NAME_ASC("petcollectiongui.filter.name_asc", "Name: A -> Z"),
+        NAME_DESC("petcollectiongui.filter.name_desc", "Name: Z -> A");
 
-        private final String displayName;
+        private final String langKey;
+        private final String fallback;
 
-        FilterMode(String displayName) {
-            this.displayName = displayName;
+        FilterMode(String langKey, String fallback) {
+            this.langKey = langKey;
+            this.fallback = fallback;
         }
 
-        public String getDisplayName() {
-            return displayName;
+        public String getDisplayName(PetsPlugin plugin) {
+            return plugin.getLanguageManager().getString(langKey, fallback);
         }
 
         public FilterMode next() {
@@ -214,12 +216,19 @@ public class PetCollectionGUI extends BaseGUI {
                         .decoration(TextDecoration.ITALIC, false));
                 if (type.getSpecialAbility() == PetType.SpecialAbility.STORAGE) {
                     int activeSlots = type.computeActiveStorageSlots(pet.getLevel(), maxLevel);
-                    lore.add(Component.text(" +" + activeSlots + " storage space")
-                        .color(NamedTextColor.GREEN)
-                        .decoration(TextDecoration.ITALIC, false));
+                    lore.add(plugin.getLanguageManager().getMessage(
+                                    "petcollectiongui.storage_bonus",
+                                    " +%slots% storage space",
+                                    "slots", String.valueOf(activeSlots))
+                            .color(NamedTextColor.GREEN)
+                            .decoration(TextDecoration.ITALIC, false));
                 } else {
                     String sign = type.isNegativeAttribute() ? "" : "+";
-                    lore.add(Component.text(" " + type.getLocalizedAttributeDisplay(plugin.getLanguageManager()) + ": ").color(NamedTextColor.GRAY)
+                    lore.add(Component.text(plugin.getLanguageManager().getString(
+                                    "petcollectiongui.attribute_line",
+                                    " %attribute%: ",
+                                    "attribute", type.getLocalizedAttributeDisplay(plugin.getLanguageManager())))
+                                    .color(NamedTextColor.GRAY)
                         .decoration(TextDecoration.ITALIC, false)
                         .append(Component.text(sign + type.formatAttributeBonus(pet.getLevel()))
                             .color(NamedTextColor.GREEN)));
@@ -335,14 +344,14 @@ public class PetCollectionGUI extends BaseGUI {
                 if (pet.isSelected()) {
                     plugin.getPetManager().deselectPet(player.getUniqueId());
                     plugin.getPetManager().sendPetNotification(player,
-                        "messages.pet_deselected",
-                        "&7You deselected &e%pet_name%&7.",
+                        "petcollectiongui.deselected_notification",
+                        "petcollectiongui.deselected_notification",
                         Map.of("%pet_name%", displayName));
                 } else {
                     plugin.getPetManager().selectPet(player.getUniqueId(), pet);
                     plugin.getPetManager().sendPetNotification(player,
-                        "messages.pet_selected",
-                        "&aYou selected &e%pet_name%&a!",
+                        "petcollectiongui.selected_notification",
+                        "petcollectiongui.selected_notification",
                         Map.of("%pet_name%", displayName));
                 }
                 player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1f);
@@ -465,7 +474,9 @@ public class PetCollectionGUI extends BaseGUI {
 
         ItemStack arrow = new ItemStack(Material.ARROW);
         ItemMeta meta = arrow.getItemMeta();
-        meta.displayName(Component.text(next ? "Next Page" : "Previous Page")
+        meta.displayName(plugin.getLanguageManager().getMessage(
+                        next ? "basegui.next_page" : "basegui.previous_page",
+                        next ? "Next Page" : "Previous Page")
                 .color(NamedTextColor.YELLOW)
                 .decoration(TextDecoration.ITALIC, false));
         arrow.setItemMeta(meta);
@@ -475,11 +486,11 @@ public class PetCollectionGUI extends BaseGUI {
     private ItemStack createPageInfo(int page, int totalPages) {
         ItemStack pageInfo = new ItemStack(Material.BOOK);
         ItemMeta pageMeta = pageInfo.getItemMeta();
-        pageMeta.displayName(Component.text("Page " + (page + 1) + "/" + totalPages)
+        pageMeta.displayName(Component.text(plugin.getLanguageManager().getString("pagination.page", "Page ") + (page + 1) + "/" + totalPages)
                 .color(NamedTextColor.YELLOW)
                 .decoration(TextDecoration.ITALIC, false));
         pageMeta.lore(List.of(
-                Component.text("Showing: " + visiblePets.size() + "/" + playerPets.size())
+                Component.text(plugin.getLanguageManager().getString("pagination.showing", "Showing: ") + visiblePets.size() + "/" + playerPets.size())
                         .color(NamedTextColor.GRAY)
                         .decoration(TextDecoration.ITALIC, false)
         ));
@@ -490,7 +501,8 @@ public class PetCollectionGUI extends BaseGUI {
     private ItemStack createFilterItem() {
         ItemStack filterItem = new ItemStack(Material.HOPPER);
         ItemMeta filterMeta = filterItem.getItemMeta();
-        filterMeta.displayName(Component.text("Filter: " + filterMode.getDisplayName())
+        filterMeta.displayName(Component.text(plugin.getLanguageManager().getString("petcollectiongui.filter_prefix", "Filter: ")
+                        + filterMode.getDisplayName(plugin))
                 .color(NamedTextColor.GOLD)
                 .decoration(TextDecoration.ITALIC, false));
         filterMeta.lore(List.of(

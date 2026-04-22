@@ -22,6 +22,7 @@ import java.util.Date;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -186,7 +187,10 @@ public class PetDetailGUI extends BaseGUI {
                 .decoration(TextDecoration.ITALIC, false));
 
         List<Component> lore = new ArrayList<>();
-        lore.add(Component.text(type.getLocalizedDisplayName(plugin.getLanguageManager()) + " " + plugin.getLanguageManager().getString("petdetailgui.growth_tracker", "growth tracker"))
+        lore.add(Component.text(plugin.getLanguageManager().getString(
+                        "petdetailgui.growth_tracker",
+                        "%pet_name% growth tracker",
+                        Map.of("pet_name", type.getLocalizedDisplayName(plugin.getLanguageManager()))))
                 .color(NamedTextColor.GRAY)
                 .decoration(TextDecoration.ITALIC, false));
         lore.add(Component.empty());
@@ -232,7 +236,7 @@ public class PetDetailGUI extends BaseGUI {
         meta.lore(List.of(
                 plugin.getLanguageManager().getMessage("petdetailgui.type", "Type: ").color(NamedTextColor.GRAY)
                         .decoration(TextDecoration.ITALIC, false)
-                        .append(Component.text(type.getMovementType().getDisplayName()).color(NamedTextColor.WHITE)),
+                        .append(Component.text(type.getMovementType().getLocalizedDisplayName(plugin.getLanguageManager())).color(NamedTextColor.WHITE)),
                 plugin.getLanguageManager().getMessage("petdetailgui.foods", "Foods: ").color(NamedTextColor.GRAY)
                         .decoration(TextDecoration.ITALIC, false)
                         .append(Component.text(plugin.getPetManager().getAllowedFoodsDisplay(type))
@@ -247,7 +251,9 @@ public class PetDetailGUI extends BaseGUI {
 
         ItemStack item = new ItemStack(abilitiesEnabled ? Material.NETHER_STAR : Material.GRAY_DYE);
         ItemMeta meta = item.getItemMeta();
-        meta.displayName(Component.text(abilitiesEnabled ? "Abilities" : "Vanity Mode")
+        meta.displayName(Component.text(plugin.getLanguageManager().getString(
+                        abilitiesEnabled ? "petdetailgui.abilities" : "petdetailgui.vanity_mode",
+                        abilitiesEnabled ? "Abilities" : "Vanity Mode"))
                 .color(abilitiesEnabled ? NamedTextColor.GOLD : NamedTextColor.DARK_GRAY)
                 .decoration(TextDecoration.ITALIC, false));
 
@@ -259,7 +265,11 @@ public class PetDetailGUI extends BaseGUI {
                 int maxSlots = type.getStorageSize();
                 lore.add(plugin.getLanguageManager().getMessage("petdetailgui.storage", "Storage: ").color(NamedTextColor.GRAY)
                         .decoration(TextDecoration.ITALIC, false)
-                        .append(Component.text(currentSlots + " / " + maxSlots + " slots")
+                        .append(Component.text(plugin.getLanguageManager().getString(
+                                        "petdetailgui.storage_slots",
+                                        "%current% / %max% slots",
+                                        "current", String.valueOf(currentSlots),
+                                        "max", String.valueOf(maxSlots)))
                                 .color(NamedTextColor.AQUA)));
                 lore.add(plugin.getLanguageManager().getMessage("petdetailgui.slots_unlock_as_the_pet", "Slots unlock as the pet levels up")
                         .color(NamedTextColor.DARK_GRAY)
@@ -270,14 +280,25 @@ public class PetDetailGUI extends BaseGUI {
             } else {
                 // Normal stat-based pets
                 String sign = type.isNegativeAttribute() ? "" : "+";
-                lore.add(Component.text(type.getLocalizedAttributeDisplay(plugin.getLanguageManager()) + ": ").color(NamedTextColor.GRAY)
+                lore.add(Component.text(plugin.getLanguageManager().getString(
+                                "petdetailgui.attribute_line",
+                                "%attribute%: ",
+                                "attribute", type.getLocalizedAttributeDisplay(plugin.getLanguageManager())))
+                                .color(NamedTextColor.GRAY)
                         .decoration(TextDecoration.ITALIC, false)
                         .append(Component.text(sign + type.formatAttributeBonus(pet.getLevel()))
                                 .color(NamedTextColor.GREEN)));
-                lore.add(Component.text(plugin.getLanguageManager().getString("petdetailgui.growth", "Growth: ") + sign + type.formatAttributePerLevel() + plugin.getLanguageManager().getString("petdetailgui.per_level", "/level"))
+                lore.add(Component.text(plugin.getLanguageManager().getString(
+                                "petdetailgui.growth_line",
+                                "Growth: %value%/level",
+                                "value", sign + type.formatAttributePerLevel()))
                         .color(NamedTextColor.DARK_GRAY)
                         .decoration(TextDecoration.ITALIC, false));
-                lore.add(Component.text(plugin.getLanguageManager().getString("petdetailgui.at_lv", "At Lv") + maxLevel + ": ").color(NamedTextColor.DARK_GRAY)
+                lore.add(Component.text(plugin.getLanguageManager().getString(
+                                "petdetailgui.at_level_line",
+                                "At Lv%level%: ",
+                                "level", String.valueOf(maxLevel)))
+                                .color(NamedTextColor.DARK_GRAY)
                         .decoration(TextDecoration.ITALIC, false)
                         .append(Component.text(sign + type.formatAttributeBonus(maxLevel))
                                 .color(NamedTextColor.YELLOW)));
@@ -338,9 +359,14 @@ public class PetDetailGUI extends BaseGUI {
         meta.displayName(plugin.getLanguageManager().getMessage("petdetailgui.profile", "Profile").color(NamedTextColor.AQUA)
                 .decoration(TextDecoration.ITALIC, false));
 
-        String date = new SimpleDateFormat("MMM dd, yyyy").format(new Date(pet.getObtainedAt()));
+        String datePattern = plugin.getLanguageManager().getString("petdetailgui.obtained_date_format", "MMM dd, yyyy");
+        String date = new SimpleDateFormat(datePattern, resolveDisplayLocale()).format(new Date(pet.getObtainedAt()));
         meta.lore(List.of(
-                Component.text(plugin.getLanguageManager().getString("petdetailgui.obtained", "Obtained: ") + date).color(NamedTextColor.GRAY)
+                Component.text(plugin.getLanguageManager().getString(
+                                "petdetailgui.obtained",
+                                "Obtained: %date%",
+                                Map.of("date", date)))
+                        .color(NamedTextColor.GRAY)
                         .decoration(TextDecoration.ITALIC, false),
                 plugin.getLanguageManager().getMessage("petdetailgui.selection", "Selection: ").color(NamedTextColor.GRAY)
                         .decoration(TextDecoration.ITALIC, false)
@@ -348,11 +374,21 @@ public class PetDetailGUI extends BaseGUI {
                                 ? plugin.getLanguageManager().getMessage("petdetailgui.active", "ACTIVE").color(NamedTextColor.GREEN)
                                         .decoration(TextDecoration.BOLD, true)
                                 : plugin.getLanguageManager().getMessage("petdetailgui.resting", "Resting").color(NamedTextColor.DARK_GRAY)),
-                Component.text(plugin.getLanguageManager().getString("petdetailgui.species", "Species: ") + type.getLocalizedDisplayName(plugin.getLanguageManager())).color(NamedTextColor.GRAY)
+                Component.text(plugin.getLanguageManager().getString(
+                                "petdetailgui.species",
+                                "Species: %species%",
+                                Map.of("species", type.getLocalizedDisplayName(plugin.getLanguageManager()))))
+                        .color(NamedTextColor.GRAY)
                         .decoration(TextDecoration.ITALIC, false)
         ));
         item.setItemMeta(meta);
         return item;
+    }
+
+    private Locale resolveDisplayLocale() {
+        String configuredLocale = plugin.getConfig().getString("locale", "en");
+        Locale locale = Locale.forLanguageTag((configuredLocale == null ? "en" : configuredLocale).replace('_', '-'));
+        return locale.getLanguage().isEmpty() ? Locale.ENGLISH : locale;
     }
 
     private ItemStack createBackButton() {
@@ -367,7 +403,9 @@ public class PetDetailGUI extends BaseGUI {
     private ItemStack createSelectButton() {
         ItemStack item = new ItemStack(pet.isSelected() ? Material.RED_DYE : Material.LIME_DYE);
         ItemMeta meta = item.getItemMeta();
-        meta.displayName(Component.text(pet.isSelected() ? "Deselect" : "Select")
+        meta.displayName(Component.text(plugin.getLanguageManager().getString(
+                        pet.isSelected() ? "petdetailgui.deselect" : "petdetailgui.select",
+                        pet.isSelected() ? "Deselect" : "Select"))
                 .color(pet.isSelected() ? NamedTextColor.RED : NamedTextColor.GREEN)
                 .decoration(TextDecoration.ITALIC, false));
         item.setItemMeta(meta);

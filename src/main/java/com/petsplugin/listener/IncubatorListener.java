@@ -139,8 +139,8 @@ public class IncubatorListener implements Listener {
                 int minutes = plugin.getIncubationDurationMinutes();
                 plugin.getPetManager().sendPetNotification(player,
                     "messages.egg_placed",
-                    "&7Egg placed in incubator. Hatching in &e%time%&7...",
-                    java.util.Map.of("%time%", minutes + " minutes"),
+                    "&7Egg placed in incubator. Hatching in &e%minutes% minutes&7...",
+                    java.util.Map.of("%minutes%", String.valueOf(minutes)),
                     false);
 
                 // Sound
@@ -160,7 +160,11 @@ public class IncubatorListener implements Listener {
                 player.sendMessage(plugin.getLanguageManager().getMessage("incubatorlistener.incubating", "Incubating: ").color(NamedTextColor.GRAY)
                         .append(plugin.getLanguageManager().getMessage("incubatorlistener.pet_egg", "Pet Egg")
                                 .color(state.getEggRarity().getColor()))
-                        .append(Component.text(" — " + minutes + "m " + seconds + "s remaining")
+                        .append(plugin.getLanguageManager().getMessage(
+                                        "incubatorlistener.remaining_time",
+                                        " — %minutes%m %seconds%s remaining",
+                                        "minutes", String.valueOf(minutes),
+                                        "seconds", String.valueOf(seconds))
                                 .color(NamedTextColor.YELLOW)));
             } else {
                 player.sendMessage(plugin.getLanguageManager().getMessage("incubatorlistener.rightclick_with_a_pet_egg", "Right-click with a Pet Egg to start incubation!")

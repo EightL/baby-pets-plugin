@@ -28,6 +28,9 @@ repositories {
 dependencies {
     compileOnly("io.papermc.paper:paper-api:${paperBuildTarget.apiVersion}")
     compileOnly("org.xerial:sqlite-jdbc:3.46.0.0")
+    testImplementation(platform("org.junit:junit-bom:5.12.2"))
+    testImplementation("org.junit.jupiter:junit-jupiter")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
 java {
@@ -39,6 +42,9 @@ tasks {
         filesMatching("plugin.yml") {
             expand("version" to project.version)
         }
+    }
+    test {
+        useJUnitPlatform()
     }
     withType<org.gradle.api.tasks.compile.JavaCompile>().configureEach {
         options.release.set(paperBuildTarget.javaVersion)

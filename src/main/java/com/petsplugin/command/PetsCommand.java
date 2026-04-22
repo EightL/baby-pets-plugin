@@ -151,7 +151,7 @@ public class PetsCommand implements CommandExecutor, TabExecutor {
         player.sendMessage(plugin.getLanguageManager().getMessage(
                 "petscommand.gave_egg_to_player",
                 "Gave %rarity% egg to %player%",
-                "rarity", rarity.name(),
+                "rarity", plugin.getPetManager().getLocalizedRarity(rarity),
                 "player", target.getName()
         ).color(NamedTextColor.GREEN));
         return true;
@@ -297,7 +297,10 @@ public class PetsCommand implements CommandExecutor, TabExecutor {
         String statusLabel = plugin.getPetManager().getLocalizedLabel("status", "Status");
         String bonusLabel = plugin.getPetManager().getLocalizedLabel("bonus", "Bonus");
 
-        player.sendMessage(Component.text("─── " + pet.getLocalizedDisplayName(type, plugin.getLanguageManager()) + " ───")
+        player.sendMessage(plugin.getLanguageManager().getMessage(
+                        "petinfo.header",
+                        "─── %pet_name% ───",
+                        "pet_name", pet.getLocalizedDisplayName(type, plugin.getLanguageManager()))
                 .color(type.getRarity().getColor()));
         player.sendMessage(plugin.getLanguageManager().getMessage("petscommand.type", "  Type: ").color(NamedTextColor.GRAY)
                 .append(Component.text(type.getLocalizedDisplayName(plugin.getLanguageManager())).color(NamedTextColor.WHITE)));
@@ -320,15 +323,25 @@ public class PetsCommand implements CommandExecutor, TabExecutor {
         if (plugin.getPetManager().arePetAbilitiesEnabled()) {
             if (type.getSpecialAbility() == PetType.SpecialAbility.STORAGE) {
                 int activeSlots = type.computeActiveStorageSlots(pet.getLevel(), maxLevel);
-            player.sendMessage(Component.text("  " + bonusLabel + ": ").color(NamedTextColor.GRAY)
-                        .append(Component.text("+" + activeSlots + " storage space")
+                player.sendMessage(Component.text("  " + bonusLabel + ": ").color(NamedTextColor.GRAY)
+                        .append(plugin.getLanguageManager().getMessage(
+                                        "petinfo.storage_bonus",
+                                        "+%slots% storage space",
+                                        "slots", String.valueOf(activeSlots))
                                 .color(NamedTextColor.GREEN)));
             } else {
                 String sign = type.isNegativeAttribute() ? "" : "+";
-                player.sendMessage(Component.text("  " + type.getAttributeDisplay() + ": ").color(NamedTextColor.GRAY)
+                player.sendMessage(Component.text(plugin.getLanguageManager().getString(
+                                "petinfo.attribute_line",
+                                "  %attribute%: ",
+                                "attribute", type.getLocalizedAttributeDisplay(plugin.getLanguageManager())))
+                                .color(NamedTextColor.GRAY)
                         .append(Component.text(sign + type.formatAttributeBonus(pet.getLevel()))
                                 .color(NamedTextColor.GREEN))
-                        .append(Component.text(" (" + sign + type.formatAttributePerLevel() + "/level)")
+                        .append(plugin.getLanguageManager().getMessage(
+                                        "petinfo.attribute_per_level",
+                                        " (%value%/level)",
+                                        "value", sign + type.formatAttributePerLevel())
                                 .color(NamedTextColor.DARK_GRAY)));
             }
         }

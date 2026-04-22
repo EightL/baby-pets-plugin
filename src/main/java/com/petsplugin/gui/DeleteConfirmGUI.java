@@ -55,12 +55,16 @@ public class DeleteConfirmGUI extends BaseGUI {
         // Center: The pet being deleted
         ItemStack petItem = new ItemStack(type.getIcon());
         ItemMeta meta = petItem.getItemMeta();
-        meta.displayName(Component.text("Delete: " + pet.getDisplayName(type))
+        meta.displayName(Component.text(plugin.getLanguageManager().getString("deleteconfirmgui.delete_prefix", "Delete: ")
+                        + pet.getLocalizedDisplayName(type, plugin.getLanguageManager()))
                 .color(NamedTextColor.RED)
                 .decoration(TextDecoration.ITALIC, false));
         meta.lore(List.of(
-                Component.text("Level " + pet.getLevel() + " "
-                        + plugin.getPetManager().getLocalizedRarity(type.getRarity()))
+                plugin.getLanguageManager().getMessage(
+                                "deleteconfirmgui.level_rarity_summary",
+                                "Level %level% %rarity%",
+                                "level", String.valueOf(pet.getLevel()),
+                                "rarity", plugin.getPetManager().getLocalizedRarity(type.getRarity()))
                         .color(type.getRarity().getColor())
                         .decoration(TextDecoration.ITALIC, false),
                 Component.empty(),
@@ -111,7 +115,7 @@ public class DeleteConfirmGUI extends BaseGUI {
             plugin.getPetManager().refreshCache(player.getUniqueId());
 
             PetType type = plugin.getPetTypes().get(pet.getPetTypeId());
-            String name = type != null ? pet.getDisplayName(type) : pet.getPetTypeId();
+            String name = type != null ? pet.getLocalizedDisplayName(type, plugin.getLanguageManager()) : pet.getPetTypeId();
             player.sendMessage(plugin.getLanguageManager().getMessage("deleteconfirmgui.deleted", "Deleted ").color(NamedTextColor.RED)
                     .append(Component.text(name).color(NamedTextColor.YELLOW))
                     .append(plugin.getLanguageManager().getMessage("deleteconfirmgui.permanently", " permanently.").color(NamedTextColor.RED)));

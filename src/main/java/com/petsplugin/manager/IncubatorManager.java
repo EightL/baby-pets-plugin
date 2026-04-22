@@ -457,7 +457,7 @@ public class IncubatorManager {
         plugin.getPetManager().sendPetNotification(owner,
             "messages.egg_hatched",
             "&a&lHATCH! &7Your egg hatched into a &e%pet_name%&7!",
-            java.util.Map.of("%pet_name%", type.getDisplayName()));
+            java.util.Map.of("%pet_name%", type.getLocalizedDisplayName(plugin.getLanguageManager())));
         owner.sendMessage(
                 plugin.getLanguageManager().getMessage("incubatormanager.click_to_view_in_collection", "Click to view in collection")
                         .color(NamedTextColor.AQUA)

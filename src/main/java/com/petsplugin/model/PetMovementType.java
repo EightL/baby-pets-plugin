@@ -1,5 +1,7 @@
 package com.petsplugin.model;
 
+import com.petsplugin.manager.LanguageManager;
+
 public enum PetMovementType {
     GROUND("Ground"),
     FLYING("Flying"),
@@ -13,5 +15,9 @@ public enum PetMovementType {
 
     public String getDisplayName() {
         return displayName;
+    }
+
+    public String getLocalizedDisplayName(LanguageManager languageManager) {
+        return languageManager.getString("petmovement." + name().toLowerCase(), displayName);
     }
 }
