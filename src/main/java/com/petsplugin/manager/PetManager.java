@@ -667,6 +667,15 @@ public class PetManager {
 
             stayAnchors.remove(playerUuid);
 
+            if (!petEntity.getWorld().equals(player.getWorld())) {
+                if (plugin.getConfig().getBoolean("pets.cross_dimension_teleport", true)) {
+                    Location safeLoc = findSafeSpawnLocation(player.getLocation());
+                    petEntity.teleport(safeLoc);
+                    syncHoverNamePosition(petEntity);
+                }
+                continue;
+            }
+
             double distance = petEntity.getLocation().distance(player.getLocation());
 
             if (distance > teleportDist) {
