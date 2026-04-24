@@ -48,7 +48,6 @@ public class PetsPlugin extends JavaPlugin {
     public void onEnable() {
         // Save default configs
         saveDefaultConfig();
-        saveResource("pets.yml", false);
         loadRuntimeConfigCache();
 
         // Load pet type definitions

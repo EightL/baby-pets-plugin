@@ -5,6 +5,8 @@ import com.petsplugin.model.PetInstance;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.entity.EntityPickupItemEvent;
+import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
@@ -30,6 +32,7 @@ public class PlayerListener implements Listener {
         plugin.getSettingsManager().loadPlayerSettings(player.getUniqueId());
         plugin.getAdvancementManager().syncPlayerAdvancements(player);
         plugin.getIncubatorManager().discoverIncubatorRecipe(player);
+        plugin.getPetManager().refreshPlayerCustomItems(player);
         plugin.getPetManager().refreshPetVisibility(player);
 
         // Respawn active pet if configured
@@ -54,6 +57,20 @@ public class PlayerListener implements Listener {
         plugin.getPetManager().clearCache(player.getUniqueId());
         plugin.getPetManager().clearPlayerSessionState(player.getUniqueId());
         plugin.getSettingsManager().unloadPlayerSettings(player.getUniqueId());
+    }
+
+    @EventHandler
+    public void onInventoryClose(InventoryCloseEvent event) {
+        if (event.getPlayer() instanceof Player player) {
+            plugin.getPetManager().refreshPlayerCustomItems(player);
+        }
+    }
+
+    @EventHandler
+    public void onPickup(EntityPickupItemEvent event) {
+        if (event.getEntity() instanceof Player player) {
+            plugin.getServer().getScheduler().runTask(plugin, () -> plugin.getPetManager().refreshPlayerCustomItems(player));
+        }
     }
 
     @EventHandler

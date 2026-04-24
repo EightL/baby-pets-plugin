@@ -14,6 +14,7 @@ import org.bukkit.attribute.Attribute;
 import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.attribute.AttributeModifier;
 import org.bukkit.entity.*;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
@@ -331,7 +332,7 @@ public class PetManager {
             return;
         }
 
-        String msg = plugin.getLanguageManager().getString(path, fallback);
+        String msg = plugin.getLanguageManager().getString(player, path, fallback);
         if (replacements != null) {
             for (Map.Entry<String, String> entry : replacements.entrySet()) {
                 msg = msg.replace(entry.getKey(), entry.getValue());
@@ -487,6 +488,7 @@ public class PetManager {
             case SHEEP -> pet.setAppearanceVariant(randomSheepColor().name());
             case RABBIT -> pet.setAppearanceVariant(randomRabbitType().name());
             case HORSE -> pet.setAppearanceVariant(randomHorseVariant());
+            case LLAMA, TRADER_LLAMA -> pet.setAppearanceVariant(randomLlamaColor().name());
             default -> {
                 return;
             }
@@ -818,7 +820,7 @@ public class PetManager {
             "petmanager.pet_treat_status",
             Map.of(
                 "%pet_name%", pet.getLocalizedDisplayName(type, plugin.getLanguageManager()),
-                "%status%", getLocalizedStatusDisplay(pet.getStatus())
+                "%status%", getLocalizedStatusDisplay(player, pet.getStatus())
             ));
         plugin.getAdvancementManager().handlePetFed(player);
     }
@@ -844,12 +846,24 @@ public class PetManager {
         return plugin.getLanguageManager().getString("ui.labels." + key, fallback);
     }
 
+    public String getLocalizedLabel(Player player, String key, String fallback) {
+        return plugin.getLanguageManager().getString(player, "ui.labels." + key, fallback);
+    }
+
     public String getLocalizedRarity(Rarity rarity) {
         if (rarity == null) {
             return "";
         }
         String path = "ui.rarity." + rarity.name().toLowerCase(Locale.ROOT);
         return plugin.getLanguageManager().getString(path, defaultRarityName(rarity));
+    }
+
+    public String getLocalizedRarity(Player player, Rarity rarity) {
+        if (rarity == null) {
+            return "";
+        }
+        String path = "ui.rarity." + rarity.name().toLowerCase(Locale.ROOT);
+        return plugin.getLanguageManager().getString(player, path, defaultRarityName(rarity));
     }
 
     public String getLocalizedStatusName(PetStatus status) {
@@ -860,11 +874,26 @@ public class PetManager {
         return plugin.getLanguageManager().getString(path, status.getDefaultName());
     }
 
+    public String getLocalizedStatusName(Player player, PetStatus status) {
+        if (status == null) {
+            return "";
+        }
+        String path = "ui.status." + status.name().toLowerCase(Locale.ROOT);
+        return plugin.getLanguageManager().getString(player, path, status.getDefaultName());
+    }
+
     public String getLocalizedStatusDisplay(PetStatus status) {
         if (status == null) {
             return "";
         }
         return status.getIcon() + " " + getLocalizedStatusName(status);
+    }
+
+    public String getLocalizedStatusDisplay(Player player, PetStatus status) {
+        if (status == null) {
+            return "";
+        }
+        return status.getIcon() + " " + getLocalizedStatusName(player, status);
     }
 
     private String defaultRarityName(Rarity rarity) {
@@ -908,7 +937,7 @@ public class PetManager {
             "petmanager.pet_attention_status",
             Map.of(
                 "%pet_name%", pet.getLocalizedDisplayName(type, plugin.getLanguageManager()),
-                "%status%", getLocalizedStatusDisplay(pet.getStatus())
+                "%status%", getLocalizedStatusDisplay(player, pet.getStatus())
             ));
         plugin.getAdvancementManager().handlePetPetted(player);
     }
@@ -1117,6 +1146,54 @@ public class PetManager {
 
     private Object selectionLock(UUID playerUuid) {
         return selectionLocks.computeIfAbsent(playerUuid, ignored -> new Object());
+    }
+
+    public void refreshPlayerCustomItems(Player player) {
+        if (player == null || !player.isOnline()) {
+            return;
+        }
+
+        plugin.getLanguageManager().withPlayer(player, () -> {
+            ItemStack[] storage = player.getInventory().getStorageContents();
+            boolean changed = false;
+            for (int i = 0; i < storage.length; i++) {
+                ItemStack refreshed = refreshCustomItem(storage[i]);
+                if (refreshed != null) {
+                    storage[i] = refreshed;
+                    changed = true;
+                }
+            }
+            if (changed) {
+                player.getInventory().setStorageContents(storage);
+            }
+
+            ItemStack offhand = player.getInventory().getItemInOffHand();
+            ItemStack refreshedOffhand = refreshCustomItem(offhand);
+            if (refreshedOffhand != null) {
+                player.getInventory().setItemInOffHand(refreshedOffhand);
+            }
+        });
+    }
+
+    private ItemStack refreshCustomItem(ItemStack item) {
+        if (item == null || item.getType().isAir() || !item.hasItemMeta()) {
+            return null;
+        }
+
+        if (plugin.getEggManager().isEgg(item)) {
+            Rarity rarity = plugin.getEggManager().getEggRarity(item);
+            ItemStack refreshed = plugin.getEggManager().createEgg(rarity == null ? Rarity.COMMON : rarity);
+            refreshed.setAmount(item.getAmount());
+            return refreshed;
+        }
+
+        if (plugin.getIncubatorManager().isIncubatorItem(item)) {
+            ItemStack refreshed = plugin.getIncubatorManager().createIncubatorItem();
+            refreshed.setAmount(item.getAmount());
+            return refreshed;
+        }
+
+        return null;
     }
 
     private PetInstance findPetById(List<PetInstance> pets, int databaseId) {
@@ -1407,6 +1484,14 @@ public class PetManager {
                     if (appearance != null) {
                         horse.setColor(appearance.color());
                         horse.setStyle(appearance.style());
+                    }
+                }
+            }
+            case LLAMA, TRADER_LLAMA -> {
+                if (entity instanceof Llama llama && pet.getAppearanceVariant() != null) {
+                    try {
+                        llama.setColor(Llama.Color.valueOf(pet.getAppearanceVariant()));
+                    } catch (IllegalArgumentException ignored) {
                     }
                 }
             }
@@ -1778,6 +1863,11 @@ public class PetManager {
         Horse.Color color = colors[ThreadLocalRandom.current().nextInt(colors.length)];
         Horse.Style style = styles[ThreadLocalRandom.current().nextInt(styles.length)];
         return color.name() + ":" + style.name();
+    }
+
+    private Llama.Color randomLlamaColor() {
+        Llama.Color[] values = Llama.Color.values();
+        return values[ThreadLocalRandom.current().nextInt(values.length)];
     }
 
     private DyeColor randomSheepColor() {

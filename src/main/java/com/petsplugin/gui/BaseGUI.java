@@ -106,19 +106,20 @@ public abstract class BaseGUI implements InventoryHolder {
         protected ItemStack createFollowModeItem(UUID playerUuid, boolean includeCommandHint) {
         PetFollowMode mode = plugin.getSettingsManager().getFollowMode(playerUuid);
         boolean follow = mode == PetFollowMode.FOLLOW;
+        Player player = Bukkit.getPlayer(playerUuid);
 
         ItemStack item = new ItemStack(follow ? Material.LEAD : Material.BELL);
         ItemMeta meta = item.getItemMeta();
-        String modeOnLabel = plugin.getLanguageManager().getString("ui.labels.on", "ON");
-        String modeOffLabel = plugin.getLanguageManager().getString("ui.labels.off", "OFF");
-        String modeFollowLabel = plugin.getLanguageManager().getString("pet.mode.FOLLOW", "Follow");
-        String modeStayLabel = plugin.getLanguageManager().getString("pet.mode.STAY", "Stay");
+        String modeOnLabel = plugin.getLanguageManager().getString(player, "ui.labels.on", "ON");
+        String modeOffLabel = plugin.getLanguageManager().getString(player, "ui.labels.off", "OFF");
+        String modeFollowLabel = plugin.getLanguageManager().getString(player, "pet.mode.FOLLOW", "Follow");
+        String modeStayLabel = plugin.getLanguageManager().getString(player, "pet.mode.STAY", "Stay");
         String title = includeCommandHint
-            ? plugin.getLanguageManager().getString(
+            ? plugin.getLanguageManager().getString(player,
                     "basegui.follow_mode",
                     "Follow Mode: %state%",
                     Map.of("state", follow ? modeOnLabel : modeOffLabel))
-            : plugin.getLanguageManager().getString(
+            : plugin.getLanguageManager().getString(player,
                     follow ? "basegui.mode_follow" : "basegui.mode_stay",
                     "Mode: %mode%",
                     Map.of("mode", follow ? modeFollowLabel : modeStayLabel));
@@ -128,16 +129,16 @@ public abstract class BaseGUI implements InventoryHolder {
 
         List<Component> lore = new ArrayList<>();
         lore.add(Component.empty());
-        lore.add(plugin.getLanguageManager().getMessage("basegui.follow_keeps_your_active_pet", "Follow keeps your active pet near you.").color(NamedTextColor.GRAY)
+        lore.add(plugin.getLanguageManager().getMessage(player, "basegui.follow_keeps_your_active_pet", "Follow keeps your active pet near you.").color(NamedTextColor.GRAY)
             .decoration(TextDecoration.ITALIC, false));
-        lore.add(plugin.getLanguageManager().getMessage("basegui.stay_keeps_your_pet_in", "Stay keeps your pet in place.").color(NamedTextColor.GRAY)
+        lore.add(plugin.getLanguageManager().getMessage(player, "basegui.stay_keeps_your_pet_in", "Stay keeps your pet in place.").color(NamedTextColor.GRAY)
             .decoration(TextDecoration.ITALIC, false));
         if (includeCommandHint) {
-            lore.add(plugin.getLanguageManager().getMessage("basegui.commands_pets_follow_pets_stay", "Commands: /pets follow, /pets stay").color(NamedTextColor.DARK_GRAY)
+            lore.add(plugin.getLanguageManager().getMessage(player, "basegui.commands_pets_follow_pets_stay", "Commands: /pets follow, /pets stay").color(NamedTextColor.DARK_GRAY)
                 .decoration(TextDecoration.ITALIC, false));
         }
         lore.add(Component.empty());
-        lore.add(plugin.getLanguageManager().getMessage("basegui.click_to_toggle", "Click to toggle.").color(NamedTextColor.YELLOW)
+        lore.add(plugin.getLanguageManager().getMessage(player, "basegui.click_to_toggle", "Click to toggle.").color(NamedTextColor.YELLOW)
             .decoration(TextDecoration.ITALIC, false));
 
         meta.lore(lore);

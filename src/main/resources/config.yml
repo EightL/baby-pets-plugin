@@ -2,7 +2,7 @@
 #  Baby Pets — Configuration
 # ══════════════════════════════════════════════════════════
 config_version: 2
-locale: "zh_CN"
+locale: "en"
 
 database:
   file: "pets.db"

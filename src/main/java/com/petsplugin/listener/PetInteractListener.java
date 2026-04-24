@@ -41,6 +41,10 @@ public class PetInteractListener implements Listener {
 
     @EventHandler
     public void onPetName(PlayerNameEntityEvent event) {
+        plugin.getLanguageManager().withPlayer(event.getPlayer(), () -> handlePetName(event));
+    }
+
+    private void handlePetName(PlayerNameEntityEvent event) {
         if (!plugin.getPetManager().isPetEntity(event.getEntity())) return;
 
         event.setCancelled(true);
@@ -75,12 +79,12 @@ public class PetInteractListener implements Listener {
 
     @EventHandler
     public void onPetInteractAt(PlayerInteractAtEntityEvent event) {
-        handlePetInteract(event, event.getClickedPosition().getY());
+        plugin.getLanguageManager().withPlayer(event.getPlayer(), () -> handlePetInteract(event, event.getClickedPosition().getY()));
     }
 
     @EventHandler
     public void onPetInteract(PlayerInteractEntityEvent event) {
-        handlePetInteract(event, null);
+        plugin.getLanguageManager().withPlayer(event.getPlayer(), () -> handlePetInteract(event, null));
     }
 
     private void handlePetInteract(PlayerInteractEntityEvent event, Double clickedY) {

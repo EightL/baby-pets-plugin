@@ -44,6 +44,10 @@ public class PetsCommand implements CommandExecutor, TabExecutor {
             return true;
         }
 
+        return plugin.getLanguageManager().withPlayer(player, () -> handlePlayerCommand(player, args));
+    }
+
+    private boolean handlePlayerCommand(Player player, String[] args) {
         if (args.length == 0) {
             new PetCollectionGUI(plugin, player).open(player);
             return true;
@@ -56,6 +60,7 @@ public class PetsCommand implements CommandExecutor, TabExecutor {
             case "givepet", "addpet" -> handleGivePet(player, args);
             case "hatch" -> handleHatch(player);
             case "settings" -> handleSettings(player);
+            case "language", "locale" -> handleLanguage(player, args);
             case "select" -> handleSelect(player, args);
             case "deselect" -> handleDeselect(player);
             case "follow" -> handleFollowMode(player, PetFollowMode.FOLLOW);
@@ -83,6 +88,8 @@ public class PetsCommand implements CommandExecutor, TabExecutor {
                 .append(plugin.getLanguageManager().getMessage("petscommand.show_active_pet_stats", " - Show active pet stats").color(NamedTextColor.GRAY)));
         player.sendMessage(plugin.getLanguageManager().getMessage("petscommand.pets_settings", "/pets settings").color(NamedTextColor.YELLOW)
                 .append(plugin.getLanguageManager().getMessage("petscommand.open_pet_settings", " - Open pet settings").color(NamedTextColor.GRAY)));
+        player.sendMessage(plugin.getLanguageManager().getMessage("petscommand.pets_language_code", "/pets language <code>").color(NamedTextColor.YELLOW)
+                .append(plugin.getLanguageManager().getMessage("petscommand.change_your_language", " - Change your language").color(NamedTextColor.GRAY)));
         player.sendMessage(plugin.getLanguageManager().getMessage("petscommand.pets_follow", "/pets follow").color(NamedTextColor.YELLOW)
                 .append(plugin.getLanguageManager().getMessage("petscommand.set_your_active_pet_to", " - Set your active pet to follow").color(NamedTextColor.GRAY)));
         player.sendMessage(plugin.getLanguageManager().getMessage("petscommand.pets_stay", "/pets stay").color(NamedTextColor.YELLOW)
@@ -121,6 +128,37 @@ public class PetsCommand implements CommandExecutor, TabExecutor {
         return true;
     }
 
+    private boolean handleLanguage(Player player, String[] args) {
+        if (args.length < 2) {
+            String current = plugin.getLanguageManager().getPlayerLocale(player);
+            player.sendMessage(plugin.getLanguageManager().getMessage(player,
+                    "petscommand.language_usage",
+                    "Usage: /pets language <code> (current: %locale%)",
+                    "locale", current
+            ).color(NamedTextColor.YELLOW));
+            return true;
+        }
+
+        String locale = plugin.getLanguageManager().normalizeLocale(args[1]);
+        if (locale == null || !plugin.getLanguageManager().isLocaleAvailable(locale)) {
+            player.sendMessage(plugin.getLanguageManager().getMessage(player,
+                    "petscommand.language_not_found",
+                    "Language file not found: %file%",
+                    "file", "lang_" + args[1] + ".yml"
+            ).color(NamedTextColor.RED));
+            return true;
+        }
+
+        plugin.getSettingsManager().setLanguageLocale(player.getUniqueId(), locale);
+        plugin.getPetManager().refreshPlayerCustomItems(player);
+        player.sendMessage(plugin.getLanguageManager().getMessage(player,
+                "petscommand.language_updated",
+                "Language updated to %locale%.",
+                "locale", plugin.getLanguageManager().getLocaleDisplayName(player, locale)
+        ).color(NamedTextColor.GREEN));
+        return true;
+    }
+
     private boolean handleGive(Player player, String[] args) {
         if (!requireAdmin(player)) {
             return true;
@@ -146,12 +184,12 @@ public class PetsCommand implements CommandExecutor, TabExecutor {
             return true;
         }
 
-        ItemStack egg = plugin.getEggManager().createEgg(rarity);
+        ItemStack egg = plugin.getLanguageManager().withPlayer(target, () -> plugin.getEggManager().createEgg(rarity));
         target.getInventory().addItem(egg);
         player.sendMessage(plugin.getLanguageManager().getMessage(
                 "petscommand.gave_egg_to_player",
                 "Gave %rarity% egg to %player%",
-                "rarity", plugin.getPetManager().getLocalizedRarity(rarity),
+                "rarity", plugin.getPetManager().getLocalizedRarity(player, rarity),
                 "player", target.getName()
         ).color(NamedTextColor.GREEN));
         return true;
@@ -291,11 +329,11 @@ public class PetsCommand implements CommandExecutor, TabExecutor {
         }
 
         int maxLevel = plugin.getMaxLevel();
-        String rarityLabel = plugin.getPetManager().getLocalizedLabel("rarity", "Rarity");
-        String levelLabel = plugin.getPetManager().getLocalizedLabel("level", "Level");
-        String xpLabel = plugin.getPetManager().getLocalizedLabel("xp", "XP");
-        String statusLabel = plugin.getPetManager().getLocalizedLabel("status", "Status");
-        String bonusLabel = plugin.getPetManager().getLocalizedLabel("bonus", "Bonus");
+        String rarityLabel = plugin.getPetManager().getLocalizedLabel(player, "rarity", "Rarity");
+        String levelLabel = plugin.getPetManager().getLocalizedLabel(player, "level", "Level");
+        String xpLabel = plugin.getPetManager().getLocalizedLabel(player, "xp", "XP");
+        String statusLabel = plugin.getPetManager().getLocalizedLabel(player, "status", "Status");
+        String bonusLabel = plugin.getPetManager().getLocalizedLabel(player, "bonus", "Bonus");
 
         player.sendMessage(plugin.getLanguageManager().getMessage(
                         "petinfo.header",
@@ -305,7 +343,7 @@ public class PetsCommand implements CommandExecutor, TabExecutor {
         player.sendMessage(plugin.getLanguageManager().getMessage("petscommand.type", "  Type: ").color(NamedTextColor.GRAY)
                 .append(Component.text(type.getLocalizedDisplayName(plugin.getLanguageManager())).color(NamedTextColor.WHITE)));
         player.sendMessage(Component.text("  " + rarityLabel + ": ").color(NamedTextColor.GRAY)
-            .append(Component.text(plugin.getPetManager().getLocalizedRarity(type.getRarity()))
+            .append(Component.text(plugin.getPetManager().getLocalizedRarity(player, type.getRarity()))
                 .color(type.getRarity().getColor())));
         player.sendMessage(Component.text("  " + levelLabel + ": ").color(NamedTextColor.GRAY)
                 .append(Component.text(pet.getLevel() + "/" + maxLevel).color(NamedTextColor.YELLOW)));
@@ -318,7 +356,7 @@ public class PetsCommand implements CommandExecutor, TabExecutor {
         }
 
         player.sendMessage(Component.text("  " + statusLabel + ": ").color(NamedTextColor.GRAY)
-            .append(Component.text(plugin.getPetManager().getLocalizedStatusDisplay(pet.getStatus()))
+            .append(Component.text(plugin.getPetManager().getLocalizedStatusDisplay(player, pet.getStatus()))
                 .color(NamedTextColor.YELLOW)));
         if (plugin.getPetManager().arePetAbilitiesEnabled()) {
             if (type.getSpecialAbility() == PetType.SpecialAbility.STORAGE) {
@@ -404,7 +442,7 @@ public class PetsCommand implements CommandExecutor, TabExecutor {
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) {
             List<String> completions = new ArrayList<>(
-                    List.of("help", "info", "settings", "follow", "stay", "hideothers",
+                    List.of("help", "info", "settings", "language", "follow", "stay", "hideothers",
                         "sounds", "notifications", "select", "deselect"));
             if (sender.hasPermission("pets.admin")) {
                 completions.addAll(List.of("give", "givepet", "setlevel", "reload", "incubator", "hatch"));
@@ -425,6 +463,9 @@ public class PetsCommand implements CommandExecutor, TabExecutor {
             }
             if (args[0].equalsIgnoreCase("setlevel")) {
                 return List.of("1", "5", "10");
+            }
+            if (args[0].equalsIgnoreCase("language") || args[0].equalsIgnoreCase("locale")) {
+                return filterCompletions(plugin.getLanguageManager().getAvailableLocales(), args[1]);
             }
             if (args[0].equalsIgnoreCase("givepet") || args[0].equalsIgnoreCase("addpet")) {
                 return filterCompletions(new ArrayList<>(plugin.getPetTypes().keySet()), args[1]);

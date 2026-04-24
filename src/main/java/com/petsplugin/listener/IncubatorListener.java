@@ -77,6 +77,10 @@ public class IncubatorListener implements Listener {
      */
     @EventHandler(ignoreCancelled = true)
     public void onEggRightClick(PlayerInteractEvent event) {
+        plugin.getLanguageManager().withPlayer(event.getPlayer(), () -> handleEggRightClick(event));
+    }
+
+    private void handleEggRightClick(PlayerInteractEvent event) {
         if (event.getHand() != EquipmentSlot.HAND) return;
 
         Action action = event.getAction();
@@ -100,6 +104,10 @@ public class IncubatorListener implements Listener {
      */
     @EventHandler
     public void onInteract(PlayerInteractEvent event) {
+        plugin.getLanguageManager().withPlayer(event.getPlayer(), () -> handleInteract(event));
+    }
+
+    private void handleInteract(PlayerInteractEvent event) {
         if (event.getAction() != Action.RIGHT_CLICK_BLOCK) return;
         if (event.getHand() != EquipmentSlot.HAND) return;
 
