@@ -16,7 +16,10 @@ import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
 
-import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -26,6 +29,8 @@ import java.util.Map;
  * Standalone pet companion system with optional Fish Rework integration.
  */
 public class PetsPlugin extends JavaPlugin {
+
+    private static final int CURRENT_CONFIG_VERSION = 2;
 
     private PetDatabaseManager databaseManager;
     private EggManager eggManager;
@@ -48,6 +53,7 @@ public class PetsPlugin extends JavaPlugin {
     public void onEnable() {
         // Save default configs
         saveDefaultConfig();
+        ensureConfigDefaults();
         loadRuntimeConfigCache();
 
         // Load pet type definitions
@@ -106,6 +112,7 @@ public class PetsPlugin extends JavaPlugin {
      */
     public void reload() {
         reloadConfig();
+        ensureConfigDefaults();
         loadRuntimeConfigCache();
         loadPetTypes();
         if (petManager != null) {
@@ -130,16 +137,57 @@ public class PetsPlugin extends JavaPlugin {
         petCooldownMillis = getConfig().getLong("status.pet_cooldown_seconds", 5L) * 1000L;
     }
 
+    private void ensureConfigDefaults() {
+        int version = getConfig().getInt("config_version", 0);
+        boolean migrated = version < CURRENT_CONFIG_VERSION;
+
+        // Add newly bundled config keys while preserving server-owner values.
+        getConfig().options().copyDefaults(true);
+        boolean addedDefaults = copyMissingConfigDefaults();
+
+        if (migrated) {
+            getConfig().set("config_version", CURRENT_CONFIG_VERSION);
+        }
+
+        if (migrated || addedDefaults) {
+            saveConfig();
+            reloadConfig();
+        }
+
+        if (migrated) {
+            getLogger().info("Config migrated to v" + CURRENT_CONFIG_VERSION + ".");
+        }
+    }
+
+    private boolean copyMissingConfigDefaults() {
+        try (InputStream in = getResource("config.yml")) {
+            if (in == null) {
+                return false;
+            }
+
+            YamlConfiguration defaults = YamlConfiguration.loadConfiguration(new InputStreamReader(in, StandardCharsets.UTF_8));
+            boolean changed = false;
+            for (String path : defaults.getKeys(true)) {
+                if (defaults.isConfigurationSection(path)) {
+                    continue;
+                }
+                if (!getConfig().isSet(path)) {
+                    getConfig().set(path, defaults.get(path));
+                    changed = true;
+                }
+            }
+            return changed;
+        } catch (IOException e) {
+            getLogger().warning("Failed to update config defaults: " + e.getMessage());
+            return false;
+        }
+    }
+
     /**
      * Load pet type definitions from pets.yml.
      */
     private void loadPetTypes() {
-        File petsFile = new File(getDataFolder(), "pets.yml");
-        if (!petsFile.exists()) {
-            saveResource("pets.yml", false);
-        }
-
-        FileConfiguration petsConfig = YamlConfiguration.loadConfiguration(petsFile);
+        FileConfiguration petsConfig = YamlContentSupport.loadYaml(this, "pets.yml");
         ConfigurationSection section = petsConfig.getConfigurationSection("pets");
         if (section == null) {
             getLogger().warning("No pet definitions found in pets.yml!");

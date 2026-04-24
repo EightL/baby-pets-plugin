@@ -8,6 +8,8 @@
 # storage_size:    5 (horse tier) | 9 (llama) | 14 (camel) | 18 (trader llama)
 # storage_glass:   Bukkit Material name for the filler pane
 
+content_version: 1
+
 pets:
 
   # ── Common ─────────────────────────────────────────────────
