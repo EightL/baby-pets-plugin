@@ -33,6 +33,10 @@ public class PetsCommand implements CommandExecutor, TabExecutor {
 
     @Override
     public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (args.length > 0 && (args[0].equalsIgnoreCase("giveincubator") || args[0].equalsIgnoreCase("giveincubatoritem"))) {
+            return handleGiveIncubator(sender, args);
+        }
+
         if (!(sender instanceof Player player)) {
             sender.sendMessage(plugin.getLanguageManager().getMessage("petscommand.only_players_can_use_this", "Only players can use this command.").color(NamedTextColor.RED));
             return true;
@@ -438,6 +442,32 @@ public class PetsCommand implements CommandExecutor, TabExecutor {
         return true;
     }
 
+    private boolean handleGiveIncubator(CommandSender sender, String[] args) {
+        if (sender instanceof Player player && !player.hasPermission("pets.admin")) {
+            player.sendMessage(plugin.getLanguageManager().getMessage("petscommand.no_permission", "No permission.").color(NamedTextColor.RED));
+            return true;
+        }
+
+        Player target = null;
+        if (args.length >= 2) {
+            target = Bukkit.getPlayer(args[1]);
+        } else if (sender instanceof Player player) {
+            target = player;
+        }
+
+        if (target == null) {
+            sender.sendMessage(plugin.getLanguageManager().getMessage("petscommand.player_not_found", "Player not found.").color(NamedTextColor.RED));
+            return true;
+        }
+
+        target.getInventory().addItem(plugin.getIncubatorManager().createIncubatorItem());
+        target.sendMessage(plugin.getLanguageManager().getMessage("petscommand.gave_you_a_pet_incubator", "Gave you a Pet Incubator!").color(NamedTextColor.GREEN));
+        if (!target.getName().equals(sender.getName())) {
+            sender.sendMessage(Component.text("Gave Pet Incubator to " + target.getName() + ".").color(NamedTextColor.GREEN));
+        }
+        return true;
+    }
+
     @Override
     public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
         if (args.length == 1) {
@@ -445,13 +475,13 @@ public class PetsCommand implements CommandExecutor, TabExecutor {
                     List.of("help", "info", "settings", "language", "follow", "stay", "hideothers",
                         "sounds", "notifications", "select", "deselect"));
             if (sender.hasPermission("pets.admin")) {
-                completions.addAll(List.of("give", "givepet", "setlevel", "reload", "incubator", "hatch"));
+                completions.addAll(List.of("give", "givepet", "giveincubator", "setlevel", "reload", "incubator", "hatch"));
             }
             return filterCompletions(completions, args[0]);
         }
 
         if (args.length == 2) {
-            if (args[0].equalsIgnoreCase("give")) {
+            if (args[0].equalsIgnoreCase("give") || args[0].equalsIgnoreCase("giveincubator") || args[0].equalsIgnoreCase("giveincubatoritem")) {
                 return null; // Default player name completion
             }
             if (args[0].equalsIgnoreCase("select") && sender instanceof Player player) {
