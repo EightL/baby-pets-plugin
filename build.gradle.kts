@@ -3,7 +3,7 @@ plugins {
 }
 
 group = "com.petsplugin"
-version = "1.2.1"
+version = "1.2.2"
 
 data class PaperBuildTarget(
     val apiVersion: String,
