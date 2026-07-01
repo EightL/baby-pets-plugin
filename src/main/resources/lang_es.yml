@@ -89,7 +89,9 @@ petscommand.available_types: 'Disponibles: %types%'
 petscommand.babypets_config_reloaded: '[BabyPets] ¡Configuración recargada!'
 petscommand.deselect_current_pet: ' - Deselecciona la mascota actual'
 petscommand.gave_egg_to_player: 'Se dio un huevo %rarity% a %player%'
+petscommand.gave_pet_to_player: 'Se dio %pet% a %player%'
 petscommand.gave_you_a_pet_incubator: ¡Te dio una Incubadora de mascotas!
+petscommand.gave_you_a_pet: 'Has recibido %pet%.'
 petscommand.get_an_incubator_item: ' - Obtén una incubadora'
 petscommand.give_an_egg: ' - Da un huevo'
 petscommand.hide_other_players_pets: ' - Oculta las mascotas de otros jugadores'
@@ -108,7 +110,7 @@ petscommand.pets: /pets
 petscommand.pets_deselect: /pets deselect
 petscommand.pets_follow: /pets follow
 petscommand.pets_give_player_rarity: /pets give <player> <rarity>
-petscommand.pets_givepet_pettype: /pets givepet <pet_type>
+petscommand.pets_givepet_pettype: /pets givepet [jugador] <tipo_mascota>
 petscommand.pets_hatch: /pets hatch
 petscommand.pets_help: ─── Ayuda de mascotas ───
 petscommand.pets_hideothers_onofftoggle: /pets hideothers [on|off|toggle]
@@ -138,7 +140,8 @@ petscommand.unknown_pet_type: Tipo de mascota desconocido.
 petscommand.unknown_pet_type_with_name: 'Tipo de mascota desconocido: %type%'
 petscommand.unknown_subcommand_use_pets_help: Subcomando desconocido. Usa /pets help
 petscommand.usage_pets_give_player_rarity: 'Uso: /pets give <jugador> <rareza>'
-petscommand.usage_pets_givepet_pettype: 'Uso: /pets givepet <tipo_mascota>'
+petscommand.usage_pets_givepet_pettype: 'Uso: /pets givepet [jugador] <tipo_mascota>'
+petscommand.usage_pets_givepet_player_pettype: 'Uso: /pets givepet [jugador] <tipo_mascota>'
 petscommand.usage_pets_select_petid: 'Uso: /pets select <id_mascota>'
 petscommand.usage_pets_setlevel_level: 'Uso: /pets setlevel <nivel>'
 petscommand.usage_toggle: 'Uso: /pets %command% [on|off|toggle]'

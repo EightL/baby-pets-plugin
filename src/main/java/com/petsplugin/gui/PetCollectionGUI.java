@@ -222,7 +222,7 @@ public class PetCollectionGUI extends BaseGUI {
                                     "slots", String.valueOf(activeSlots))
                             .color(NamedTextColor.GREEN)
                             .decoration(TextDecoration.ITALIC, false));
-                } else {
+                } else if (type.hasPlayerAttribute()) {
                     String sign = type.isNegativeAttribute() ? "" : "+";
                     lore.add(Component.text(plugin.getLanguageManager().getString(
                                     "petcollectiongui.attribute_line",
@@ -232,6 +232,15 @@ public class PetCollectionGUI extends BaseGUI {
                         .decoration(TextDecoration.ITALIC, false)
                         .append(Component.text(sign + type.formatAttributeBonus(pet.getLevel()))
                             .color(NamedTextColor.GREEN)));
+                } else if (type.hasPotionBonuses()) {
+                    String effects = type.getPotionBonuses().stream()
+                            .map(bonus -> bonus.getEffectType().getKey().getKey() + " " + bonus.getTierDisplay())
+                            .reduce((left, right) -> left + ", " + right)
+                            .orElse("none");
+                    lore.add(Component.text(" Effects: ").color(NamedTextColor.GRAY)
+                            .decoration(TextDecoration.ITALIC, false)
+                            .append(Component.text(effects).color(NamedTextColor.GREEN)));
+                } else {
                 }
             }
                 lore.add(Component.text(statusLabel + ": ").color(NamedTextColor.GRAY)

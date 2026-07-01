@@ -21,6 +21,21 @@ eggs:
   loot_injection:
     enabled: true
     base_chance: 8.0
+    # Loot injection rolls in 2 stages:
+    # 1) base_chance decides whether any egg is added at all.
+    # 2) rarity is then rolled.
+    #
+    # Rarity priority:
+    # - If eggs.rarity_weights exists and has total weight > 0, those weights are used.
+    # - Otherwise the thresholds below are used as fallback.
+    #
+    # Threshold fallback logic:
+    # A random number from 0-100 is rolled.
+    # If roll < common_threshold => COMMON
+    # else if roll < uncommon_threshold => UNCOMMON
+    # else if roll < rare_threshold => RARE
+    # else if roll < epic_threshold => EPIC
+    # else => LEGENDARY
     common_threshold: 50.0
     uncommon_threshold: 75.0
     rare_threshold: 90.0

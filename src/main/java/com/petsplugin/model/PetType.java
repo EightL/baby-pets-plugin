@@ -1,14 +1,20 @@
 package com.petsplugin.model;
 
 import com.petsplugin.manager.LanguageManager;
+import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Registry;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.entity.EntityType;
+import org.bukkit.potion.PotionEffectType;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 /**
  * Represents a pet species loaded from pets.yml.
@@ -17,6 +23,20 @@ import java.util.Locale;
 public class PetType {
 
     public enum SpecialAbility { NONE, UNDERWATER_VISION, STORAGE }
+
+    public static class PotionBonus {
+        private final PotionEffectType effectType;
+        private final int amplifier;
+
+        public PotionBonus(PotionEffectType effectType, int amplifier) {
+            this.effectType = effectType;
+            this.amplifier = amplifier;
+        }
+
+        public PotionEffectType getEffectType() { return effectType; }
+        public int getAmplifier() { return amplifier; }
+        public String getTierDisplay() { return amplifier >= 1 ? "II" : "I"; }
+    }
 
     private static final double DISPLAY_EPSILON = 1.0E-9;
 
@@ -41,6 +61,7 @@ public class PetType {
     private final boolean hasPlayerAttribute;
     private final double attributePerLevel;
     private final String attributeDisplay;   // Human-readable label
+    private final List<PotionBonus> potionBonuses;
 
     public PetType(String id, ConfigurationSection section) {
         this.id = id;
@@ -69,35 +90,81 @@ public class PetType {
 
         // Player attribute
         ConfigurationSection attr = section.getConfigurationSection("player_attribute");
-        this.hasPlayerAttribute = (attr != null);
         if (attr != null) {
-            this.playerAttribute = parseAttribute(attr.getString("type", "MAX_HEALTH"));
+            String configuredType = attr.getString("type");
+            Attribute parsed = parseAttribute(configuredType);
+            this.hasPlayerAttribute = (parsed != null);
+            this.playerAttribute = parsed;
             this.attributePerLevel = attr.getDouble("value_per_level", 0.0);
             this.attributeDisplay = attr.getString("display", "Unknown");
+
+            if (configuredType != null && !configuredType.isBlank() && parsed == null) {
+                Bukkit.getLogger().warning("[BabyPets] Invalid player_attribute.type '" + configuredType
+                        + "' for pet '" + id + "'. This bonus will be disabled. Potion effects like EFFECT.MINECRAFT.* are not supported here.");
+            }
         } else {
-            this.playerAttribute = Attribute.MAX_HEALTH;
+            this.hasPlayerAttribute = false;
+            this.playerAttribute = null;
             this.attributePerLevel = 0.0;
             this.attributeDisplay = "";
         }
+
+        List<PotionBonus> parsedPotions = new ArrayList<>();
+        List<?> effectsList = section.getList("effects");
+        if (effectsList != null) {
+            for (Object obj : effectsList) {
+                if (obj instanceof Map<?, ?> map) {
+                    addPotionBonus(parsedPotions, id, map);
+                }
+            }
+        }
+        this.potionBonuses = Collections.unmodifiableList(parsedPotions);
     }
 
     private Attribute parseAttribute(String name) {
         if (name == null || name.isBlank()) {
-            return Attribute.MAX_HEALTH;
+            return null;
         }
 
         String normalized = name.trim().toLowerCase(Locale.ROOT);
         NamespacedKey key = normalized.contains(":")
                 ? NamespacedKey.fromString(normalized)
                 : NamespacedKey.minecraft(normalized);
-        if (key != null) {
-            Attribute attribute = Registry.ATTRIBUTE.get(key);
-            if (attribute != null) {
-                return attribute;
-            }
+        if (key == null) {
+            return null;
         }
 
-        return Attribute.MAX_HEALTH;
+        return Registry.ATTRIBUTE.get(key);
+    }
+
+    private void addPotionBonus(List<PotionBonus> out, String petId, Map<?, ?> effectMap) {
+        Object typeValue = effectMap.get("type");
+        String typeName = typeValue == null ? "" : String.valueOf(typeValue).trim().toLowerCase(Locale.ROOT);
+        if (typeName.isBlank()) {
+            return;
+        }
+
+        int amplifier = 0;
+        Object tierValue = effectMap.get("tier");
+        if (tierValue != null && String.valueOf(tierValue).trim().equalsIgnoreCase("II")) {
+            amplifier = 1;
+        }
+
+        NamespacedKey key = typeName.contains(":")
+                ? NamespacedKey.fromString(typeName)
+                : NamespacedKey.minecraft(typeName);
+        if (key == null) {
+            Bukkit.getLogger().warning("[BabyPets] Unknown potion effect '" + typeName + "' for pet '" + petId + "'. This entry will be ignored.");
+            return;
+        }
+
+        PotionEffectType effectType = Registry.EFFECT.get(key);
+        if (effectType == null) {
+            Bukkit.getLogger().warning("[BabyPets] Unknown potion effect '" + typeName + "' for pet '" + petId + "'. This entry will be ignored.");
+            return;
+        }
+
+        out.add(new PotionBonus(effectType, amplifier));
     }
 
     // Getters
@@ -134,6 +201,8 @@ public class PetType {
     public String getLocalizedAttributeDisplay(LanguageManager lm) {
         return lm.getString("pet." + id + ".attribute", attributeDisplay);
     }
+    public List<PotionBonus> getPotionBonuses() { return potionBonuses; }
+    public boolean hasPotionBonuses() { return !potionBonuses.isEmpty(); }
 
     /**
      * How many storage slots are active at the given level.

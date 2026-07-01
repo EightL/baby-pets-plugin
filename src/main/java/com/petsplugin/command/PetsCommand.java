@@ -37,6 +37,10 @@ public class PetsCommand implements CommandExecutor, TabExecutor {
             return handleGiveIncubator(sender, args);
         }
 
+        if (args.length > 0 && (args[0].equalsIgnoreCase("givepet") || args[0].equalsIgnoreCase("addpet"))) {
+            return handleGivePet(sender, args);
+        }
+
         if (!(sender instanceof Player player)) {
             sender.sendMessage(plugin.getLanguageManager().getMessage("petscommand.only_players_can_use_this", "Only players can use this command.").color(NamedTextColor.RED));
             return true;
@@ -113,8 +117,8 @@ public class PetsCommand implements CommandExecutor, TabExecutor {
             player.sendMessage(plugin.getLanguageManager().getMessage("petscommand.admin", "─── Admin ───").color(NamedTextColor.RED));
             player.sendMessage(plugin.getLanguageManager().getMessage("petscommand.pets_give_player_rarity", "/pets give <player> <rarity>").color(NamedTextColor.YELLOW)
                     .append(plugin.getLanguageManager().getMessage("petscommand.give_an_egg", " - Give an egg").color(NamedTextColor.GRAY)));
-                player.sendMessage(plugin.getLanguageManager().getMessage("petscommand.pets_givepet_pettype", "/pets givepet <pet_type>").color(NamedTextColor.YELLOW)
-                    .append(plugin.getLanguageManager().getMessage("petscommand.add_a_pet_directly_to", " - Add a pet directly to your collection").color(NamedTextColor.GRAY)));
+                player.sendMessage(plugin.getLanguageManager().getMessage("petscommand.pets_givepet_pettype", "/pets givepet [player] <pet_type>").color(NamedTextColor.YELLOW)
+                    .append(plugin.getLanguageManager().getMessage("petscommand.add_a_pet_directly_to", " - Add a pet directly to a collection").color(NamedTextColor.GRAY)));
             player.sendMessage(plugin.getLanguageManager().getMessage("petscommand.pets_setlevel_level", "/pets setlevel <level>").color(NamedTextColor.YELLOW)
                     .append(plugin.getLanguageManager().getMessage("petscommand.set_selected_pets_level", " - Set selected pet's level").color(NamedTextColor.GRAY)));
             player.sendMessage(plugin.getLanguageManager().getMessage("petscommand.pets_incubator", "/pets incubator").color(NamedTextColor.YELLOW)
@@ -199,25 +203,39 @@ public class PetsCommand implements CommandExecutor, TabExecutor {
         return true;
     }
 
-    private boolean handleGivePet(Player player, String[] args) {
-        if (!requireAdmin(player)) {
+    private boolean handleGivePet(CommandSender sender, String[] args) {
+        if (sender instanceof Player player && !requireAdmin(player)) {
             return true;
         }
 
-        if (args.length < 2) {
-            player.sendMessage(plugin.getLanguageManager().getMessage("petscommand.usage_pets_givepet_pettype", "Usage: /pets givepet <pet_type>").color(NamedTextColor.RED));
+        Player target;
+        String petTypeArg;
+
+        if (sender instanceof Player player && args.length == 2) {
+            target = player;
+            petTypeArg = args[1];
+        } else if (args.length >= 3) {
+            target = Bukkit.getPlayerExact(args[1]);
+            petTypeArg = args[2];
+        } else {
+            sender.sendMessage(plugin.getLanguageManager().getMessage("petscommand.usage_pets_givepet_player_pettype", "Usage: /pets givepet [player] <pet_type>").color(NamedTextColor.RED));
             return true;
         }
 
-        String petTypeId = args[1].toLowerCase();
+        if (target == null) {
+            sender.sendMessage(plugin.getLanguageManager().getMessage("petscommand.player_not_found", "Player not found.").color(NamedTextColor.RED));
+            return true;
+        }
+
+        String petTypeId = petTypeArg.toLowerCase();
         PetType type = plugin.getPetTypes().get(petTypeId);
         if (type == null) {
-            player.sendMessage(plugin.getLanguageManager().getMessage(
+            sender.sendMessage(plugin.getLanguageManager().getMessage(
                     "petscommand.unknown_pet_type_with_name",
                     "Unknown pet type: %type%",
-                    "type", args[1]
+                    "type", petTypeArg
             ).color(NamedTextColor.RED));
-            player.sendMessage(plugin.getLanguageManager().getMessage(
+            sender.sendMessage(plugin.getLanguageManager().getMessage(
                     "petscommand.available_types",
                     "Available: %types%",
                     "types", String.join(", ", plugin.getPetTypes().keySet())
@@ -225,14 +243,29 @@ public class PetsCommand implements CommandExecutor, TabExecutor {
             return true;
         }
 
-        PetInstance pet = PetInstance.createNew(player.getUniqueId(), type.getId());
+        PetInstance pet = PetInstance.createNew(target.getUniqueId(), type.getId());
         plugin.getPetManager().ensurePersistentAppearance(pet, type);
         plugin.getDatabaseManager().insertPet(pet);
-        plugin.getPetManager().refreshCache(player.getUniqueId());
+        plugin.getPetManager().refreshCache(target.getUniqueId());
 
-        player.sendMessage(plugin.getLanguageManager().getMessage("petscommand.added", "Added ").color(NamedTextColor.GREEN)
-                .append(Component.text(type.getLocalizedDisplayName(plugin.getLanguageManager())).color(type.getRarity().getColor()))
+        Component petName = Component.text(type.getLocalizedDisplayName(plugin.getLanguageManager())).color(type.getRarity().getColor());
+        sender.sendMessage(plugin.getLanguageManager().getMessage("petscommand.added", "Added ").color(NamedTextColor.GREEN)
+                .append(petName)
                 .append(plugin.getLanguageManager().getMessage("petscommand.to_your_collection", " to your collection.").color(NamedTextColor.GREEN)));
+
+        if (!sender.getName().equals(target.getName())) {
+            sender.sendMessage(plugin.getLanguageManager().getMessage(
+                    "petscommand.gave_pet_to_player",
+                    "Gave %pet% to %player%.",
+                    "pet", type.getLocalizedDisplayName(plugin.getLanguageManager()),
+                    "player", target.getName()
+            ).color(NamedTextColor.GREEN));
+            plugin.getLanguageManager().withPlayer(target, () -> target.sendMessage(plugin.getLanguageManager().getMessage(
+                    "petscommand.gave_you_a_pet",
+                    "You received %pet%.",
+                    "pet", type.getLocalizedDisplayName(plugin.getLanguageManager())
+            ).color(NamedTextColor.GREEN)));
+        }
         return true;
     }
 
@@ -371,20 +404,27 @@ public class PetsCommand implements CommandExecutor, TabExecutor {
                                         "+%slots% storage space",
                                         "slots", String.valueOf(activeSlots))
                                 .color(NamedTextColor.GREEN)));
-            } else {
-                String sign = type.isNegativeAttribute() ? "" : "+";
-                player.sendMessage(Component.text(plugin.getLanguageManager().getString(
-                                "petinfo.attribute_line",
-                                "  %attribute%: ",
-                                "attribute", type.getLocalizedAttributeDisplay(plugin.getLanguageManager())))
-                                .color(NamedTextColor.GRAY)
-                        .append(Component.text(sign + type.formatAttributeBonus(pet.getLevel()))
-                                .color(NamedTextColor.GREEN))
-                        .append(plugin.getLanguageManager().getMessage(
-                                        "petinfo.attribute_per_level",
-                                        " (%value%/level)",
-                                        "value", sign + type.formatAttributePerLevel())
-                                .color(NamedTextColor.DARK_GRAY)));
+            } else if (type.hasPlayerAttribute()) {
+            String sign = type.isNegativeAttribute() ? "" : "+";
+            player.sendMessage(Component.text(plugin.getLanguageManager().getString(
+                    "petinfo.attribute_line",
+                    "  %attribute%: ",
+                    "attribute", type.getLocalizedAttributeDisplay(plugin.getLanguageManager())))
+                    .color(NamedTextColor.GRAY)
+                .append(Component.text(sign + type.formatAttributeBonus(pet.getLevel()))
+                    .color(NamedTextColor.GREEN))
+                .append(plugin.getLanguageManager().getMessage(
+                        "petinfo.attribute_per_level",
+                        " (%value%/level)",
+                        "value", sign + type.formatAttributePerLevel())
+                    .color(NamedTextColor.DARK_GRAY)));
+            } else if (type.hasPotionBonuses()) {
+            String effects = type.getPotionBonuses().stream()
+                .map(bonus -> bonus.getEffectType().getKey().getKey() + " " + bonus.getTierDisplay())
+                .reduce((left, right) -> left + ", " + right)
+                .orElse("none");
+            player.sendMessage(Component.text("  Effects: ").color(NamedTextColor.GRAY)
+                .append(Component.text(effects).color(NamedTextColor.GREEN)));
             }
         }
         return true;
@@ -498,11 +538,18 @@ public class PetsCommand implements CommandExecutor, TabExecutor {
                 return filterCompletions(plugin.getLanguageManager().getAvailableLocales(), args[1]);
             }
             if (args[0].equalsIgnoreCase("givepet") || args[0].equalsIgnoreCase("addpet")) {
-                return filterCompletions(new ArrayList<>(plugin.getPetTypes().keySet()), args[1]);
+                if (sender instanceof Player) {
+                    return filterCompletions(new ArrayList<>(plugin.getPetTypes().keySet()), args[1]);
+                }
+                return null;
             }
             if (isToggleSubcommand(args[0])) {
                 return filterCompletions(List.of("on", "off", "toggle"), args[1]);
             }
+        }
+
+        if (args.length == 3 && (args[0].equalsIgnoreCase("givepet") || args[0].equalsIgnoreCase("addpet"))) {
+            return filterCompletions(new ArrayList<>(plugin.getPetTypes().keySet()), args[2]);
         }
 
         if (args.length == 3 && args[0].equalsIgnoreCase("give")) {

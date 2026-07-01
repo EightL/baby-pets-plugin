@@ -7,6 +7,16 @@
 # special_ability: NONE | UNDERWATER_VISION | STORAGE
 # storage_size:    5 (horse tier) | 9 (llama) | 14 (camel) | 18 (trader llama)
 # storage_glass:   Bukkit Material name for the filler pane
+#
+# Optional potion effects granted while this pet is active.
+# tier: I or II (default: I)
+# effects:
+#   - type: speed
+#     tier: I
+#   - type: haste
+#     tier: II
+#   - type: regeneration
+#     tier: I
 
 content_version: 1
 

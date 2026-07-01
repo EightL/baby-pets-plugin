@@ -90,7 +90,9 @@ petscommand.available_types: 'Available: %types%'
 petscommand.babypets_config_reloaded: '[BabyPets] Config reloaded!'
 petscommand.deselect_current_pet: ' - Deselect current pet'
 petscommand.gave_egg_to_player: 'Gave %rarity% egg to %player%'
+petscommand.gave_pet_to_player: 'Gave %pet% to %player%'
 petscommand.gave_you_a_pet_incubator: Gave you a Pet Incubator!
+petscommand.gave_you_a_pet: 'You received %pet%.'
 petscommand.get_an_incubator_item: ' - Get an incubator item'
 petscommand.give_an_egg: ' - Give an egg'
 petscommand.hide_other_players_pets: ' - Hide other players'' pets'
@@ -111,7 +113,7 @@ petscommand.pets: /pets
 petscommand.pets_deselect: /pets deselect
 petscommand.pets_follow: /pets follow
 petscommand.pets_give_player_rarity: /pets give <player> <rarity>
-petscommand.pets_givepet_pettype: /pets givepet <pet_type>
+petscommand.pets_givepet_pettype: /pets givepet [player] <pet_type>
 petscommand.pets_hatch: /pets hatch
 petscommand.pets_help: ─── Pets Help ───
 petscommand.pets_hideothers_onofftoggle: /pets hideothers [on|off|toggle]
@@ -141,7 +143,8 @@ petscommand.unknown_pet_type: Unknown pet type.
 petscommand.unknown_pet_type_with_name: 'Unknown pet type: %type%'
 petscommand.unknown_subcommand_use_pets_help: Unknown subcommand. Use /pets help
 petscommand.usage_pets_give_player_rarity: 'Usage: /pets give <player> <rarity>'
-petscommand.usage_pets_givepet_pettype: 'Usage: /pets givepet <pet_type>'
+petscommand.usage_pets_givepet_pettype: 'Usage: /pets givepet [player] <pet_type>'
+petscommand.usage_pets_givepet_player_pettype: 'Usage: /pets givepet [player] <pet_type>'
 petscommand.usage_pets_select_petid: 'Usage: /pets select <pet_id>'
 petscommand.usage_pets_setlevel_level: 'Usage: /pets setlevel <level>'
 petscommand.usage_toggle: 'Usage: /pets %command% [on|off|toggle]'

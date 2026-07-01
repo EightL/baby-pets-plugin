@@ -279,29 +279,44 @@ public class PetDetailGUI extends BaseGUI {
                         .decoration(TextDecoration.ITALIC, false));
             } else {
                 // Normal stat-based pets
-                String sign = type.isNegativeAttribute() ? "" : "+";
-                lore.add(Component.text(plugin.getLanguageManager().getString(
-                                "petdetailgui.attribute_line",
-                                "%attribute%: ",
-                                "attribute", type.getLocalizedAttributeDisplay(plugin.getLanguageManager())))
-                                .color(NamedTextColor.GRAY)
+                if (type.hasPlayerAttribute()) {
+                    String sign = type.isNegativeAttribute() ? "" : "+";
+                    lore.add(Component.text(plugin.getLanguageManager().getString(
+                            "petdetailgui.attribute_line",
+                            "%attribute%: ",
+                            "attribute", type.getLocalizedAttributeDisplay(plugin.getLanguageManager())))
+                            .color(NamedTextColor.GRAY)
                         .decoration(TextDecoration.ITALIC, false)
                         .append(Component.text(sign + type.formatAttributeBonus(pet.getLevel()))
-                                .color(NamedTextColor.GREEN)));
-                lore.add(Component.text(plugin.getLanguageManager().getString(
-                                "petdetailgui.growth_line",
-                                "Growth: %value%/level",
-                                "value", sign + type.formatAttributePerLevel()))
+                            .color(NamedTextColor.GREEN)));
+                    lore.add(Component.text(plugin.getLanguageManager().getString(
+                            "petdetailgui.growth_line",
+                            "Growth: %value%/level",
+                            "value", sign + type.formatAttributePerLevel()))
                         .color(NamedTextColor.DARK_GRAY)
                         .decoration(TextDecoration.ITALIC, false));
-                lore.add(Component.text(plugin.getLanguageManager().getString(
-                                "petdetailgui.at_level_line",
-                                "At Lv%level%: ",
-                                "level", String.valueOf(maxLevel)))
-                                .color(NamedTextColor.DARK_GRAY)
+                    lore.add(Component.text(plugin.getLanguageManager().getString(
+                            "petdetailgui.at_level_line",
+                            "At Lv%level%: ",
+                            "level", String.valueOf(maxLevel)))
+                            .color(NamedTextColor.DARK_GRAY)
                         .decoration(TextDecoration.ITALIC, false)
                         .append(Component.text(sign + type.formatAttributeBonus(maxLevel))
-                                .color(NamedTextColor.YELLOW)));
+                            .color(NamedTextColor.YELLOW)));
+                }
+
+                if (type.hasPotionBonuses()) {
+                    if (type.hasPlayerAttribute()) {
+                    lore.add(Component.empty());
+                    }
+                    String effects = type.getPotionBonuses().stream()
+                        .map(bonus -> bonus.getEffectType().getKey().getKey() + " " + bonus.getTierDisplay())
+                        .reduce((left, right) -> left + ", " + right)
+                        .orElse("none");
+                    lore.add(Component.text("Effects: ").color(NamedTextColor.GRAY)
+                        .decoration(TextDecoration.ITALIC, false)
+                        .append(Component.text(effects).color(NamedTextColor.GREEN)));
+                }
 
                 if (type.getSpecialAbility() == com.petsplugin.model.PetType.SpecialAbility.UNDERWATER_VISION) {
                     lore.add(Component.empty());

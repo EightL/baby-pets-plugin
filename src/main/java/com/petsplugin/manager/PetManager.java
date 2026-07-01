@@ -36,6 +36,7 @@ import java.util.stream.Collectors;
 public class PetManager {
 
     private static final int MAX_NICKNAME_LENGTH = 64;
+    private static final int POTION_REFRESH_TICKS = 200;
 
     private final PetsPlugin plugin;
 
@@ -415,6 +416,7 @@ public class PetManager {
 
         // Apply player attribute bonus
         applyPlayerAttribute(player, pet, type);
+        applyPotionBonuses(player, type);
 
         // Effects
         spawnLoc.getWorld().spawnParticle(Particle.HEART, spawnLoc.clone().add(0, 1, 0), 5, 0.3, 0.3, 0.3);
@@ -452,6 +454,13 @@ public class PetManager {
         Player player = Bukkit.getPlayer(playerUuid);
         if (player != null) {
             removePlayerAttribute(player);
+            PetInstance pet = activePets.get(playerUuid);
+            if (pet != null) {
+                PetType type = plugin.getPetTypes().get(pet.getPetTypeId());
+                if (type != null) {
+                    removePotionBonuses(player, type);
+                }
+            }
         }
 
         if (notify) {
@@ -569,6 +578,34 @@ public class PetManager {
         appliedPlayerAttributes.put(player.getUniqueId(), type.getPlayerAttribute());
     }
 
+    public void applyPotionBonuses(Player player, PetType type) {
+        if (!arePetAbilitiesEnabled() || player == null || type == null || !type.hasPotionBonuses()) return;
+
+        for (PetType.PotionBonus bonus : type.getPotionBonuses()) {
+            if (bonus.getEffectType() == null) continue;
+
+            player.addPotionEffect(new PotionEffect(
+                    bonus.getEffectType(),
+                    POTION_REFRESH_TICKS,
+                    bonus.getAmplifier(),
+                    true,
+                    false,
+                    true
+            ), true);
+        }
+    }
+
+    public void removePotionBonuses(Player player, PetType type) {
+        if (player == null || type == null || !type.hasPotionBonuses()) return;
+
+        for (PetType.PotionBonus bonus : type.getPotionBonuses()) {
+            PotionEffect current = player.getPotionEffect(bonus.getEffectType());
+            if (current != null && current.getAmplifier() == bonus.getAmplifier()) {
+                player.removePotionEffect(bonus.getEffectType());
+            }
+        }
+    }
+
     /** Remove any pet attribute bonus from the player. */
     public void removePlayerAttribute(Player player) {
         Set<Attribute> candidateAttrs = new HashSet<>();
@@ -605,6 +642,13 @@ public class PetManager {
     public void refreshAbilityStateForOnlinePlayers() {
         for (Player player : Bukkit.getOnlinePlayers()) {
             removePlayerAttribute(player);
+            PetInstance active = activePets.get(player.getUniqueId());
+            if (active != null) {
+                PetType type = plugin.getPetTypes().get(active.getPetTypeId());
+                if (type != null) {
+                    removePotionBonuses(player, type);
+                }
+            }
         }
 
         if (!arePetAbilitiesEnabled()) {
@@ -614,7 +658,12 @@ public class PetManager {
         for (Map.Entry<UUID, PetInstance> entry : activePets.entrySet()) {
             Player player = Bukkit.getPlayer(entry.getKey());
             if (player == null || !player.isOnline()) continue;
-            refreshPlayerAttribute(player, entry.getValue());
+            PetInstance pet = entry.getValue();
+            refreshPlayerAttribute(player, pet);
+            PetType type = plugin.getPetTypes().get(pet.getPetTypeId());
+            if (type != null) {
+                applyPotionBonuses(player, type);
+            }
         }
     }
 
@@ -765,6 +814,10 @@ public class PetManager {
             if (type.getSpecialAbility() == PetType.SpecialAbility.UNDERWATER_VISION) {
                 applyUnderwaterVision(player);
             }
+
+            if (type.hasPotionBonuses()) {
+                applyPotionBonuses(player, type);
+            }
         }
     }
 
@@ -774,16 +827,23 @@ public class PetManager {
      * to keep it seamless. Naturally wears off ~5 seconds after leaving water.
      */
     private void applyUnderwaterVision(Player player) {
-        if (player.getEyeLocation().getBlock().isLiquid()) {
-            player.addPotionEffect(new PotionEffect(
-                    PotionEffectType.NIGHT_VISION,
-                    100,    // 5 seconds — refreshed every 2s while underwater
-                    0,
-                    true,   // ambient: subtler particles
-                    false,  // no particles
-                    false   // no HUD icon
-            ));
+        if (!player.getEyeLocation().getBlock().isLiquid()) {
+            return;
         }
+
+        PotionEffect current = player.getPotionEffect(PotionEffectType.NIGHT_VISION);
+        if (current != null && current.getAmplifier() == 0 && current.getDuration() > 160) {
+            return;
+        }
+
+        player.addPotionEffect(new PotionEffect(
+                PotionEffectType.NIGHT_VISION,
+                220,
+                0,
+                true,
+                false,
+                false
+        ));
     }
 
     public double getXpForLevel(int level) {
