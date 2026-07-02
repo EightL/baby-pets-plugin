@@ -222,25 +222,29 @@ public class PetCollectionGUI extends BaseGUI {
                                     "slots", String.valueOf(activeSlots))
                             .color(NamedTextColor.GREEN)
                             .decoration(TextDecoration.ITALIC, false));
-                } else if (type.hasPlayerAttribute()) {
-                    String sign = type.isNegativeAttribute() ? "" : "+";
-                    lore.add(Component.text(plugin.getLanguageManager().getString(
-                                    "petcollectiongui.attribute_line",
-                                    " %attribute%: ",
-                                    "attribute", type.getLocalizedAttributeDisplay(plugin.getLanguageManager())))
-                                    .color(NamedTextColor.GRAY)
-                        .decoration(TextDecoration.ITALIC, false)
-                        .append(Component.text(sign + type.formatAttributeBonus(pet.getLevel()))
-                            .color(NamedTextColor.GREEN)));
-                } else if (type.hasPotionBonuses()) {
-                    String effects = type.getPotionBonuses().stream()
-                            .map(bonus -> bonus.getEffectType().getKey().getKey() + " " + bonus.getTierDisplay())
-                            .reduce((left, right) -> left + ", " + right)
-                            .orElse("none");
+                }
+
+                if (type.hasPlayerAttribute()) {
+                    for (PetType.AttributeBonus bonus : type.getAttributeBonuses()) {
+                        String sign = bonus.getPerLevel() < 0 ? "" : "+";
+                        lore.add(Component.text(" " + bonus.getDisplay() + ": ").color(NamedTextColor.GRAY)
+                                .decoration(TextDecoration.ITALIC, false)
+                                .append(Component.text(sign + bonus.getTierDisplay(pet.getLevel()))
+                                        .color(NamedTextColor.GREEN)));
+                    }
+                }
+
+                if (type.hasPotionBonuses()) {
+                    StringBuilder effects = new StringBuilder();
+                    for (PetType.PotionBonus bonus : type.getPotionBonuses()) {
+                        if (effects.length() > 0) {
+                            effects.append(", ");
+                        }
+                        effects.append(bonus.getEffectType().getKey().getKey()).append(' ').append(bonus.getTierDisplay());
+                    }
                     lore.add(Component.text(" Effects: ").color(NamedTextColor.GRAY)
                             .decoration(TextDecoration.ITALIC, false)
-                            .append(Component.text(effects).color(NamedTextColor.GREEN)));
-                } else {
+                            .append(Component.text(effects.toString()).color(NamedTextColor.GREEN)));
                 }
             }
                 lore.add(Component.text(statusLabel + ": ").color(NamedTextColor.GRAY)

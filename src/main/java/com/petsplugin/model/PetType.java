@@ -24,6 +24,35 @@ public class PetType {
 
     public enum SpecialAbility { NONE, UNDERWATER_VISION, STORAGE }
 
+    public static class AttributeBonus {
+        private final Attribute attribute;
+        private final double perLevel;
+        private final String display;
+
+        public AttributeBonus(Attribute attribute, double perLevel, String display) {
+            this.attribute = attribute;
+            this.perLevel = perLevel;
+            this.display = display;
+        }
+
+        public Attribute getAttribute() { return attribute; }
+        public double getPerLevel() { return perLevel; }
+        public String getDisplay() { return display; }
+        public double getValueAtLevel(int level) { return level * perLevel; }
+        public String getTierDisplay(int level) { return formatValue(level * perLevel); }
+        public String formatPerLevel() { return formatValue(perLevel); }
+
+        private static String formatValue(double value) {
+            if (Math.abs(value - Math.rint(value)) < DISPLAY_EPSILON) {
+                return String.format(Locale.US, "%.0f", value);
+            }
+            if (Math.abs((value * 10.0) - Math.rint(value * 10.0)) < DISPLAY_EPSILON) {
+                return String.format(Locale.US, "%.1f", value);
+            }
+            return String.format(Locale.US, "%.2f", value);
+        }
+    }
+
     public static class PotionBonus {
         private final PotionEffectType effectType;
         private final int amplifier;
@@ -52,15 +81,12 @@ public class PetType {
 
     // Special ability
     private final SpecialAbility specialAbility;
-    private final int storageSize;
+    private final int storageBase;
+    private final double storagePerLevel;
     private final String storageGroup;
     private final Material storageGlass;
 
-    // Player attribute this pet provides
-    private final Attribute playerAttribute;
-    private final boolean hasPlayerAttribute;
-    private final double attributePerLevel;
-    private final String attributeDisplay;   // Human-readable label
+    private final List<AttributeBonus> attributeBonuses;
     private final List<PotionBonus> potionBonuses;
 
     public PetType(String id, ConfigurationSection section) {
@@ -80,7 +106,8 @@ public class PetType {
             ability = SpecialAbility.valueOf(section.getString("special_ability", "NONE").toUpperCase());
         } catch (IllegalArgumentException ignored) { }
         this.specialAbility = ability;
-        this.storageSize = section.getInt("storage_size", 0);
+        this.storageBase = section.getInt("storage_base", section.getInt("storage_size", 0));
+        this.storagePerLevel = section.getDouble("storage_per_level", 0.0);
         this.storageGroup = section.getString("storage_group", id);
         Material glass = Material.GRAY_STAINED_GLASS_PANE;
         try {
@@ -88,26 +115,35 @@ public class PetType {
         } catch (IllegalArgumentException ignored) { }
         this.storageGlass = glass;
 
-        // Player attribute
-        ConfigurationSection attr = section.getConfigurationSection("player_attribute");
-        if (attr != null) {
-            String configuredType = attr.getString("type");
-            Attribute parsed = parseAttribute(configuredType);
-            this.hasPlayerAttribute = (parsed != null);
-            this.playerAttribute = parsed;
-            this.attributePerLevel = attr.getDouble("value_per_level", 0.0);
-            this.attributeDisplay = attr.getString("display", "Unknown");
+        List<AttributeBonus> parsedAttributes = new ArrayList<>();
 
-            if (configuredType != null && !configuredType.isBlank() && parsed == null) {
-                Bukkit.getLogger().warning("[BabyPets] Invalid player_attribute.type '" + configuredType
-                        + "' for pet '" + id + "'. This bonus will be disabled. Potion effects like EFFECT.MINECRAFT.* are not supported here.");
-            }
-        } else {
-            this.hasPlayerAttribute = false;
-            this.playerAttribute = null;
-            this.attributePerLevel = 0.0;
-            this.attributeDisplay = "";
+        ConfigurationSection singleAttr = section.getConfigurationSection("player_attribute");
+        if (singleAttr != null) {
+            addAttributeBonus(parsedAttributes, id, singleAttr.getString("type"), singleAttr.getDouble("value_per_level", 0.0), singleAttr.getString("display", "Unknown"), "player_attribute");
         }
+
+        List<?> attrList = section.getList("player_attributes");
+        if (attrList != null) {
+            for (Object obj : attrList) {
+                if (obj instanceof Map<?, ?> map) {
+                    Object typeObj = map.get("type");
+                    String typeName = typeObj == null ? "" : String.valueOf(typeObj).trim();
+                    double perLevel = 0.0;
+                    Object perLevelObj = map.get("value_per_level");
+                    if (perLevelObj instanceof Number number) {
+                        perLevel = number.doubleValue();
+                    } else if (perLevelObj != null) {
+                        try {
+                            perLevel = Double.parseDouble(String.valueOf(perLevelObj));
+                        } catch (NumberFormatException ignored) { }
+                    }
+                    Object displayObj = map.get("display");
+                    String display = displayObj == null ? "Unknown" : String.valueOf(displayObj).trim();
+                    addAttributeBonus(parsedAttributes, id, typeName, perLevel, display, "player_attributes");
+                }
+            }
+        }
+        this.attributeBonuses = Collections.unmodifiableList(parsedAttributes);
 
         List<PotionBonus> parsedPotions = new ArrayList<>();
         List<?> effectsList = section.getList("effects");
@@ -119,6 +155,21 @@ public class PetType {
             }
         }
         this.potionBonuses = Collections.unmodifiableList(parsedPotions);
+    }
+
+    private void addAttributeBonus(List<AttributeBonus> out, String petId, String typeName, double perLevel, String display, String source) {
+        String configuredType = typeName == null ? "" : typeName.trim();
+        if (configuredType.isBlank()) {
+            return;
+        }
+
+        Attribute parsed = parseAttribute(configuredType);
+        if (parsed != null) {
+            out.add(new AttributeBonus(parsed, perLevel, display == null ? "Unknown" : display));
+            return;
+        }
+
+        Bukkit.getLogger().warning("[BabyPets] Invalid " + source + ".type '" + configuredType + "' for pet '" + petId + "'.");
     }
 
     private Attribute parseAttribute(String name) {
@@ -182,7 +233,7 @@ public class PetType {
     public Material getIcon() { return icon; }
     public boolean isBaby() { return baby; }
     public SpecialAbility getSpecialAbility() { return specialAbility; }
-    public int getStorageSize() { return storageSize; }
+    public int getStorageSize() { return storageBase; }
     public String getStorageGroup() { return storageGroup; }
     public Material getStorageGlass() { return storageGlass; }
     public PetMovementType getMovementType() {
@@ -195,11 +246,12 @@ public class PetType {
         return PetMovementType.GROUND;
     }
 
-    public boolean hasPlayerAttribute() { return hasPlayerAttribute; }
-    public Attribute getPlayerAttribute() { return playerAttribute; }
-    public String getAttributeDisplay() { return attributeDisplay; }
+    public List<AttributeBonus> getAttributeBonuses() { return attributeBonuses; }
+    public boolean hasPlayerAttribute() { return !attributeBonuses.isEmpty(); }
+    public Attribute getPlayerAttribute() { return attributeBonuses.isEmpty() ? null : attributeBonuses.get(0).getAttribute(); }
+    public String getAttributeDisplay() { return attributeBonuses.isEmpty() ? "" : attributeBonuses.get(0).getDisplay(); }
     public String getLocalizedAttributeDisplay(LanguageManager lm) {
-        return lm.getString("pet." + id + ".attribute", attributeDisplay);
+        return attributeBonuses.isEmpty() ? "" : lm.getString("pet." + id + ".attribute", attributeBonuses.get(0).getDisplay());
     }
     public List<PotionBonus> getPotionBonuses() { return potionBonuses; }
     public boolean hasPotionBonuses() { return !potionBonuses.isEmpty(); }
@@ -209,13 +261,18 @@ public class PetType {
      * Scales linearly: ceil(maxSlots * level / maxLevel), minimum 1.
      */
     public int computeActiveStorageSlots(int level, int maxLevel) {
-        if (storageSize <= 0) return 0;
-        return Math.max(1, (int) Math.ceil((double) storageSize * level / maxLevel));
+        if (storageBase <= 0) return 0;
+        if (storagePerLevel == 0.0) return storageBase;
+        return Math.max(1, storageBase + (int) Math.floor(storagePerLevel * level));
     }
 
-    /** Total attribute bonus at this level. */
+    public int computeMaxStorageSlots(int maxLevel) {
+        return computeActiveStorageSlots(maxLevel, maxLevel);
+    }
+
+    /** Total attribute bonus at this level for the first configured attribute. */
     public double getAttributeAtLevel(int level) {
-        return level * attributePerLevel;
+        return attributeBonuses.isEmpty() ? 0.0 : attributeBonuses.get(0).getValueAtLevel(level);
     }
 
     /**
@@ -227,12 +284,12 @@ public class PetType {
     }
 
     public String formatAttributePerLevel() {
-        return formatAttributeValue(attributePerLevel);
+        return attributeBonuses.isEmpty() ? formatAttributeValue(0.0) : formatAttributeValue(attributeBonuses.get(0).getPerLevel());
     }
 
     /** True if this attribute's value_per_level is negative (e.g. fall damage reduction). */
     public boolean isNegativeAttribute() {
-        return attributePerLevel < 0;
+        return !attributeBonuses.isEmpty() && attributeBonuses.get(0).getPerLevel() < 0;
     }
 
     private String formatAttributeValue(double value) {

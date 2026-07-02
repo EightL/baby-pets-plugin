@@ -558,24 +558,34 @@ public class PetManager {
     public void applyPlayerAttribute(Player player, PetInstance pet, PetType type) {
         removePlayerAttribute(player); // Clean first
         if (!arePetAbilitiesEnabled()) return;
-        if (!type.hasPlayerAttribute()) return; // Storage pets have no stat bonus
+        if (!type.hasPlayerAttribute()) return;
 
-        AttributeInstance attrInst = player.getAttribute(type.getPlayerAttribute());
-        if (attrInst == null) return;
+        for (PetType.AttributeBonus bonus : type.getAttributeBonuses()) {
+            Attribute attribute = bonus.getAttribute();
+            if (attribute == null) continue;
 
-        double value = type.getAttributeAtLevel(pet.getLevel());
-        AttributeModifier.Operation operation = AttributeModifier.Operation.ADD_NUMBER;
+            AttributeInstance attrInst = player.getAttribute(attribute);
+            if (attrInst == null) continue;
 
-        // Gravity is treated as a scalar from base 1.0 (1 + amount).
-        // Example: amount -0.09 => 0.91x gravity, amount -0.9 => 0.1x gravity.
-        if (type.getPlayerAttribute() == Attribute.GRAVITY) {
-            operation = AttributeModifier.Operation.MULTIPLY_SCALAR_1;
+            double value = bonus.getValueAtLevel(pet.getLevel());
+            AttributeModifier.Operation operation = AttributeModifier.Operation.ADD_NUMBER;
+
+            // Gravity is treated as a scalar from base 1.0 (1 + amount).
+            // Example: amount -0.09 => 0.91x gravity, amount -0.9 => 0.1x gravity.
+            if (attribute == Attribute.GRAVITY) {
+                operation = AttributeModifier.Operation.MULTIPLY_SCALAR_1;
+            }
+
+            for (AttributeModifier mod : new ArrayList<>(attrInst.getModifiers())) {
+                if (PET_ATTRIBUTE_KEY.equals(mod.getKey())) {
+                    attrInst.removeModifier(mod);
+                }
+            }
+
+            AttributeModifier modifier = new AttributeModifier(PET_ATTRIBUTE_KEY, value, operation);
+            attrInst.addModifier(modifier);
+            appliedPlayerAttributes.put(player.getUniqueId(), attribute);
         }
-
-        AttributeModifier modifier = new AttributeModifier(
-                PET_ATTRIBUTE_KEY, value, operation);
-        attrInst.addModifier(modifier);
-        appliedPlayerAttributes.put(player.getUniqueId(), type.getPlayerAttribute());
     }
 
     public void applyPotionBonuses(Player player, PetType type) {
@@ -583,6 +593,11 @@ public class PetManager {
 
         for (PetType.PotionBonus bonus : type.getPotionBonuses()) {
             if (bonus.getEffectType() == null) continue;
+
+            PotionEffect current = player.getPotionEffect(bonus.getEffectType());
+            if (current != null && current.getAmplifier() == bonus.getAmplifier() && current.getDuration() > 160) {
+                continue;
+            }
 
             player.addPotionEffect(new PotionEffect(
                     bonus.getEffectType(),
@@ -616,7 +631,11 @@ public class PetManager {
 
         for (PetType type : plugin.getPetTypes().values()) {
             if (type.hasPlayerAttribute()) {
-                candidateAttrs.add(type.getPlayerAttribute());
+                for (PetType.AttributeBonus bonus : type.getAttributeBonuses()) {
+                    if (bonus.getAttribute() != null) {
+                        candidateAttrs.add(bonus.getAttribute());
+                    }
+                }
             }
         }
 

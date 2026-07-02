@@ -262,7 +262,7 @@ public class PetDetailGUI extends BaseGUI {
             if (type.getSpecialAbility() == com.petsplugin.model.PetType.SpecialAbility.STORAGE) {
                 // Storage pets: show slot progression instead of a stat bonus
                 int currentSlots = type.computeActiveStorageSlots(pet.getLevel(), maxLevel);
-                int maxSlots = type.getStorageSize();
+                int maxSlots = type.computeMaxStorageSlots(maxLevel);
                 lore.add(plugin.getLanguageManager().getMessage("petdetailgui.storage", "Storage: ").color(NamedTextColor.GRAY)
                         .decoration(TextDecoration.ITALIC, false)
                         .append(Component.text(plugin.getLanguageManager().getString(
@@ -277,53 +277,56 @@ public class PetDetailGUI extends BaseGUI {
                 lore.add(plugin.getLanguageManager().getMessage("petdetailgui.rightclick_with_empty_hand_to", "Right-click with empty hand to open bag")
                         .color(NamedTextColor.DARK_GRAY)
                         .decoration(TextDecoration.ITALIC, false));
-            } else {
-                // Normal stat-based pets
-                if (type.hasPlayerAttribute()) {
-                    String sign = type.isNegativeAttribute() ? "" : "+";
-                    lore.add(Component.text(plugin.getLanguageManager().getString(
-                            "petdetailgui.attribute_line",
-                            "%attribute%: ",
-                            "attribute", type.getLocalizedAttributeDisplay(plugin.getLanguageManager())))
+            }
+
+            if (type.hasPlayerAttribute()) {
+                if (!lore.isEmpty()) {
+                    lore.add(Component.empty());
+                }
+                for (PetType.AttributeBonus bonus : type.getAttributeBonuses()) {
+                    String sign = bonus.getPerLevel() < 0 ? "" : "+";
+                    lore.add(Component.text(bonus.getDisplay() + ": ")
                             .color(NamedTextColor.GRAY)
-                        .decoration(TextDecoration.ITALIC, false)
-                        .append(Component.text(sign + type.formatAttributeBonus(pet.getLevel()))
-                            .color(NamedTextColor.GREEN)));
-                    lore.add(Component.text(plugin.getLanguageManager().getString(
-                            "petdetailgui.growth_line",
-                            "Growth: %value%/level",
-                            "value", sign + type.formatAttributePerLevel()))
-                        .color(NamedTextColor.DARK_GRAY)
-                        .decoration(TextDecoration.ITALIC, false));
-                    lore.add(Component.text(plugin.getLanguageManager().getString(
-                            "petdetailgui.at_level_line",
-                            "At Lv%level%: ",
-                            "level", String.valueOf(maxLevel)))
-                            .color(NamedTextColor.DARK_GRAY)
-                        .decoration(TextDecoration.ITALIC, false)
-                        .append(Component.text(sign + type.formatAttributeBonus(maxLevel))
-                            .color(NamedTextColor.YELLOW)));
-                }
-
-                if (type.hasPotionBonuses()) {
-                    if (type.hasPlayerAttribute()) {
-                    lore.add(Component.empty());
-                    }
-                    String effects = type.getPotionBonuses().stream()
-                        .map(bonus -> bonus.getEffectType().getKey().getKey() + " " + bonus.getTierDisplay())
-                        .reduce((left, right) -> left + ", " + right)
-                        .orElse("none");
-                    lore.add(Component.text("Effects: ").color(NamedTextColor.GRAY)
-                        .decoration(TextDecoration.ITALIC, false)
-                        .append(Component.text(effects).color(NamedTextColor.GREEN)));
-                }
-
-                if (type.getSpecialAbility() == com.petsplugin.model.PetType.SpecialAbility.UNDERWATER_VISION) {
-                    lore.add(Component.empty());
-                    lore.add(plugin.getLanguageManager().getMessage("petdetailgui.special", "Special: ").color(NamedTextColor.GRAY)
                             .decoration(TextDecoration.ITALIC, false)
-                            .append(plugin.getLanguageManager().getMessage("petdetailgui.underwater_night_vision", "Underwater Night Vision").color(NamedTextColor.AQUA)));
+                            .append(Component.text(sign + bonus.getTierDisplay(pet.getLevel()))
+                                    .color(NamedTextColor.GREEN)));
+                    lore.add(Component.text("Growth: " + sign + bonus.formatPerLevel() + "/level")
+                            .color(NamedTextColor.DARK_GRAY)
+                            .decoration(TextDecoration.ITALIC, false));
+                    lore.add(Component.text("At Lv" + maxLevel + ": ")
+                            .color(NamedTextColor.DARK_GRAY)
+                            .decoration(TextDecoration.ITALIC, false)
+                            .append(Component.text(sign + bonus.getTierDisplay(maxLevel))
+                                    .color(NamedTextColor.YELLOW)));
+                    lore.add(Component.empty());
                 }
+                if (!lore.isEmpty()) {
+                    lore.remove(lore.size() - 1);
+                }
+            }
+
+            if (type.hasPotionBonuses()) {
+                if (!lore.isEmpty()) {
+                    lore.add(Component.empty());
+                }
+                StringBuilder effects = new StringBuilder();
+                for (PetType.PotionBonus bonus : type.getPotionBonuses()) {
+                    if (effects.length() > 0) {
+                        effects.append(", ");
+                    }
+                    effects.append(bonus.getEffectType().getKey().getKey()).append(' ').append(bonus.getTierDisplay());
+                }
+                lore.add(Component.text("Effects: ")
+                        .color(NamedTextColor.GRAY)
+                        .decoration(TextDecoration.ITALIC, false)
+                        .append(Component.text(effects.toString()).color(NamedTextColor.GREEN)));
+            }
+
+            if (type.getSpecialAbility() == com.petsplugin.model.PetType.SpecialAbility.UNDERWATER_VISION) {
+                lore.add(Component.empty());
+                lore.add(plugin.getLanguageManager().getMessage("petdetailgui.special", "Special: ").color(NamedTextColor.GRAY)
+                        .decoration(TextDecoration.ITALIC, false)
+                        .append(plugin.getLanguageManager().getMessage("petdetailgui.underwater_night_vision", "Underwater Night Vision").color(NamedTextColor.AQUA)));
             }
         } else {
             lore.add(plugin.getLanguageManager().getMessage("petdetailgui.pet_abilities_are_disabled_in", "Pet abilities are disabled in config.")

@@ -44,11 +44,12 @@ public class PetStorageGUI extends BaseGUI {
 
     public PetStorageGUI(PetsPlugin plugin, Player player, PetType type,
                          int petLevel, Map<Integer, ItemStack> savedItems) {
-        super(plugin, computeRows(type.getStorageSize()), type.getLocalizedDisplayName(plugin.getLanguageManager()) + " " + localizedTitle(plugin, "petstoragegui.title_suffix", "Storage"));
+        super(plugin, computeRows(type.computeMaxStorageSlots(plugin.getMaxLevel())), type.getLocalizedDisplayName(plugin.getLanguageManager()) + " " + localizedTitle(plugin, "petstoragegui.title_suffix", "Storage"));
         this.playerUuid = player.getUniqueId();
         this.storageGroup = type.getStorageGroup();
         this.storageGlass = type.getStorageGlass();
-        this.storageSlots = computeStorageSlots(type.getStorageSize());
+        int maxSlots = type.computeMaxStorageSlots(plugin.getMaxLevel());
+        this.storageSlots = computeStorageSlots(maxSlots);
 
         int maxLevel = plugin.getMaxLevel();
         int activeCount = type.computeActiveStorageSlots(petLevel, maxLevel);
@@ -103,14 +104,34 @@ public class PetStorageGUI extends BaseGUI {
     }
 
     private static int[] computeStorageSlots(int maxStorageSize) {
-        return switch (maxStorageSize) {
-            case 5  -> new int[]{2, 3, 4, 5, 6};                       // centred in 1 row
-            case 9  -> new int[]{0, 1, 2, 3, 4, 5, 6, 7, 8};
-            case 14 -> new int[]{1, 2, 3, 4, 5, 6, 7, 10, 11, 12, 13, 14, 15, 16}; // 7×2 with glass borders
-            case 18 -> new int[]{0, 1, 2, 3, 4, 5, 6, 7, 8,
-                                 9, 10, 11, 12, 13, 14, 15, 16, 17};
-            default -> new int[0];
-        };
+        if (maxStorageSize <= 0) {
+            return new int[0];
+        }
+
+        int capped = Math.min(maxStorageSize, 18);
+        if (capped <= 9) {
+            int start = Math.max(0, (9 - capped) / 2);
+            int[] slots = new int[capped];
+            for (int i = 0; i < capped; i++) {
+                slots[i] = start + i;
+            }
+            return slots;
+        }
+
+        int topCount = (capped + 1) / 2;
+        int bottomCount = capped - topCount;
+        int topStart = Math.max(0, (9 - topCount) / 2);
+        int bottomStart = 9 + Math.max(0, (9 - bottomCount) / 2);
+
+        int[] slots = new int[capped];
+        int index = 0;
+        for (int i = 0; i < topCount; i++) {
+            slots[index++] = topStart + i;
+        }
+        for (int i = 0; i < bottomCount; i++) {
+            slots[index++] = bottomStart + i;
+        }
+        return slots;
     }
 
     // ── Event handling ────────────────────────────────────────

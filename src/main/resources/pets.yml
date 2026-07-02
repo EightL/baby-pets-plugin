@@ -5,8 +5,25 @@
 # Rarity is communicated via item name color — no explicit label needed.
 #
 # special_ability: NONE | UNDERWATER_VISION | STORAGE
-# storage_size:    5 (horse tier) | 9 (llama) | 14 (camel) | 18 (trader llama)
+# storage_size:    legacy static storage size (backward compatible)
+# storage_base:    slots available at level 1
+# storage_per_level: extra slots added per level
 # storage_glass:   Bukkit Material name for the filler pane
+#
+# Single attribute format:
+# player_attribute:
+#   type: MAX_HEALTH
+#   value_per_level: 0.5
+#   display: "❤ Max Health"
+#
+# Multi-attribute format:
+# player_attributes:
+#   - type: MAX_HEALTH
+#     value_per_level: 0.5
+#     display: "❤ Max Health"
+#   - type: ATTACK_DAMAGE
+#     value_per_level: 0.2
+#     display: "⚔ Attack"
 #
 # Optional potion effects granted while this pet is active.
 # tier: I or II (default: I)

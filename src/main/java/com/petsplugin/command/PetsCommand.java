@@ -404,27 +404,32 @@ public class PetsCommand implements CommandExecutor, TabExecutor {
                                         "+%slots% storage space",
                                         "slots", String.valueOf(activeSlots))
                                 .color(NamedTextColor.GREEN)));
-            } else if (type.hasPlayerAttribute()) {
-            String sign = type.isNegativeAttribute() ? "" : "+";
-            player.sendMessage(Component.text(plugin.getLanguageManager().getString(
-                    "petinfo.attribute_line",
-                    "  %attribute%: ",
-                    "attribute", type.getLocalizedAttributeDisplay(plugin.getLanguageManager())))
-                    .color(NamedTextColor.GRAY)
-                .append(Component.text(sign + type.formatAttributeBonus(pet.getLevel()))
-                    .color(NamedTextColor.GREEN))
-                .append(plugin.getLanguageManager().getMessage(
-                        "petinfo.attribute_per_level",
-                        " (%value%/level)",
-                        "value", sign + type.formatAttributePerLevel())
-                    .color(NamedTextColor.DARK_GRAY)));
-            } else if (type.hasPotionBonuses()) {
-            String effects = type.getPotionBonuses().stream()
-                .map(bonus -> bonus.getEffectType().getKey().getKey() + " " + bonus.getTierDisplay())
-                .reduce((left, right) -> left + ", " + right)
-                .orElse("none");
-            player.sendMessage(Component.text("  Effects: ").color(NamedTextColor.GRAY)
-                .append(Component.text(effects).color(NamedTextColor.GREEN)));
+            }
+
+            if (type.hasPlayerAttribute()) {
+                for (PetType.AttributeBonus bonus : type.getAttributeBonuses()) {
+                    String sign = bonus.getPerLevel() < 0 ? "" : "+";
+                    player.sendMessage(Component.text("  " + bonus.getDisplay() + ": ").color(NamedTextColor.GRAY)
+                            .append(Component.text(sign + bonus.getTierDisplay(pet.getLevel()))
+                                    .color(NamedTextColor.GREEN))
+                            .append(plugin.getLanguageManager().getMessage(
+                                    "petinfo.attribute_per_level",
+                                    " (%value%/level)",
+                                    "value", sign + bonus.formatPerLevel())
+                                    .color(NamedTextColor.DARK_GRAY)));
+                }
+            }
+
+            if (type.hasPotionBonuses()) {
+                StringBuilder effects = new StringBuilder();
+                for (PetType.PotionBonus bonus : type.getPotionBonuses()) {
+                    if (effects.length() > 0) {
+                        effects.append(", ");
+                    }
+                    effects.append(bonus.getEffectType().getKey().getKey()).append(' ').append(bonus.getTierDisplay());
+                }
+                player.sendMessage(Component.text("  Effects: ").color(NamedTextColor.GRAY)
+                        .append(Component.text(effects.toString()).color(NamedTextColor.GREEN)));
             }
         }
         return true;
@@ -539,9 +544,15 @@ public class PetsCommand implements CommandExecutor, TabExecutor {
             }
             if (args[0].equalsIgnoreCase("givepet") || args[0].equalsIgnoreCase("addpet")) {
                 if (sender instanceof Player) {
-                    return filterCompletions(new ArrayList<>(plugin.getPetTypes().keySet()), args[1]);
+                    List<String> options = new ArrayList<>(plugin.getPetTypes().keySet());
+                    Bukkit.getOnlinePlayers().forEach(p -> options.add(p.getName()));
+                    return filterCompletions(options, args[1]);
                 }
-                return null;
+                List<String> playerNames = new ArrayList<>();
+                for (Player onlinePlayer : Bukkit.getOnlinePlayers()) {
+                    playerNames.add(onlinePlayer.getName());
+                }
+                return filterCompletions(playerNames, args[1]);
             }
             if (isToggleSubcommand(args[0])) {
                 return filterCompletions(List.of("on", "off", "toggle"), args[1]);
