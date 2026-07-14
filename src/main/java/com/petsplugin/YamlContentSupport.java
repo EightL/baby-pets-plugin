@@ -57,9 +57,23 @@ final class YamlContentSupport {
         }
 
         backup(plugin, fileName, file, fileVersion);
+        applyVersionedMigrations(fileName, fileVersion, config, defaults);
         config.set(VERSION_KEY, currentVersion);
         plugin.getLogger().info("Migrated " + fileName + " content from v" + fileVersion + " to v" + currentVersion + ".");
         return true;
+    }
+
+    private static void applyVersionedMigrations(String fileName, int fileVersion,
+                                                 YamlConfiguration config, YamlConfiguration defaults) {
+        if ("pets.yml".equals(fileName) && fileVersion < 2) {
+            String turtleValuePath = "pets.turtle.player_attribute.value_per_level";
+            double configuredValue = config.getDouble(turtleValuePath, Double.NaN);
+
+            // Only migrate the old bundled value; preserve deliberate server-owner tuning.
+            if (Math.abs(configuredValue - 0.5) < 1.0E-9) {
+                config.set(turtleValuePath, defaults.get(turtleValuePath));
+            }
+        }
     }
 
     private static boolean copyMissingPaths(YamlConfiguration target, YamlConfiguration defaults) {

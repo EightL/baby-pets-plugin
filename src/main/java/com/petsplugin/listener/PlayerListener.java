@@ -4,13 +4,16 @@ import com.petsplugin.PetsPlugin;
 import com.petsplugin.model.PetInstance;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityPickupItemEvent;
+import org.bukkit.event.entity.EntityPotionEffectEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
+import org.bukkit.potion.PotionEffectType;
 
 /**
  * Handles player join/quit — loading data, respawning pets.
@@ -71,6 +74,20 @@ public class PlayerListener implements Listener {
         if (event.getEntity() instanceof Player player) {
             plugin.getServer().getScheduler().runTask(plugin, () -> plugin.getPetManager().refreshPlayerCustomItems(player));
         }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onAbsorptionEffect(EntityPotionEffectEvent event) {
+        if (!(event.getEntity() instanceof Player player)) return;
+        if (event.getNewEffect() == null || event.getModifiedType() != PotionEffectType.ABSORPTION) return;
+
+        // The effect event fires before vanilla has finished updating its attribute
+        // modifier and absorption amount. Fill the cow's extra capacity next tick.
+        plugin.getServer().getScheduler().runTask(plugin, () -> {
+            if (player.isOnline()) {
+                plugin.getPetManager().fillActivePetAbsorptionBonus(player);
+            }
+        });
     }
 
     @EventHandler

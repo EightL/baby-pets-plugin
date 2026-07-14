@@ -58,12 +58,15 @@ public class PetManager {
 
     /** NamespacedKey used for player attribute modifiers applied by pets. */
     private final NamespacedKey PET_ATTRIBUTE_KEY;
+    /** Underwater movement-speed multiplier that lets turtle bonuses stack past Depth Strider's cap. */
+    private final NamespacedKey PET_WATER_SPEED_KEY;
 
     private BukkitTask followTask;
     private BukkitTask xpTask;
     private BukkitTask hoverNameTask;
     private BukkitTask hoverNamePositionTask;
     private BukkitTask abilityTask;
+    private BukkitTask waterMovementTask;
 
     private static final double STAY_MAX_HORIZONTAL_DRIFT = 0.65;
     private static final double STAY_MAX_VERTICAL_DRIFT = 1.0;
@@ -76,6 +79,7 @@ public class PetManager {
         this.PET_TYPE_KEY = new NamespacedKey(plugin, "pet_type");
         this.PET_NAME_DISPLAY_KEY = new NamespacedKey(plugin, "pet_name_display");
         this.PET_ATTRIBUTE_KEY = new NamespacedKey(plugin, "pet_attribute_bonus");
+        this.PET_WATER_SPEED_KEY = new NamespacedKey(plugin, "pet_water_speed_bonus");
     }
 
     public void initialize() {
@@ -89,6 +93,7 @@ public class PetManager {
         hoverNamePositionTask = Bukkit.getScheduler().runTaskTimer(plugin, this::hoverNamePositionTick, 10L, 1L);
         // Special ability tick every 2 seconds (e.g. squid underwater vision)
         abilityTask = Bukkit.getScheduler().runTaskTimer(plugin, this::abilityTick, 20L, 40L);
+        waterMovementTask = Bukkit.getScheduler().runTaskTimer(plugin, this::waterMovementTick, 1L, 1L);
         restoreOnlinePlayers();
     }
 
@@ -98,6 +103,7 @@ public class PetManager {
         if (hoverNameTask != null) hoverNameTask.cancel();
         if (hoverNamePositionTask != null) hoverNamePositionTask.cancel();
         if (abilityTask != null) abilityTask.cancel();
+        if (waterMovementTask != null) waterMovementTask.cancel();
 
         for (UUID playerUuid : new ArrayList<>(activePetEntities.keySet())) {
             despawnPet(playerUuid, false);
@@ -588,6 +594,41 @@ public class PetManager {
         }
     }
 
+    /**
+     * Fill the extra absorption capacity supplied by an active pet after an
+     * Absorption effect starts or refreshes. MAX_ABSORPTION only raises the
+     * cap by itself, so vanilla golden apples would otherwise leave this
+     * capacity empty.
+     */
+    public void fillActivePetAbsorptionBonus(Player player) {
+        if (player == null || !arePetAbilitiesEnabled()) return;
+
+        PetInstance pet = activePets.get(player.getUniqueId());
+        if (pet == null) return;
+
+        PetType type = plugin.getPetTypes().get(pet.getPetTypeId());
+        if (type == null) return;
+
+        double petBonus = 0.0;
+        for (PetType.AttributeBonus bonus : type.getAttributeBonuses()) {
+            if (bonus.getAttribute() == Attribute.MAX_ABSORPTION) {
+                petBonus += bonus.getValueAtLevel(pet.getLevel());
+            }
+        }
+        if (petBonus <= 0.0) return;
+
+        PotionEffect absorption = player.getPotionEffect(PotionEffectType.ABSORPTION);
+        AttributeInstance maxAbsorption = player.getAttribute(Attribute.MAX_ABSORPTION);
+        if (absorption == null || maxAbsorption == null) return;
+
+        // Vanilla Absorption grants four health points per effect level. Add
+        // the cow's capacity to that grant, preserving any larger amount that
+        // another source may already have supplied.
+        double effectAmount = 4.0 * (absorption.getAmplifier() + 1.0);
+        double filledAmount = Math.max(player.getAbsorptionAmount(), effectAmount + petBonus);
+        player.setAbsorptionAmount(Math.min(filledAmount, maxAbsorption.getValue()));
+    }
+
     public void applyPotionBonuses(Player player, PetType type) {
         if (!arePetAbilitiesEnabled() || player == null || type == null || !type.hasPotionBonuses()) return;
 
@@ -646,6 +687,77 @@ public class PetManager {
                 if (PET_ATTRIBUTE_KEY.equals(mod.getKey())) {
                     inst.removeModifier(mod);
                 }
+            }
+        }
+
+        removeWaterMovementSpeedModifier(player);
+    }
+
+    /**
+     * WATER_MOVEMENT_EFFICIENCY is capped at 1.0, which Depth Strider III already
+     * reaches. While a player with a water-movement pet is submerged, apply the
+     * same level-scaled value as a separate movement-speed multiplier so the pet
+     * still contributes beyond that cap. The regular water-efficiency modifier
+     * remains in place so the pet also works without enchanted boots.
+     */
+    private void waterMovementTick() {
+        for (Map.Entry<UUID, PetInstance> entry : activePets.entrySet()) {
+            Player player = Bukkit.getPlayer(entry.getKey());
+            if (player == null || !player.isOnline()) continue;
+            updateWaterMovementSpeedModifier(player, entry.getValue());
+        }
+    }
+
+    private void updateWaterMovementSpeedModifier(Player player, PetInstance pet) {
+        AttributeInstance movementSpeed = player.getAttribute(Attribute.MOVEMENT_SPEED);
+        if (movementSpeed == null) return;
+
+        double waterBonus = 0.0;
+        if (arePetAbilitiesEnabled()
+                && activePetEntities.containsKey(player.getUniqueId())
+                && player.isInWater()
+                && pet != null) {
+            PetType type = plugin.getPetTypes().get(pet.getPetTypeId());
+            if (type != null) {
+                for (PetType.AttributeBonus bonus : type.getAttributeBonuses()) {
+                    if (bonus.getAttribute() == Attribute.WATER_MOVEMENT_EFFICIENCY) {
+                        waterBonus += bonus.getValueAtLevel(pet.getLevel());
+                    }
+                }
+            }
+        }
+
+        AttributeModifier current = null;
+        for (AttributeModifier modifier : movementSpeed.getModifiers()) {
+            if (PET_WATER_SPEED_KEY.equals(modifier.getKey())) {
+                current = modifier;
+                break;
+            }
+        }
+
+        if (waterBonus <= 0.0) {
+            if (current != null) movementSpeed.removeModifier(current);
+            return;
+        }
+
+        if (current != null && Math.abs(current.getAmount() - waterBonus) < 1.0E-9) {
+            return;
+        }
+        if (current != null) movementSpeed.removeModifier(current);
+        movementSpeed.addModifier(new AttributeModifier(
+                PET_WATER_SPEED_KEY,
+                waterBonus,
+                AttributeModifier.Operation.MULTIPLY_SCALAR_1
+        ));
+    }
+
+    private void removeWaterMovementSpeedModifier(Player player) {
+        AttributeInstance movementSpeed = player.getAttribute(Attribute.MOVEMENT_SPEED);
+        if (movementSpeed == null) return;
+
+        for (AttributeModifier modifier : new ArrayList<>(movementSpeed.getModifiers())) {
+            if (PET_WATER_SPEED_KEY.equals(modifier.getKey())) {
+                movementSpeed.removeModifier(modifier);
             }
         }
     }

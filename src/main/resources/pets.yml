@@ -35,7 +35,7 @@
 #   - type: regeneration
 #     tier: I
 
-content_version: 1
+content_version: 2
 
 pets:
 
@@ -214,7 +214,7 @@ pets:
     description: "A calm ocean glider."
     player_attribute:
       type: WATER_MOVEMENT_EFFICIENCY
-      value_per_level: 0.5
+      value_per_level: 0.05
       display: "≈ Water Movement"
 
   llama:
