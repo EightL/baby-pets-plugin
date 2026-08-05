@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.5
+
+- Remove legacy duplicated pet mobs when their previously unloaded chunks are loaded, allowing servers affected by the old death-loop bug to clean themselves up automatically.
+
 ## 1.2.4
 
 - Fixed pets repeatedly spawning at a dead AFK player's death location. Pet entities now despawn on death, wait for the respawn event, deduplicate delayed spawn jobs, and are never saved as persistent chunk entities.

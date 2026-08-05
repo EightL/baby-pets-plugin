@@ -14,6 +14,7 @@ import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
+import org.bukkit.event.world.EntitiesLoadEvent;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitTask;
 
@@ -64,6 +65,13 @@ public class PlayerListener implements Listener {
         // runtime entity here prevents the follow task from projecting new pets at
         // the death location until PlayerRespawnEvent fires.
         plugin.getPetManager().despawnPet(player.getUniqueId(), false);
+    }
+
+    @EventHandler
+    public void onEntitiesLoad(EntitiesLoadEvent event) {
+        // Older BabyPets versions saved runtime pet mobs into chunks. Remove any
+        // untracked copies as soon as an affected chunk is loaded.
+        plugin.getPetManager().cleanupStalePetArtifacts(event.getEntities());
     }
 
     @EventHandler

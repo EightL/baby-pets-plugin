@@ -18,9 +18,11 @@ class PetLifecycleRegressionTest {
                 Path.of("src/main/java/com/petsplugin/manager/PetManager.java"));
 
         assertTrue(playerListener.contains("onDeath(PlayerDeathEvent event)"));
+        assertTrue(playerListener.contains("onEntitiesLoad(EntitiesLoadEvent event)"));
         assertTrue(playerListener.contains("cancelPendingPetRespawn(player.getUniqueId())"));
         assertTrue(playerListener.contains("despawnPet(player.getUniqueId(), false)"));
         assertTrue(petManager.contains("player.isDead()"));
         assertTrue(petManager.contains("mob.setPersistent(false)"));
+        assertTrue(petManager.contains("cleanupStalePetArtifacts(Collection<? extends Entity> entities)"));
     }
 }

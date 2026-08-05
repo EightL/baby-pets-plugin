@@ -1416,6 +1416,29 @@ public class PetManager {
         }
     }
 
+    public void cleanupStalePetArtifacts(Collection<? extends Entity> entities) {
+        int removedPets = 0;
+        for (Entity entity : new ArrayList<>(entities)) {
+            if (!isPetEntity(entity)) {
+                continue;
+            }
+
+            UUID ownerUuid = getPetOwner(entity);
+            UUID activeEntityUuid = ownerUuid == null ? null : activePetEntities.get(ownerUuid);
+            if (entity.getUniqueId().equals(activeEntityUuid)) {
+                continue;
+            }
+
+            removePetArtifacts(entity, ownerUuid, entity.getUniqueId());
+            removedPets++;
+        }
+
+        if (removedPets > 0) {
+            plugin.getLogger().info("Removed " + removedPets
+                    + " stale pet entities when their chunk loaded.");
+        }
+    }
+
     private void restoreOnlinePlayers() {
         if (Bukkit.getOnlinePlayers().isEmpty()) {
             return;
