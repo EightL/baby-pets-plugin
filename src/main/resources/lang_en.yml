@@ -65,6 +65,7 @@ petdetailgui.feed_and_pet_regularly_to: Feed and pet regularly to improve mood.
 petdetailgui.foods: 'Foods: '
 petdetailgui.meter: 'Meter: '
 petdetailgui.mood: 'Mood: '
+petdetailgui.mood_power: 'Mood power: %percent%%'
 petdetailgui.next_level_xp: 'Next Level XP: '
 petdetailgui.no_more_xp_is_required: No more XP is required.
 petdetailgui.permanently_delete_this_pet: Permanently delete this pet!
@@ -328,6 +329,8 @@ messages.hide_other_pets_disabled: "&eOther players' pets are visible again."
 messages.hide_other_pets_enabled: "&aOther players' pets are now hidden."
 messages.incubator_busy: "&cThis incubator already has an egg!"
 messages.pet_level_up: "&b&lLEVEL UP! &e%pet_name% &7is now level &e%level%&7!"
+messages.pet_already_ecstatic: "&e%pet_name% &7is already ecstatic and does not need another treat."
+messages.pet_mood_declined: "&e%pet_name%'s &7mood declined to &e%status%&7. Give it some care!"
 messages.pet_notifications_disabled: "&eYour pet notifications are now muted."
 messages.pet_notifications_enabled: "&aYour pet notifications are now enabled."
 messages.pet_renamed: "&aYour pet is now named &e%pet_name%&a!"

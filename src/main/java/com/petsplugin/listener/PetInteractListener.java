@@ -176,11 +176,14 @@ public class PetInteractListener implements Listener {
             return;
         }
 
+        if (!plugin.getPetManager().feedPet(player, pet)) {
+            return;
+        }
+
         if (player.getGameMode() != GameMode.CREATIVE) {
             hand.setAmount(hand.getAmount() - 1);
         }
         feedCooldowns.put(player.getUniqueId(), now);
-        plugin.getPetManager().feedPet(player, pet);
     }
 
     private void handlePetting(Player player, PetInstance pet) {

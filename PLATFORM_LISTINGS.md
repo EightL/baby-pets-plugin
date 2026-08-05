@@ -20,7 +20,7 @@ Open your collection with `/pets`, click a pet to select it, and it'll spawn at 
 
 ### Pets and rarities
 - 22 pet types across 5 rarity tiers: Common, Uncommon, Rare, Epic, Legendary
-- Every stat-boosting pet provides a unique **player attribute bonus** that scales linearly with level
+- Stat-boosting pets can provide one or more **player attribute bonuses** that scale linearly with level
 - Storage pets (Horse, Donkey, Mule, Llama, Camel, Trader Llama) unlock inventory slots that scale with level instead
 
 ### Pet leveling
@@ -30,7 +30,8 @@ Open your collection with `/pets`, click a pet to select it, and it'll spawn at 
 
 ### Mood and care
 - 5 mood states: Ecstatic → Happy → Content → Hungry → Sad
-- Mood drifts down over time; recover it by feeding or petting
+- Active pets lose one mood tier every 30 minutes by default; recover it by feeding or petting
+- Mood scales attribute power from 50–120% and passive XP from 50–125% by default
 - Food type depends on the pet's movement category (ground / flying / water)
 
 ### Egg and incubation system
@@ -56,6 +57,7 @@ Open your collection with `/pets`, click a pet to select it, and it'll spawn at 
 - Follow and Stay modes
 - Cross-dimension teleport when the player switches worlds
 - Respawn on join — active pet re-appears when the player logs back in
+- Death-safe lifecycle — pets wait for the player to respawn and cannot accumulate at a death location
 - Hover name displayed above the pet entity
 - Idle emote sounds
 - Per-player toggles: hide other players' pets, pet sounds, chat notifications
@@ -130,8 +132,8 @@ Open your collection with `/pets`, click a pet to select it, and it'll spawn at 
 ## Configuration
 
 Two main config files:
-- `config.yml` — incubation time, leveling curve, XP intervals, follow/teleport distances, mood food lists, messages, loot injection settings
-- `pets.yml` — full pet roster definitions: entity type, rarity, description, player attribute, storage size, and more
+- `config.yml` — incubation time, leveling curve, XP intervals, mood decay/multipliers, follow/teleport distances, food lists, messages, and loot injection settings
+- `pets.yml` — full pet roster definitions: entity type, rarity, description, single or multiple player attributes, storage size, and more
 
 Individual systems (advancements, abilities, loot injection) can each be toggled independently.
 

@@ -1,7 +1,7 @@
 # ══════════════════════════════════════════════════════════
 #  Baby Pets — Configuration
 # ══════════════════════════════════════════════════════════
-config_version: 2
+config_version: 3
 locale: "en"
 
 database:
@@ -73,8 +73,23 @@ leveling:
 #  Status & Feeding
 # ══════════════════════════════════════════════════════════
 status:
+  # Active pets lose one mood tier at this interval. Set to 0 to disable decay.
+  decay_interval_minutes: 30
   feed_cooldown_seconds: 3
   pet_cooldown_seconds: 5
+  # Mood now scales both pet attribute power and passive leveling speed.
+  ability_multipliers:
+    ecstatic: 1.20
+    happy: 1.10
+    content: 1.00
+    hungry: 0.75
+    sad: 0.50
+  xp_multipliers:
+    ecstatic: 1.25
+    happy: 1.10
+    content: 1.00
+    hungry: 0.75
+    sad: 0.50
   # Food is grouped by movement type: ground, flying, water.
   food_by_type:
     ground:

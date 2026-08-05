@@ -46,10 +46,11 @@ public class PetManager {
     private final Map<UUID, UUID> hoverNameDisplays = new ConcurrentHashMap<>();
     private final Map<UUID, UUID> viewerHoverTargets = new ConcurrentHashMap<>();
     private final Map<UUID, Long> idleEmoteAt = new ConcurrentHashMap<>();
-    private final Map<UUID, Attribute> appliedPlayerAttributes = new ConcurrentHashMap<>();
+    private final Map<UUID, Set<Attribute>> appliedPlayerAttributes = new ConcurrentHashMap<>();
     private final Map<UUID, Location> stayAnchors = new ConcurrentHashMap<>();
     private final Map<String, List<Material>> allowedFoodsByPetType = new ConcurrentHashMap<>();
     private final Map<UUID, Object> selectionLocks = new ConcurrentHashMap<>();
+    private final Set<String> unsupportedPlayerAttributes = ConcurrentHashMap.newKeySet();
 
     private final NamespacedKey PET_ENTITY_KEY;
     private final NamespacedKey PET_OWNER_KEY;
@@ -67,6 +68,7 @@ public class PetManager {
     private BukkitTask hoverNamePositionTask;
     private BukkitTask abilityTask;
     private BukkitTask waterMovementTask;
+    private BukkitTask statusTask;
 
     private static final double STAY_MAX_HORIZONTAL_DRIFT = 0.65;
     private static final double STAY_MAX_VERTICAL_DRIFT = 1.0;
@@ -94,6 +96,11 @@ public class PetManager {
         // Special ability tick every 2 seconds (e.g. squid underwater vision)
         abilityTask = Bukkit.getScheduler().runTaskTimer(plugin, this::abilityTick, 20L, 40L);
         waterMovementTask = Bukkit.getScheduler().runTaskTimer(plugin, this::waterMovementTick, 1L, 1L);
+        double decayMinutes = plugin.getConfig().getDouble("status.decay_interval_minutes", 30.0);
+        if (decayMinutes > 0.0) {
+            long decayTicks = Math.max(20L, Math.round(decayMinutes * 60.0 * 20.0));
+            statusTask = Bukkit.getScheduler().runTaskTimer(plugin, this::statusTick, decayTicks, decayTicks);
+        }
         restoreOnlinePlayers();
     }
 
@@ -104,6 +111,7 @@ public class PetManager {
         if (hoverNamePositionTask != null) hoverNamePositionTask.cancel();
         if (abilityTask != null) abilityTask.cancel();
         if (waterMovementTask != null) waterMovementTask.cancel();
+        if (statusTask != null) statusTask.cancel();
 
         for (UUID playerUuid : new ArrayList<>(activePetEntities.keySet())) {
             despawnPet(playerUuid, false);
@@ -355,6 +363,10 @@ public class PetManager {
     // ══════════════════════════════════════════════════════════
 
     public void spawnPet(Player player, PetInstance pet) {
+        if (player == null || pet == null || !player.isOnline() || player.isDead() || !player.isValid()) {
+            return;
+        }
+
         PetType type = plugin.getPetTypes().get(pet.getPetTypeId());
         if (type == null) {
             plugin.getLogger().warning("Unknown pet type: " + pet.getPetTypeId());
@@ -377,7 +389,9 @@ public class PetManager {
             mob.setSilent(type.getEntityType() == EntityType.BEE);
             mob.setCanPickupItems(false);
             mob.setRemoveWhenFarAway(false);
-            mob.setPersistent(true);
+            // Pet entities are runtime projections of database state. Saving them in
+            // chunks can leave permanent duplicates behind after unload/death races.
+            mob.setPersistent(false);
 
             // Baby form — default size, not scaled down
             if (type.isBaby() && mob instanceof Ageable ageable) {
@@ -566,14 +580,32 @@ public class PetManager {
         if (!arePetAbilitiesEnabled()) return;
         if (!type.hasPlayerAttribute()) return;
 
+        double moodMultiplier = getStatusAbilityMultiplier(pet.getStatus());
+        Map<Attribute, Double> valuesByAttribute = new LinkedHashMap<>();
         for (PetType.AttributeBonus bonus : type.getAttributeBonuses()) {
             Attribute attribute = bonus.getAttribute();
             if (attribute == null) continue;
 
-            AttributeInstance attrInst = player.getAttribute(attribute);
-            if (attrInst == null) continue;
+            valuesByAttribute.merge(attribute,
+                    bonus.getValueAtLevel(pet.getLevel()) * moodMultiplier,
+                    Double::sum);
+        }
 
-            double value = bonus.getValueAtLevel(pet.getLevel());
+        Set<Attribute> applied = new HashSet<>();
+        for (Map.Entry<Attribute, Double> entry : valuesByAttribute.entrySet()) {
+            Attribute attribute = entry.getKey();
+
+            AttributeInstance attrInst = player.getAttribute(attribute);
+            if (attrInst == null) {
+                String warningKey = type.getId() + ":" + attribute.getKey();
+                if (unsupportedPlayerAttributes.add(warningKey)) {
+                    plugin.getLogger().warning("Pet '" + type.getId() + "' attribute '"
+                            + attribute.getKey() + "' is not available on players and was skipped.");
+                }
+                continue;
+            }
+
+            double value = entry.getValue();
             AttributeModifier.Operation operation = AttributeModifier.Operation.ADD_NUMBER;
 
             // Gravity is treated as a scalar from base 1.0 (1 + amount).
@@ -590,8 +622,17 @@ public class PetManager {
 
             AttributeModifier modifier = new AttributeModifier(PET_ATTRIBUTE_KEY, value, operation);
             attrInst.addModifier(modifier);
-            appliedPlayerAttributes.put(player.getUniqueId(), attribute);
+            applied.add(attribute);
         }
+
+        if (!applied.isEmpty()) {
+            appliedPlayerAttributes.put(player.getUniqueId(), Set.copyOf(applied));
+        }
+    }
+
+    public double getEffectiveAttributeValue(PetInstance pet, PetType.AttributeBonus bonus) {
+        if (pet == null || bonus == null) return 0.0;
+        return bonus.getValueAtLevel(pet.getLevel()) * getStatusAbilityMultiplier(pet.getStatus());
     }
 
     /**
@@ -612,7 +653,7 @@ public class PetManager {
         double petBonus = 0.0;
         for (PetType.AttributeBonus bonus : type.getAttributeBonuses()) {
             if (bonus.getAttribute() == Attribute.MAX_ABSORPTION) {
-                petBonus += bonus.getValueAtLevel(pet.getLevel());
+                petBonus += getEffectiveAttributeValue(pet, bonus);
             }
         }
         if (petBonus <= 0.0) return;
@@ -665,9 +706,9 @@ public class PetManager {
     /** Remove any pet attribute bonus from the player. */
     public void removePlayerAttribute(Player player) {
         Set<Attribute> candidateAttrs = new HashSet<>();
-        Attribute tracked = appliedPlayerAttributes.remove(player.getUniqueId());
+        Set<Attribute> tracked = appliedPlayerAttributes.remove(player.getUniqueId());
         if (tracked != null) {
-            candidateAttrs.add(tracked);
+            candidateAttrs.addAll(tracked);
         }
 
         for (PetType type : plugin.getPetTypes().values()) {
@@ -703,7 +744,7 @@ public class PetManager {
     private void waterMovementTick() {
         for (Map.Entry<UUID, PetInstance> entry : activePets.entrySet()) {
             Player player = Bukkit.getPlayer(entry.getKey());
-            if (player == null || !player.isOnline()) continue;
+            if (player == null || !player.isOnline() || player.isDead()) continue;
             updateWaterMovementSpeedModifier(player, entry.getValue());
         }
     }
@@ -721,7 +762,7 @@ public class PetManager {
             if (type != null) {
                 for (PetType.AttributeBonus bonus : type.getAttributeBonuses()) {
                     if (bonus.getAttribute() == Attribute.WATER_MOVEMENT_EFFICIENCY) {
-                        waterBonus += bonus.getValueAtLevel(pet.getLevel());
+                        waterBonus += getEffectiveAttributeValue(pet, bonus);
                     }
                 }
             }
@@ -788,7 +829,7 @@ public class PetManager {
 
         for (Map.Entry<UUID, PetInstance> entry : activePets.entrySet()) {
             Player player = Bukkit.getPlayer(entry.getKey());
-            if (player == null || !player.isOnline()) continue;
+            if (player == null || !player.isOnline() || player.isDead()) continue;
             PetInstance pet = entry.getValue();
             refreshPlayerAttribute(player, pet);
             PetType type = plugin.getPetTypes().get(pet.getPetTypeId());
@@ -812,6 +853,7 @@ public class PetManager {
 
             Player player = Bukkit.getPlayer(playerUuid);
             if (player == null || !player.isOnline()) continue;
+            if (player.isDead() || !player.isValid()) continue;
 
             Entity petEntity = findEntityByUuid(entityUuid);
 
@@ -891,9 +933,9 @@ public class PetManager {
             if (pet.getLevel() >= maxLevel) continue;
 
             Player player = Bukkit.getPlayer(playerUuid);
-            if (player == null || !player.isOnline()) continue;
+            if (player == null || !player.isOnline() || player.isDead()) continue;
 
-            pet.setXp(pet.getXp() + xpPerTick);
+            pet.setXp(pet.getXp() + (xpPerTick * getStatusXpMultiplier(pet.getStatus())));
 
             // Check level up
             while (pet.getLevel() < maxLevel) {
@@ -937,7 +979,7 @@ public class PetManager {
 
         for (Map.Entry<UUID, PetInstance> entry : activePets.entrySet()) {
             Player player = Bukkit.getPlayer(entry.getKey());
-            if (player == null || !player.isOnline()) continue;
+            if (player == null || !player.isOnline() || player.isDead()) continue;
 
             PetType type = plugin.getPetTypes().get(entry.getValue().getPetTypeId());
             if (type == null) continue;
@@ -989,12 +1031,21 @@ public class PetManager {
     // ══════════════════════════════════════════════════════════
 
     /** Feed a pet — improves status, plays hearts + mob sound. */
-    public void feedPet(Player player, PetInstance pet) {
+    public boolean feedPet(Player player, PetInstance pet) {
         PetType type = plugin.getPetTypes().get(pet.getPetTypeId());
-        if (type == null) return;
+        if (type == null) return false;
+
+        if (!pet.getStatus().canImprove()) {
+            sendPetNotification(player,
+                    "messages.pet_already_ecstatic",
+                    "&e%pet_name% &7is already ecstatic and does not need another treat.",
+                    Map.of("%pet_name%", pet.getLocalizedDisplayName(type, plugin.getLanguageManager())));
+            return false;
+        }
 
         pet.setStatus(pet.getStatus().better());
         plugin.getDatabaseManager().updatePetAsync(pet);
+        refreshPlayerAttribute(player, pet);
 
         // Hearts + mob sound
         UUID entityUuid = activePetEntities.get(player.getUniqueId());
@@ -1014,6 +1065,58 @@ public class PetManager {
                 "%status%", getLocalizedStatusDisplay(player, pet.getStatus())
             ));
         plugin.getAdvancementManager().handlePetFed(player);
+        return true;
+    }
+
+    private void statusTick() {
+        for (Map.Entry<UUID, PetInstance> entry : activePets.entrySet()) {
+            UUID playerUuid = entry.getKey();
+            Player player = Bukkit.getPlayer(playerUuid);
+            if (player == null || !player.isOnline() || player.isDead()
+                    || !activePetEntities.containsKey(playerUuid)) {
+                continue;
+            }
+
+            PetInstance pet = entry.getValue();
+            PetStatus next = pet.getStatus().worse();
+            if (next == pet.getStatus()) {
+                continue;
+            }
+
+            pet.setStatus(next);
+            plugin.getDatabaseManager().updatePetAsync(pet);
+            refreshPlayerAttribute(player, pet);
+
+            PetType type = plugin.getPetTypes().get(pet.getPetTypeId());
+            if (type != null) {
+                sendPetNotification(player,
+                        "messages.pet_mood_declined",
+                        "&e%pet_name%'s &7mood declined to &e%status%&7. Give it some care!",
+                        Map.of(
+                                "%pet_name%", pet.getLocalizedDisplayName(type, plugin.getLanguageManager()),
+                                "%status%", getLocalizedStatusDisplay(player, pet.getStatus())
+                        ));
+            }
+        }
+    }
+
+    public double getStatusAbilityMultiplier(PetStatus status) {
+        PetStatus resolved = status == null ? PetStatus.CONTENT : status;
+        return readNonNegativeMultiplier(
+                "status.ability_multipliers." + resolved.name().toLowerCase(Locale.ROOT),
+                resolved.getDefaultAbilityMultiplier());
+    }
+
+    public double getStatusXpMultiplier(PetStatus status) {
+        PetStatus resolved = status == null ? PetStatus.CONTENT : status;
+        return readNonNegativeMultiplier(
+                "status.xp_multipliers." + resolved.name().toLowerCase(Locale.ROOT),
+                resolved.getDefaultXpMultiplier());
+    }
+
+    private double readNonNegativeMultiplier(String path, double fallback) {
+        double configured = plugin.getConfig().getDouble(path, fallback);
+        return Double.isFinite(configured) && configured >= 0.0 ? configured : fallback;
     }
 
     public boolean canPetEat(PetType type, Material material) {
@@ -1108,6 +1211,7 @@ public class PetManager {
 
         pet.setStatus(pet.getStatus().better());
         plugin.getDatabaseManager().updatePetAsync(pet);
+        refreshPlayerAttribute(player, pet);
 
         UUID entityUuid = activePetEntities.get(player.getUniqueId());
         if (entityUuid != null) {

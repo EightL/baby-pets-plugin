@@ -64,6 +64,7 @@ petdetailgui.feed_and_pet_regularly_to: Aliméntala y acaríciala con regularida
 petdetailgui.foods: 'Alimentos: '
 petdetailgui.meter: 'Medidor: '
 petdetailgui.mood: 'Estado de ánimo: '
+petdetailgui.mood_power: 'Poder por ánimo: %percent%%'
 petdetailgui.next_level_xp: 'XP para el siguiente nivel: '
 petdetailgui.no_more_xp_is_required: No se necesita más XP.
 petdetailgui.permanently_delete_this_pet: ¡Elimina esta mascota permanentemente!
@@ -321,6 +322,8 @@ messages.hide_other_pets_disabled: "&eLas mascotas de otros jugadores vuelven a 
 messages.hide_other_pets_enabled: "&aLas mascotas de otros jugadores ahora estan ocultas."
 messages.incubator_busy: "&c¡Esta incubadora ya tiene un huevo!"
 messages.pet_level_up: "&b&l¡SUBISTE DE NIVEL! &e%pet_name% &7ahora es nivel &e%level%&7!"
+messages.pet_already_ecstatic: "&e%pet_name% &7ya está eufórica y no necesita otra golosina."
+messages.pet_mood_declined: "&7El ánimo de &e%pet_name% &7bajó a &e%status%&7. ¡Cuídala un poco!"
 messages.pet_notifications_disabled: "&eLas notificaciones de tu mascota ahora estan silenciadas."
 messages.pet_notifications_enabled: "&aLas notificaciones de tu mascota ahora estan activadas."
 messages.pet_renamed: "&aTu mascota ahora se llama &e%pet_name%&a!"

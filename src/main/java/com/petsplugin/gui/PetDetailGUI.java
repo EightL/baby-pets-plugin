@@ -283,20 +283,34 @@ public class PetDetailGUI extends BaseGUI {
                 if (!lore.isEmpty()) {
                     lore.add(Component.empty());
                 }
+                double moodMultiplier = plugin.getPetManager().getStatusAbilityMultiplier(pet.getStatus());
+                lore.add(plugin.getLanguageManager().getMessage(
+                                "petdetailgui.mood_power",
+                                "Mood power: %percent%%",
+                                "percent", String.valueOf(Math.round(moodMultiplier * 100.0)))
+                        .color(NamedTextColor.AQUA)
+                        .decoration(TextDecoration.ITALIC, false));
+                lore.add(Component.empty());
                 for (PetType.AttributeBonus bonus : type.getAttributeBonuses()) {
-                    String sign = bonus.getPerLevel() < 0 ? "" : "+";
+                    String sign = bonus.getPerLevel() * moodMultiplier < 0 ? "" : "+";
                     lore.add(Component.text(bonus.getDisplay() + ": ")
                             .color(NamedTextColor.GRAY)
                             .decoration(TextDecoration.ITALIC, false)
-                            .append(Component.text(sign + bonus.getTierDisplay(pet.getLevel()))
+                            .append(Component.text(sign + bonus.getTierDisplay(pet.getLevel(), moodMultiplier))
                                     .color(NamedTextColor.GREEN)));
-                    lore.add(Component.text("Growth: " + sign + bonus.formatPerLevel() + "/level")
+                    lore.add(plugin.getLanguageManager().getMessage(
+                                    "petdetailgui.growth_line",
+                                    "Growth: %value%/level",
+                                    "value", sign + bonus.formatPerLevel(moodMultiplier))
                             .color(NamedTextColor.DARK_GRAY)
                             .decoration(TextDecoration.ITALIC, false));
-                    lore.add(Component.text("At Lv" + maxLevel + ": ")
+                    lore.add(plugin.getLanguageManager().getMessage(
+                                    "petdetailgui.at_level_line",
+                                    "At Lv%level%: ",
+                                    "level", String.valueOf(maxLevel))
                             .color(NamedTextColor.DARK_GRAY)
                             .decoration(TextDecoration.ITALIC, false)
-                            .append(Component.text(sign + bonus.getTierDisplay(maxLevel))
+                            .append(Component.text(sign + bonus.getTierDisplay(maxLevel, moodMultiplier))
                                     .color(NamedTextColor.YELLOW)));
                     lore.add(Component.empty());
                 }

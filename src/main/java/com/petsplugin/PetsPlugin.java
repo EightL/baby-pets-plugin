@@ -30,7 +30,7 @@ import java.util.Map;
  */
 public class PetsPlugin extends JavaPlugin {
 
-    private static final int CURRENT_CONFIG_VERSION = 2;
+    private static final int CURRENT_CONFIG_VERSION = 3;
 
     private PetDatabaseManager databaseManager;
     private EggManager eggManager;

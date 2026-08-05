@@ -27,7 +27,7 @@ FEATURES
 
 Pets and rarities:
 - 22 pet types across 5 rarity tiers: Common, Uncommon, Rare, Epic, Legendary
-- Every stat-boosting pet provides a unique player attribute bonus that scales linearly with level
+- Stat-boosting pets can provide one or more player attribute bonuses that scale linearly with level
 - Storage pets unlock inventory slots that scale with level instead
 
 Pet leveling:
@@ -37,7 +37,8 @@ Pet leveling:
 
 Mood and care:
 - 5 mood states: Ecstatic, Happy, Content, Hungry, Sad
-- Mood drifts down over time; recover it by feeding or petting
+- Active pets lose one mood tier every 30 minutes by default; recover it by feeding or petting
+- Mood scales attribute power from 50-120% and passive XP from 50-125% by default
 - Food type depends on the pet's movement category (ground / flying / water)
 
 Egg and incubation system:
@@ -63,6 +64,7 @@ Additional systems:
 - Follow and Stay modes
 - Cross-dimension teleport
 - Respawn on join
+- Death-safe lifecycle: pets wait for respawn and cannot accumulate at a death location
 - Hover name above pet entity
 - Per-player toggles: hide other players' pets, sounds, notifications
 - Rename pets with a name tag in hand while right-clicking
@@ -137,9 +139,9 @@ CONFIGURATION
 -------------
 
 config.yml  - Incubation time, leveling curve, XP intervals, follow/teleport distances,
-              mood food lists, messages, loot injection settings
-pets.yml    - Full pet roster: entity type, rarity, description, player attribute,
-              storage size, and more
+              mood decay/multipliers, food lists, messages, loot injection settings
+pets.yml    - Full pet roster: entity type, rarity, description, single or multiple
+              player attributes, storage size, and more
 
 Individual systems (advancements, abilities, loot injection) can each be toggled independently.
 

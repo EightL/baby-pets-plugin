@@ -8,12 +8,18 @@ import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityPickupItemEvent;
 import org.bukkit.event.entity.EntityPotionEffectEvent;
+import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.inventory.InventoryCloseEvent;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
 import org.bukkit.potion.PotionEffectType;
+import org.bukkit.scheduler.BukkitTask;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 
 /**
  * Handles player join/quit — loading data, respawning pets.
@@ -21,6 +27,7 @@ import org.bukkit.potion.PotionEffectType;
 public class PlayerListener implements Listener {
 
     private final PetsPlugin plugin;
+    private final Map<UUID, BukkitTask> pendingPetRespawns = new HashMap<>();
 
     public PlayerListener(PetsPlugin plugin) {
         this.plugin = plugin;
@@ -43,14 +50,26 @@ public class PlayerListener implements Listener {
             PetInstance selected = plugin.getPetManager().getSelectedPet(player.getUniqueId());
             if (selected != null) {
                 // Delay spawn to let player fully load.
-                schedulePetRespawn(player, selected, 40L);
+                schedulePetRespawn(player, 40L);
             }
         }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    public void onDeath(PlayerDeathEvent event) {
+        Player player = event.getEntity();
+        cancelPendingPetRespawn(player.getUniqueId());
+
+        // A dead Player remains online while the death screen is open. Removing the
+        // runtime entity here prevents the follow task from projecting new pets at
+        // the death location until PlayerRespawnEvent fires.
+        plugin.getPetManager().despawnPet(player.getUniqueId(), false);
     }
 
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
         Player player = event.getPlayer();
+        cancelPendingPetRespawn(player.getUniqueId());
 
         // Despawn pet entity
         plugin.getPetManager().despawnPet(player.getUniqueId(), false);
@@ -100,7 +119,7 @@ public class PlayerListener implements Listener {
             selected = plugin.getPetManager().getSelectedPet(player.getUniqueId());
         }
         if (selected != null) {
-            schedulePetRespawn(player, selected, 20L);
+            schedulePetRespawn(player, 20L);
         }
     }
 
@@ -113,18 +132,30 @@ public class PlayerListener implements Listener {
         if (pet != null) {
             // Despawn in old world, respawn in new
             plugin.getPetManager().despawnPet(player.getUniqueId(), false);
-            schedulePetRespawn(player, pet, 10L);
+            schedulePetRespawn(player, 10L);
         }
     }
 
-    private void schedulePetRespawn(Player player, PetInstance pet, long delayTicks) {
-        if (pet == null) {
-            return;
-        }
-        org.bukkit.Bukkit.getScheduler().runTaskLater(plugin, () -> {
-            if (player.isOnline()) {
-                plugin.getPetManager().spawnPet(player, pet);
+    private void schedulePetRespawn(Player player, long delayTicks) {
+        UUID playerUuid = player.getUniqueId();
+        cancelPendingPetRespawn(playerUuid);
+
+        BukkitTask task = plugin.getServer().getScheduler().runTaskLater(plugin, () -> {
+            pendingPetRespawns.remove(playerUuid);
+            if (player.isOnline() && player.isValid() && !player.isDead()) {
+                PetInstance selected = plugin.getPetManager().getSelectedPet(playerUuid);
+                if (selected != null) {
+                    plugin.getPetManager().spawnPet(player, selected);
+                }
             }
         }, delayTicks);
+        pendingPetRespawns.put(playerUuid, task);
+    }
+
+    private void cancelPendingPetRespawn(UUID playerUuid) {
+        BukkitTask pending = pendingPetRespawns.remove(playerUuid);
+        if (pending != null) {
+            pending.cancel();
+        }
     }
 }

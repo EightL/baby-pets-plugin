@@ -24,6 +24,8 @@
 #   - type: ATTACK_DAMAGE
 #     value_per_level: 0.2
 #     display: "⚔ Attack"
+# Legacy names such as GENERIC_MAX_HEALTH and GENERIC_ATTACK_DAMAGE are accepted.
+# A named map (for example player_attributes.health/attack) is also accepted.
 #
 # Optional potion effects granted while this pet is active.
 # tier: I or II (default: I)

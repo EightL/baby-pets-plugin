@@ -407,15 +407,16 @@ public class PetsCommand implements CommandExecutor, TabExecutor {
             }
 
             if (type.hasPlayerAttribute()) {
+                double moodMultiplier = plugin.getPetManager().getStatusAbilityMultiplier(pet.getStatus());
                 for (PetType.AttributeBonus bonus : type.getAttributeBonuses()) {
-                    String sign = bonus.getPerLevel() < 0 ? "" : "+";
+                    String sign = bonus.getPerLevel() * moodMultiplier < 0 ? "" : "+";
                     player.sendMessage(Component.text("  " + bonus.getDisplay() + ": ").color(NamedTextColor.GRAY)
-                            .append(Component.text(sign + bonus.getTierDisplay(pet.getLevel()))
+                            .append(Component.text(sign + bonus.getTierDisplay(pet.getLevel(), moodMultiplier))
                                     .color(NamedTextColor.GREEN))
                             .append(plugin.getLanguageManager().getMessage(
                                     "petinfo.attribute_per_level",
                                     " (%value%/level)",
-                                    "value", sign + bonus.formatPerLevel())
+                                    "value", sign + bonus.formatPerLevel(moodMultiplier))
                                     .color(NamedTextColor.DARK_GRAY)));
                 }
             }

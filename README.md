@@ -30,11 +30,11 @@ Recipe: Copper Block / Lightning Rod / Copper Block on top, Iron Ingot / Glass /
 
 ## Leveling
 
-Pets gain XP passively while active — default every 60 seconds. Cap is level 10. XP curve is configurable. Every level increases the pet's player attribute bonus (or storage slots for storage pets).
+Pets gain XP passively while active — default every 60 seconds. Cap is level 10. XP curve is configurable. Every level increases the pet's player attribute bonus (or storage slots for storage pets). Mood scales passive XP between 50% and 125% by default.
 
 ## Mood
 
-Pets have 5 mood states: Ecstatic → Happy → Content → Hungry → Sad. Mood drifts down over time. Feed your pet or right-click it to improve mood.
+Pets have 5 mood states: Ecstatic → Happy → Content → Hungry → Sad. An active pet loses one tier every 30 minutes by default. Feed your pet or right-click it to improve mood. Mood scales player attribute bonuses from 50% at Sad to 120% at Ecstatic and passive XP from 50% to 125%; every value and the decay interval are configurable.
 
 Food is grouped by movement type:
 - Ground pets: wheat, carrot, apple, bread
@@ -58,8 +58,8 @@ Permissions:
 
 Two main files:
 
-- `config.yml` — incubation duration, leveling curve, XP interval, follow/teleport distances, food lists, messages, loot injection settings, ability toggle
-- `pets.yml` — full pet roster (entity type, rarity, description, player attribute, storage config)
+- `config.yml` — incubation duration, leveling curve, XP interval, mood decay/multipliers, follow/teleport distances, food lists, loot injection settings, ability toggle
+- `pets.yml` — full pet roster (entity type, rarity, description, one or more player attributes, potion effects, storage config)
 
 Individual systems (advancements, abilities, loot injection) can be toggled off independently.
 

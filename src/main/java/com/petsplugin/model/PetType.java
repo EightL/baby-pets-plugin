@@ -12,6 +12,7 @@ import org.bukkit.potion.PotionEffectType;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -40,9 +41,11 @@ public class PetType {
         public String getDisplay() { return display; }
         public double getValueAtLevel(int level) { return level * perLevel; }
         public String getTierDisplay(int level) { return formatValue(level * perLevel); }
+        public String getTierDisplay(int level, double multiplier) { return formatValue(level * perLevel * multiplier); }
         public String formatPerLevel() { return formatValue(perLevel); }
+        public String formatPerLevel(double multiplier) { return formatValue(perLevel * multiplier); }
 
-        private static String formatValue(double value) {
+        public static String formatValue(double value) {
             if (Math.abs(value - Math.rint(value)) < DISPLAY_EPSILON) {
                 return String.format(Locale.US, "%.0f", value);
             }
@@ -126,20 +129,23 @@ public class PetType {
         if (attrList != null) {
             for (Object obj : attrList) {
                 if (obj instanceof Map<?, ?> map) {
-                    Object typeObj = map.get("type");
-                    String typeName = typeObj == null ? "" : String.valueOf(typeObj).trim();
-                    double perLevel = 0.0;
-                    Object perLevelObj = map.get("value_per_level");
-                    if (perLevelObj instanceof Number number) {
-                        perLevel = number.doubleValue();
-                    } else if (perLevelObj != null) {
-                        try {
-                            perLevel = Double.parseDouble(String.valueOf(perLevelObj));
-                        } catch (NumberFormatException ignored) { }
+                    addAttributeBonus(parsedAttributes, id, map, "player_attributes");
+                }
+            }
+        } else {
+            // Also accept a named map. This makes hand-authored YAML less fragile while
+            // preserving the documented list format.
+            ConfigurationSection attrMap = section.getConfigurationSection("player_attributes");
+            if (attrMap != null) {
+                for (String key : attrMap.getKeys(false)) {
+                    ConfigurationSection entry = attrMap.getConfigurationSection(key);
+                    if (entry != null) {
+                        addAttributeBonus(parsedAttributes, id,
+                                entry.getString("type"),
+                                entry.getDouble("value_per_level", 0.0),
+                                entry.getString("display", key),
+                                "player_attributes." + key);
                     }
-                    Object displayObj = map.get("display");
-                    String display = displayObj == null ? "Unknown" : String.valueOf(displayObj).trim();
-                    addAttributeBonus(parsedAttributes, id, typeName, perLevel, display, "player_attributes");
                 }
             }
         }
@@ -172,20 +178,67 @@ public class PetType {
         Bukkit.getLogger().warning("[BabyPets] Invalid " + source + ".type '" + configuredType + "' for pet '" + petId + "'.");
     }
 
+    private void addAttributeBonus(List<AttributeBonus> out, String petId, Map<?, ?> map, String source) {
+        Object typeObj = map.get("type");
+        String typeName = typeObj == null ? "" : String.valueOf(typeObj).trim();
+        double perLevel = 0.0;
+        Object perLevelObj = map.get("value_per_level");
+        if (perLevelObj instanceof Number number) {
+            perLevel = number.doubleValue();
+        } else if (perLevelObj != null) {
+            try {
+                perLevel = Double.parseDouble(String.valueOf(perLevelObj));
+            } catch (NumberFormatException ignored) { }
+        }
+        Object displayObj = map.get("display");
+        String display = displayObj == null ? "Unknown" : String.valueOf(displayObj).trim();
+        addAttributeBonus(out, petId, typeName, perLevel, display, source);
+    }
+
     private Attribute parseAttribute(String name) {
         if (name == null || name.isBlank()) {
             return null;
         }
 
-        String normalized = name.trim().toLowerCase(Locale.ROOT);
-        NamespacedKey key = normalized.contains(":")
-                ? NamespacedKey.fromString(normalized)
-                : NamespacedKey.minecraft(normalized);
-        if (key == null) {
-            return null;
+        for (String candidate : attributeKeyCandidates(name)) {
+            NamespacedKey key = candidate.contains(":")
+                    ? NamespacedKey.fromString(candidate)
+                    : NamespacedKey.minecraft(candidate);
+            if (key == null) {
+                continue;
+            }
+
+            Attribute attribute = Registry.ATTRIBUTE.get(key);
+            if (attribute != null) {
+                return attribute;
+            }
+        }
+        return null;
+    }
+
+    static List<String> attributeKeyCandidates(String name) {
+        if (name == null || name.isBlank()) {
+            return Collections.emptyList();
         }
 
-        return Registry.ATTRIBUTE.get(key);
+        String normalized = name.trim().toLowerCase(Locale.ROOT).replace(' ', '_');
+        LinkedHashSet<String> candidates = new LinkedHashSet<>();
+        candidates.add(normalized);
+
+        String keyOnly = normalized.startsWith("minecraft:")
+                ? normalized.substring("minecraft:".length())
+                : normalized;
+        candidates.add(keyOnly);
+
+        String modern = keyOnly.replace('.', '_');
+        for (String legacyPrefix : List.of("generic_", "player_", "horse_", "zombie_")) {
+            if (modern.startsWith(legacyPrefix)) {
+                modern = modern.substring(legacyPrefix.length());
+                break;
+            }
+        }
+        candidates.add(modern);
+        return List.copyOf(candidates);
     }
 
     private void addPotionBonus(List<PotionBonus> out, String petId, Map<?, ?> effectMap) {
