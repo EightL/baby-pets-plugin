@@ -85,8 +85,8 @@ Open your collection with `/pets`, click a pet to select it, and it'll spawn at 
 
 |                   |              |
 |-------------------|--------------|
-| Server software   | Paper 1.21+  |
-| Java              | 21+          |
+| Server software   | Paper 1.21–1.21.11 and current 26.x (one JAR) |
+| Java              | 21 on 1.21.x; 25 on 26.x |
 | Hard dependencies | None         |
 | Soft dependencies | FishRework   |
 

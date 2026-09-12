@@ -24,6 +24,7 @@ import java.util.Map;
 public class PetType {
 
     public enum SpecialAbility { NONE, UNDERWATER_VISION, STORAGE }
+    public enum AdultAbility { NONE, RIDING }
 
     public static class AttributeBonus {
         private final Attribute attribute;
@@ -84,6 +85,7 @@ public class PetType {
 
     // Special ability
     private final SpecialAbility specialAbility;
+    private final AdultAbility adultAbility;
     private final int storageBase;
     private final double storagePerLevel;
     private final String storageGroup;
@@ -109,6 +111,11 @@ public class PetType {
             ability = SpecialAbility.valueOf(section.getString("special_ability", "NONE").toUpperCase());
         } catch (IllegalArgumentException ignored) { }
         this.specialAbility = ability;
+        AdultAbility grownAbility = AdultAbility.NONE;
+        try {
+            grownAbility = AdultAbility.valueOf(section.getString("adult_ability", "NONE").toUpperCase());
+        } catch (IllegalArgumentException ignored) { }
+        this.adultAbility = grownAbility;
         this.storageBase = section.getInt("storage_base", section.getInt("storage_size", 0));
         this.storagePerLevel = section.getDouble("storage_per_level", 0.0);
         this.storageGroup = section.getString("storage_group", id);
@@ -238,6 +245,10 @@ public class PetType {
             }
         }
         candidates.add(modern);
+        // Before 1.21.2, registry keys included the attribute's entity category.
+        for (String prefix : List.of("generic.", "player.", "horse.", "zombie.")) {
+            candidates.add(prefix + modern);
+        }
         return List.copyOf(candidates);
     }
 
@@ -286,6 +297,8 @@ public class PetType {
     public Material getIcon() { return icon; }
     public boolean isBaby() { return baby; }
     public SpecialAbility getSpecialAbility() { return specialAbility; }
+    public AdultAbility getAdultAbility() { return adultAbility; }
+    public boolean hasAdultAbility() { return adultAbility != AdultAbility.NONE; }
     public int getStorageSize() { return storageBase; }
     public String getStorageGroup() { return storageGroup; }
     public Material getStorageGlass() { return storageGlass; }

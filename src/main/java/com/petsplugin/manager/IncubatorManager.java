@@ -143,7 +143,7 @@ public class IncubatorManager {
             return flower;
         }
         if (logFallback) {
-            plugin.getLogger().warning("GOLDEN_DANDELION is unavailable on this API target; incubator recipe is using DANDELION as a fallback.");
+            plugin.getLogger().info("GOLDEN_DANDELION is unavailable on this server; incubator recipe is using DANDELION as a fallback.");
         }
         return Material.DANDELION;
     }

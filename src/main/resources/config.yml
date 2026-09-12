@@ -1,7 +1,7 @@
 # ══════════════════════════════════════════════════════════
 #  Baby Pets — Configuration
 # ══════════════════════════════════════════════════════════
-config_version: 3
+config_version: 4
 locale: "en"
 
 database:
@@ -64,6 +64,7 @@ pets:
 # ══════════════════════════════════════════════════════════
 leveling:
   max_level: 10
+  adult_level: 7              # Unlocks the adult stage and any configured second ability
   base_xp: 50               # XP needed for level 2
   exponent: 1.3              # Scaling exponent per level
   xp_per_interval: 2.0       # XP gained per interval tick

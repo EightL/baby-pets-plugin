@@ -88,14 +88,43 @@ class LocalizationResourceTest {
                 "messages.hide_other_pets_enabled:",
                 "messages.incubator_busy:",
                 "messages.pet_already_ecstatic:",
+                "messages.pet_adult_appearance_enabled:",
+                "messages.pet_baby_appearance_enabled:",
                 "messages.pet_level_up:",
                 "messages.pet_mood_declined:",
                 "messages.pet_notifications_disabled:",
                 "messages.pet_notifications_enabled:",
                 "messages.pet_renamed:",
+                "messages.pet_reached_adult_stage:",
+                "messages.pet_unlocked_adult_ability:",
                 "messages.pet_sounds_disabled:",
                 "messages.pet_sounds_enabled:",
                 "messages.pet_spawned:"
+        };
+
+        for (String file : files) {
+            String lang = Files.readString(Path.of(file));
+            for (String key : keys) {
+                assertTrue(lang.contains(key), file + " should define " + key);
+            }
+        }
+    }
+
+    @Test
+    void langFilesContainAdultStageInterfaceKeys() throws IOException {
+        String[] files = {
+                "src/main/resources/lang_en.yml",
+                "src/main/resources/lang_es.yml",
+                "src/main/resources/lang_zh_CN.yml"
+        };
+        String[] keys = {
+                "petdetailgui.stage:",
+                "petdetailgui.adult_stage:",
+                "petdetailgui.adult_ability:",
+                "petdetailgui.riding:",
+                "petdetailgui.keep_baby_appearance:",
+                "petdetailgui.baby_model_disables_riding:",
+                "petdetailgui.adult_model_enables_riding:"
         };
 
         for (String file : files) {

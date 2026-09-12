@@ -384,6 +384,17 @@ public class PetsCommand implements CommandExecutor, TabExecutor {
                 .color(type.getRarity().getColor())));
         player.sendMessage(Component.text("  " + levelLabel + ": ").color(NamedTextColor.GRAY)
                 .append(Component.text(pet.getLevel() + "/" + maxLevel).color(NamedTextColor.YELLOW)));
+        player.sendMessage(Component.text("  ")
+                .append(plugin.getLanguageManager().getMessage("petdetailgui.stage", "Stage: ")
+                        .color(NamedTextColor.GRAY))
+                .append(plugin.getLanguageManager().getMessage(
+                                plugin.getPetManager().isAdultStage(pet)
+                                        ? "petdetailgui.adult_stage"
+                                        : "petdetailgui.baby_stage",
+                                plugin.getPetManager().isAdultStage(pet) ? "Adult" : "Baby")
+                        .color(plugin.getPetManager().isAdultStage(pet)
+                                ? NamedTextColor.GOLD
+                                : NamedTextColor.AQUA)));
 
         if (pet.getLevel() < maxLevel) {
             double nextXp = plugin.getPetManager().getXpForLevel(pet.getLevel() + 1);
@@ -431,6 +442,36 @@ public class PetsCommand implements CommandExecutor, TabExecutor {
                 }
                 player.sendMessage(Component.text("  Effects: ").color(NamedTextColor.GRAY)
                         .append(Component.text(effects.toString()).color(NamedTextColor.GREEN)));
+            }
+
+            if (type.hasAdultAbility()) {
+                Component adultAbility = Component.text("  ")
+                        .append(plugin.getLanguageManager().getMessage(
+                                        "petdetailgui.adult_ability", "Adult Ability: ")
+                                .color(NamedTextColor.GRAY))
+                        .append(plugin.getLanguageManager().getMessage("petdetailgui.riding", "Riding")
+                                .color(NamedTextColor.GOLD));
+                if (!plugin.getPetManager().isAdultAbilityUnlocked(pet, type)) {
+                    adultAbility = adultAbility.append(Component.text(" — ").color(NamedTextColor.DARK_GRAY))
+                            .append(plugin.getLanguageManager().getMessage(
+                                            "petdetailgui.unlocks_at_level",
+                                            "Unlocks at level %level%",
+                                            "level", String.valueOf(plugin.getAdultLevel()))
+                                    .color(NamedTextColor.DARK_GRAY));
+                } else if (plugin.getPetManager().canRidePet(pet, type)) {
+                    adultAbility = adultAbility.append(Component.text(" — ").color(NamedTextColor.DARK_GRAY))
+                            .append(plugin.getLanguageManager().getMessage(
+                                            "petdetailgui.riding_active",
+                                            "Active — right-click with empty hand to ride")
+                                    .color(NamedTextColor.GREEN));
+                } else {
+                    adultAbility = adultAbility.append(Component.text(" — ").color(NamedTextColor.DARK_GRAY))
+                            .append(plugin.getLanguageManager().getMessage(
+                                            "petdetailgui.riding_needs_adult_model",
+                                            "Paused — switch off the baby appearance to ride")
+                                    .color(NamedTextColor.YELLOW));
+                }
+                player.sendMessage(adultAbility);
             }
         }
         return true;

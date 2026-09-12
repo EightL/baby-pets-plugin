@@ -30,7 +30,7 @@ import java.util.Map;
  */
 public class PetsPlugin extends JavaPlugin {
 
-    private static final int CURRENT_CONFIG_VERSION = 3;
+    private static final int CURRENT_CONFIG_VERSION = 4;
 
     private PetDatabaseManager databaseManager;
     private EggManager eggManager;
@@ -43,6 +43,7 @@ public class PetsPlugin extends JavaPlugin {
     private Map<String, PetType> petTypes = new LinkedHashMap<>();
 
     private int maxLevel;
+    private int adultLevel;
     private double followDistance;
     private double teleportDistance;
     private int incubationDurationMinutes;
@@ -130,6 +131,7 @@ public class PetsPlugin extends JavaPlugin {
 
     private void loadRuntimeConfigCache() {
         maxLevel = getConfig().getInt("leveling.max_level", 10);
+        adultLevel = Math.max(1, Math.min(maxLevel, getConfig().getInt("leveling.adult_level", 7)));
         followDistance = getConfig().getDouble("pets.follow_distance", 3.0);
         teleportDistance = getConfig().getDouble("pets.teleport_distance", 20.0);
         incubationDurationMinutes = getConfig().getInt("incubation.duration_minutes", 20);
@@ -221,6 +223,7 @@ public class PetsPlugin extends JavaPlugin {
     public LanguageManager getLanguageManager() { return languageManager; }
     public Map<String, PetType> getPetTypes() { return petTypes; }
     public int getMaxLevel() { return maxLevel; }
+    public int getAdultLevel() { return adultLevel; }
     public double getFollowDistance() { return followDistance; }
     public double getTeleportDistance() { return teleportDistance; }
     public int getIncubationDurationMinutes() { return incubationDurationMinutes; }

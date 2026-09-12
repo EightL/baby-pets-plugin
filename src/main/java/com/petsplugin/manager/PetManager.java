@@ -393,12 +393,6 @@ public class PetManager {
             // chunks can leave permanent duplicates behind after unload/death races.
             mob.setPersistent(false);
 
-            // Baby form — default size, not scaled down
-            if (type.isBaby() && mob instanceof Ageable ageable) {
-                ageable.setBaby();
-                ageable.setAgeLock(true);
-            }
-
             // PDC tags
             mob.getPersistentDataContainer().set(PET_ENTITY_KEY, PersistentDataType.BYTE, (byte) 1);
             mob.getPersistentDataContainer().set(PET_OWNER_KEY, PersistentDataType.STRING,
@@ -423,6 +417,7 @@ public class PetManager {
         applyPetName(entity, pet);
         ensurePersistentAppearance(pet, type);
         applyPetAppearance(entity, pet, type);
+        applyPetGrowthState(entity, player, pet, type);
 
         if (plugin.getSettingsManager().isStayMode(player.getUniqueId())) {
             stayAnchors.put(player.getUniqueId(), entity.getLocation().clone());
@@ -574,6 +569,63 @@ public class PetManager {
         return plugin.getConfig().getBoolean("pets.abilities.enabled", true);
     }
 
+    public boolean isAdultStage(PetInstance pet) {
+        return pet != null && pet.hasReachedAdultStage(plugin.getAdultLevel());
+    }
+
+    public boolean supportsBabyAppearance(PetType type) {
+        if (type == null || !type.isBaby()) {
+            return false;
+        }
+        Class<? extends Entity> entityClass = type.getEntityType().getEntityClass();
+        return entityClass != null && Ageable.class.isAssignableFrom(entityClass);
+    }
+
+    public boolean usesBabyAppearance(PetInstance pet, PetType type) {
+        return supportsBabyAppearance(type)
+                && (!isAdultStage(pet) || pet.isKeepBabyAppearance());
+    }
+
+    public boolean isAdultAbilityUnlocked(PetInstance pet, PetType type) {
+        return pet != null && type != null && type.hasAdultAbility() && isAdultStage(pet);
+    }
+
+    public boolean canRidePet(PetInstance pet, PetType type) {
+        return arePetAbilitiesEnabled()
+                && isAdultAbilityUnlocked(pet, type)
+                && type.getAdultAbility() == PetType.AdultAbility.RIDING
+                && !usesBabyAppearance(pet, type);
+    }
+
+    public void setKeepBabyAppearance(Player player, PetInstance pet, boolean keepBabyAppearance) {
+        if (player == null || pet == null) {
+            return;
+        }
+
+        pet.setKeepBabyAppearance(keepBabyAppearance);
+        syncCachedBabyAppearance(pet);
+        plugin.getDatabaseManager().updatePetAsync(pet);
+        refreshPetGrowthState(player, pet);
+    }
+
+    public boolean mountPet(Player player, PetInstance pet, Entity entity) {
+        if (player == null || pet == null || entity == null || player.isInsideVehicle()) {
+            return false;
+        }
+
+        PetType type = plugin.getPetTypes().get(pet.getPetTypeId());
+        if (!canRidePet(pet, type) || !(entity instanceof AbstractHorse horse)) {
+            return false;
+        }
+
+        if (plugin.getSettingsManager().isStayMode(player.getUniqueId())) {
+            setFollowMode(player, PetFollowMode.FOLLOW);
+        }
+
+        applyPetGrowthState(entity, player, pet, type);
+        return horse.addPassenger(player);
+    }
+
     /** Apply the pet's attribute bonus to the player. */
     public void applyPlayerAttribute(Player player, PetInstance pet, PetType type) {
         removePlayerAttribute(player); // Clean first
@@ -610,7 +662,7 @@ public class PetManager {
 
             // Gravity is treated as a scalar from base 1.0 (1 + amount).
             // Example: amount -0.09 => 0.91x gravity, amount -0.9 => 0.1x gravity.
-            if (attribute == Attribute.GRAVITY) {
+            if (attribute == Attribute.GENERIC_GRAVITY) {
                 operation = AttributeModifier.Operation.MULTIPLY_SCALAR_1;
             }
 
@@ -652,14 +704,14 @@ public class PetManager {
 
         double petBonus = 0.0;
         for (PetType.AttributeBonus bonus : type.getAttributeBonuses()) {
-            if (bonus.getAttribute() == Attribute.MAX_ABSORPTION) {
+            if (bonus.getAttribute() == Attribute.GENERIC_MAX_ABSORPTION) {
                 petBonus += getEffectiveAttributeValue(pet, bonus);
             }
         }
         if (petBonus <= 0.0) return;
 
         PotionEffect absorption = player.getPotionEffect(PotionEffectType.ABSORPTION);
-        AttributeInstance maxAbsorption = player.getAttribute(Attribute.MAX_ABSORPTION);
+        AttributeInstance maxAbsorption = player.getAttribute(Attribute.GENERIC_MAX_ABSORPTION);
         if (absorption == null || maxAbsorption == null) return;
 
         // Vanilla Absorption grants four health points per effect level. Add
@@ -750,7 +802,7 @@ public class PetManager {
     }
 
     private void updateWaterMovementSpeedModifier(Player player, PetInstance pet) {
-        AttributeInstance movementSpeed = player.getAttribute(Attribute.MOVEMENT_SPEED);
+        AttributeInstance movementSpeed = player.getAttribute(Attribute.GENERIC_MOVEMENT_SPEED);
         if (movementSpeed == null) return;
 
         double waterBonus = 0.0;
@@ -761,7 +813,7 @@ public class PetManager {
             PetType type = plugin.getPetTypes().get(pet.getPetTypeId());
             if (type != null) {
                 for (PetType.AttributeBonus bonus : type.getAttributeBonuses()) {
-                    if (bonus.getAttribute() == Attribute.WATER_MOVEMENT_EFFICIENCY) {
+                    if (bonus.getAttribute() == Attribute.GENERIC_WATER_MOVEMENT_EFFICIENCY) {
                         waterBonus += getEffectiveAttributeValue(pet, bonus);
                     }
                 }
@@ -793,7 +845,7 @@ public class PetManager {
     }
 
     private void removeWaterMovementSpeedModifier(Player player) {
-        AttributeInstance movementSpeed = player.getAttribute(Attribute.MOVEMENT_SPEED);
+        AttributeInstance movementSpeed = player.getAttribute(Attribute.GENERIC_MOVEMENT_SPEED);
         if (movementSpeed == null) return;
 
         for (AttributeModifier modifier : new ArrayList<>(movementSpeed.getModifiers())) {
@@ -823,19 +875,18 @@ public class PetManager {
             }
         }
 
-        if (!arePetAbilitiesEnabled()) {
-            return;
-        }
-
         for (Map.Entry<UUID, PetInstance> entry : activePets.entrySet()) {
             Player player = Bukkit.getPlayer(entry.getKey());
             if (player == null || !player.isOnline() || player.isDead()) continue;
             PetInstance pet = entry.getValue();
-            refreshPlayerAttribute(player, pet);
-            PetType type = plugin.getPetTypes().get(pet.getPetTypeId());
-            if (type != null) {
-                applyPotionBonuses(player, type);
+            if (arePetAbilitiesEnabled()) {
+                refreshPlayerAttribute(player, pet);
+                PetType type = plugin.getPetTypes().get(pet.getPetTypeId());
+                if (type != null) {
+                    applyPotionBonuses(player, type);
+                }
             }
+            refreshPetGrowthState(player, pet);
         }
     }
 
@@ -959,6 +1010,18 @@ public class PetManager {
 
                         // Refresh player attribute
                         refreshPlayerAttribute(player, pet);
+                        refreshPetGrowthState(player, pet);
+                        if (pet.getLevel() == plugin.getAdultLevel()) {
+                            boolean unlockedAbility = type.hasAdultAbility();
+                            sendPetNotification(player,
+                                    unlockedAbility
+                                            ? "messages.pet_unlocked_adult_ability"
+                                            : "messages.pet_reached_adult_stage",
+                                    unlockedAbility
+                                            ? "&6&lGROWN UP! &e%pet_name% &7reached the adult stage and unlocked a second ability!"
+                                            : "&6&lGROWN UP! &e%pet_name% &7reached the adult stage!",
+                                    Map.of("%pet_name%", pet.getLocalizedDisplayName(type, plugin.getLanguageManager())));
+                        }
                         plugin.getAdvancementManager().handlePetLevel(player, pet);
                     }
                 } else {
@@ -1252,10 +1315,11 @@ public class PetManager {
 
     public void setLevel(Player player, PetInstance pet, int level) {
         int maxLevel = plugin.getMaxLevel();
-        pet.setLevel(Math.min(level, maxLevel));
+        pet.setLevel(Math.max(1, Math.min(level, maxLevel)));
         pet.setXp(0);
         plugin.getDatabaseManager().updatePetAsync(pet);
         refreshPlayerAttribute(player, pet);
+        refreshPetGrowthState(player, pet);
         plugin.getAdvancementManager().handlePetLevel(player, pet);
     }
 
@@ -1374,6 +1438,18 @@ public class PetManager {
         for (PetInstance cachedPet : pets) {
             if (cachedPet.getDatabaseId() == pet.getDatabaseId()) {
                 cachedPet.setAppearanceVariant(pet.getAppearanceVariant());
+                break;
+            }
+        }
+    }
+
+    private void syncCachedBabyAppearance(PetInstance pet) {
+        List<PetInstance> pets = playerPetsCache.get(pet.getOwnerUuid());
+        if (pets == null) return;
+
+        for (PetInstance cachedPet : pets) {
+            if (cachedPet.getDatabaseId() == pet.getDatabaseId()) {
+                cachedPet.setKeepBabyAppearance(pet.isKeepBabyAppearance());
                 break;
             }
         }
@@ -1661,11 +1737,7 @@ public class PetManager {
         }
 
         if (entity instanceof Armadillo armadillo) {
-            if (stayMode) {
-                armadillo.rollUp();
-            } else {
-                armadillo.rollOut();
-            }
+            PetAppearanceCompat.setRolledUp(armadillo, stayMode);
         }
 
         if (entity instanceof Mob mob) {
@@ -1766,18 +1838,12 @@ public class PetManager {
             }
             case PIG -> {
                 if (entity instanceof Pig pig) {
-                    Pig.Variant variant = parsePigVariant(pet.getAppearanceVariant());
-                    if (variant != null) {
-                        pig.setVariant(variant);
-                    }
+                    PetAppearanceCompat.setPigVariant(pig, pet.getAppearanceVariant());
                 }
             }
             case CHICKEN -> {
                 if (entity instanceof Chicken chicken) {
-                    Chicken.Variant variant = parseChickenVariant(pet.getAppearanceVariant());
-                    if (variant != null) {
-                        chicken.setVariant(variant);
-                    }
+                    PetAppearanceCompat.setChickenVariant(chicken, pet.getAppearanceVariant());
                 }
             }
             case SHEEP -> {
@@ -1815,6 +1881,51 @@ public class PetManager {
             }
             default -> {
             }
+        }
+    }
+
+    public void refreshPetGrowthState(Player player, PetInstance pet) {
+        if (player == null || pet == null) {
+            return;
+        }
+
+        Entity entity = findActivePetEntity(player.getUniqueId());
+        if (entity == null || pet.getEntityUuid() == null
+                || !pet.getEntityUuid().equals(entity.getUniqueId())) {
+            return;
+        }
+
+        PetType type = plugin.getPetTypes().get(pet.getPetTypeId());
+        if (type != null) {
+            applyPetGrowthState(entity, player, pet, type);
+        }
+    }
+
+    private void applyPetGrowthState(Entity entity, Player owner, PetInstance pet, PetType type) {
+        boolean babyAppearance = usesBabyAppearance(pet, type);
+        if (entity instanceof Ageable ageable) {
+            if (babyAppearance) {
+                ageable.setBaby();
+            } else {
+                ageable.setAdult();
+            }
+            ageable.setAgeLock(true);
+        }
+
+        if (!(entity instanceof AbstractHorse horse)) {
+            return;
+        }
+
+        horse.setTamed(true);
+        horse.setOwner(owner);
+        horse.setDomestication(horse.getMaxDomestication());
+
+        boolean ridingEnabled = canRidePet(pet, type);
+        if (horse instanceof Horse || horse instanceof Mule) {
+            horse.getInventory().setSaddle(ridingEnabled ? new ItemStack(Material.SADDLE) : null);
+        }
+        if (!ridingEnabled && !horse.getPassengers().isEmpty()) {
+            horse.eject();
         }
     }
 
@@ -2080,7 +2191,6 @@ public class PetManager {
             case DONKEY -> chooseAmbientSound(baby, "ENTITY_DONKEY_AMBIENT", "ENTITY_BABY_DONKEY_AMBIENT");
             case MULE -> chooseAmbientSound(baby, "ENTITY_MULE_AMBIENT", "ENTITY_BABY_MULE_AMBIENT");
             case DOLPHIN -> chooseAmbientSound(baby, "ENTITY_DOLPHIN_AMBIENT", "ENTITY_BABY_DOLPHIN_AMBIENT");
-            case NAUTILUS -> chooseAmbientSound(baby, "ENTITY_NAUTILUS_AMBIENT", "ENTITY_BABY_NAUTILUS_AMBIENT");
             case ARMADILLO -> chooseAmbientSound(baby, "ENTITY_ARMADILLO_AMBIENT", "ENTITY_BABY_ARMADILLO_AMBIENT");
             case MOOSHROOM -> chooseAmbientSound(baby, "ENTITY_MOOSHROOM_AMBIENT", "ENTITY_BABY_MOOSHROOM_AMBIENT");
             case TURTLE -> chooseAmbientSound(baby, "ENTITY_TURTLE_AMBIENT_LAND", "ENTITY_TURTLE_SHAMBLE_BABY");
@@ -2091,7 +2201,8 @@ public class PetManager {
             case CAMEL -> chooseAmbientSound(baby, "ENTITY_CAMEL_AMBIENT", "ENTITY_BABY_CAMEL_AMBIENT");
             case GOAT -> chooseAmbientSound(baby, "ENTITY_GOAT_AMBIENT", "ENTITY_BABY_GOAT_AMBIENT");
             case PANDA -> chooseAmbientSound(baby, "ENTITY_PANDA_AMBIENT", "ENTITY_BABY_PANDA_AMBIENT");
-            default -> null;
+            default -> "NAUTILUS".equals(type.getEntityType().name())
+                    ? chooseAmbientSound(baby, "ENTITY_NAUTILUS_AMBIENT", "ENTITY_BABY_NAUTILUS_AMBIENT") : null;
         };
     }
 
@@ -2210,20 +2321,6 @@ public class PetManager {
 
     private record HorseAppearance(Horse.Color color, Horse.Style style) {}
 
-    private Pig.Variant parsePigVariant(String value) {
-        return parseClimateVariant(value,
-                Pig.Variant.COLD,
-                Pig.Variant.TEMPERATE,
-                Pig.Variant.WARM);
-    }
-
-    private Chicken.Variant parseChickenVariant(String value) {
-        return parseClimateVariant(value,
-                Chicken.Variant.COLD,
-                Chicken.Variant.TEMPERATE,
-                Chicken.Variant.WARM);
-    }
-
     private DyeColor parseSheepColor(String value) {
         if (value == null || value.isBlank()) {
             return null;
@@ -2235,13 +2332,4 @@ public class PetManager {
         }
     }
 
-    private <T> T parseClimateVariant(String value, T cold, T temperate, T warm) {
-        if (value == null) return null;
-        return switch (value) {
-            case "COLD" -> cold;
-            case "TEMPERATE" -> temperate;
-            case "WARM" -> warm;
-            default -> null;
-        };
-    }
 }

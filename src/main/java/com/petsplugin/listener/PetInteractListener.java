@@ -9,12 +9,15 @@ import io.papermc.paper.event.player.PlayerNameEntityEvent;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.GameMode;
 import org.bukkit.Material;
+import org.bukkit.entity.AbstractHorse;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityTargetEvent;
+import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.event.player.PlayerInteractAtEntityEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.inventory.EquipmentSlot;
@@ -113,18 +116,31 @@ public class PetInteractListener implements Listener {
             return;
         }
 
+        PetType type = plugin.getPetTypes().get(pet.getPetTypeId());
+        boolean emptyHand = hand.getType().isAir();
+
         if (player.isSneaking()) {
+            // Once riding is active, vanilla-style right-click is reserved for mounting.
+            // Sneak-right-click keeps the pet's existing virtual storage accessible.
+            if (emptyHand && type != null
+                    && type.getSpecialAbility() == PetType.SpecialAbility.STORAGE
+                    && plugin.getPetManager().canRidePet(pet, type)) {
+                openPetStorage(player, pet, type);
+                return;
+            }
             toggleFollowMode(player);
             return;
         }
 
         boolean headPat = isHeadPat(entity, clickedY);
-        boolean emptyHand = hand.getType().isAir();
-        PetType type = plugin.getPetTypes().get(pet.getPetTypeId());
         boolean validFood = isValidFood(hand, type);
 
         if (validFood && !headPat) {
             handleFeeding(player, entity, pet, hand);
+            return;
+        }
+
+        if (emptyHand && plugin.getPetManager().mountPet(player, pet, entity)) {
             return;
         }
 
@@ -161,6 +177,25 @@ public class PetInteractListener implements Listener {
     public void onPetTarget(EntityTargetEvent event) {
         if (!plugin.getPetManager().isPetEntity(event.getEntity())) return;
         event.setCancelled(true);
+    }
+
+    @EventHandler
+    public void onPetMountInventoryClick(InventoryClickEvent event) {
+        if (event.getView().getTopInventory().getHolder() instanceof AbstractHorse horse
+                && plugin.getPetManager().isPetEntity(horse)) {
+            // Horse and mule adults use a virtual saddle supplied by the pet ability.
+            // Their real inventory is intentionally read-only; persistent storage remains
+            // in PetStorageGUI so no items can be lost when the runtime entity despawns.
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler
+    public void onPetMountInventoryDrag(InventoryDragEvent event) {
+        if (event.getView().getTopInventory().getHolder() instanceof AbstractHorse horse
+                && plugin.getPetManager().isPetEntity(horse)) {
+            event.setCancelled(true);
+        }
     }
 
     private void handleFeeding(Player player, Entity entity, PetInstance pet, ItemStack hand) {

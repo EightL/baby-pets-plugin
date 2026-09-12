@@ -5,6 +5,7 @@
 # Rarity is communicated via item name color — no explicit label needed.
 #
 # special_ability: NONE | UNDERWATER_VISION | STORAGE
+# adult_ability:   NONE | RIDING (unlocks at leveling.adult_level)
 # storage_size:    legacy static storage size (backward compatible)
 # storage_base:    slots available at level 1
 # storage_per_level: extra slots added per level
@@ -37,7 +38,7 @@
 #   - type: regeneration
 #     tier: I
 
-content_version: 2
+content_version: 3
 
 pets:
 
@@ -139,6 +140,7 @@ pets:
     icon: HORSE_SPAWN_EGG
     description: "A trusty steed and pack companion."
     special_ability: STORAGE
+    adult_ability: RIDING
     storage_size: 5
     storage_group: horse
     storage_glass: BROWN_STAINED_GLASS_PANE
@@ -163,6 +165,7 @@ pets:
     icon: MULE_SPAWN_EGG
     description: "Half horse, half donkey, all utility."
     special_ability: STORAGE
+    adult_ability: RIDING
     storage_size: 5
     storage_group: horse
     storage_glass: BROWN_STAINED_GLASS_PANE
@@ -227,6 +230,7 @@ pets:
     icon: LLAMA_SPAWN_EGG
     description: "A woolly pack beast with a mean spit."
     special_ability: STORAGE
+    adult_ability: RIDING
     storage_size: 9
     storage_group: llama
     storage_glass: WHITE_STAINED_GLASS_PANE

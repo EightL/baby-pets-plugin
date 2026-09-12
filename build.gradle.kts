@@ -3,23 +3,11 @@ plugins {
 }
 
 group = "com.petsplugin"
-version = "1.2.5"
+version = "1.3.0"
 
-data class PaperBuildTarget(
-    val apiVersion: String,
-    val javaVersion: Int,
-)
-
-val targetMinecraftVersion = providers.gradleProperty("targetMinecraftVersion").orElse("26.2").get()
-val paperBuildTarget = when (targetMinecraftVersion) {
-    "26.2" -> PaperBuildTarget(apiVersion = "26.2.build.56-alpha", javaVersion = 25)
-    "26.1.2" -> PaperBuildTarget(apiVersion = "26.1.2.build.63-stable", javaVersion = 25)
-    "26.1.1" -> PaperBuildTarget(apiVersion = "26.1.1.build.29-alpha", javaVersion = 25)
-    "1.21.11" -> PaperBuildTarget(apiVersion = "1.21.11-R0.1-SNAPSHOT", javaVersion = 21)
-    else -> throw GradleException(
-        "Unsupported targetMinecraftVersion '$targetMinecraftVersion'. Supported values: 26.2, 26.1.2, 26.1.1, 1.21.11"
-    )
-}
+// One JAR for Java 21 and newer servers. Newer optional features are resolved at runtime.
+// Compile against the oldest supported API; Paper remaps its legacy attribute/enum references.
+// Legacy deployment scripts may still pass targetMinecraftVersion; it does not change the build.
 
 repositories {
     mavenCentral()
@@ -28,7 +16,7 @@ repositories {
 }
 
 dependencies {
-    compileOnly("io.papermc.paper:paper-api:${paperBuildTarget.apiVersion}")
+    compileOnly("io.papermc.paper:paper-api:1.21-R0.1-SNAPSHOT")
     compileOnly("org.xerial:sqlite-jdbc:3.46.0.0")
     testImplementation(platform("org.junit:junit-bom:5.12.2"))
     testImplementation("org.junit.jupiter:junit-jupiter")
@@ -36,7 +24,7 @@ dependencies {
 }
 
 java {
-    toolchain.languageVersion.set(JavaLanguageVersion.of(paperBuildTarget.javaVersion))
+    toolchain.languageVersion.set(JavaLanguageVersion.of(21))
 }
 
 tasks {
@@ -49,6 +37,6 @@ tasks {
         useJUnitPlatform()
     }
     withType<org.gradle.api.tasks.compile.JavaCompile>().configureEach {
-        options.release.set(paperBuildTarget.javaVersion)
+        options.release.set(21)
     }
 }

@@ -17,7 +17,7 @@ class PetBalanceResourceTest {
         int llamaStart = pets.indexOf("  llama:", turtleStart);
         String turtle = pets.substring(turtleStart, llamaStart);
 
-        assertTrue(pets.contains("content_version: 2"), "pets.yml should migrate the old turtle value");
+        assertTrue(pets.contains("content_version: 3"), "pets.yml should contain the adult-stage definitions");
         assertTrue(turtle.contains("type: WATER_MOVEMENT_EFFICIENCY"));
         assertTrue(turtle.contains("value_per_level: 0.05"),
                 "the turtle should reach 0.5 water efficiency at level 10, not the 1.0 cap at level 2");
@@ -27,7 +27,8 @@ class PetBalanceResourceTest {
     void careHasConfigurableDecayAndGameplayMultipliers() throws IOException {
         String config = Files.readString(Path.of("src/main/resources/config.yml"));
 
-        assertTrue(config.contains("config_version: 3"));
+        assertTrue(config.contains("config_version: 4"));
+        assertTrue(config.contains("adult_level: 7"));
         assertTrue(config.contains("decay_interval_minutes: 30"));
         assertTrue(config.contains("ability_multipliers:"));
         assertTrue(config.contains("xp_multipliers:"));

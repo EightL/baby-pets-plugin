@@ -19,6 +19,7 @@ public class PetInstance {
     private final long obtainedAt;
     private PetStatus status;
     private String appearanceVariant;
+    private boolean keepBabyAppearance;
 
     // Runtime-only
     private transient UUID entityUuid;
@@ -27,6 +28,14 @@ public class PetInstance {
                        String nickname, int level, double xp,
                        boolean selected, long obtainedAt, PetStatus status,
                        String appearanceVariant) {
+        this(databaseId, ownerUuid, petTypeId, nickname, level, xp, selected,
+                obtainedAt, status, appearanceVariant, true);
+    }
+
+    public PetInstance(int databaseId, UUID ownerUuid, String petTypeId,
+                       String nickname, int level, double xp,
+                       boolean selected, long obtainedAt, PetStatus status,
+                       String appearanceVariant, boolean keepBabyAppearance) {
         this.databaseId = databaseId;
         this.ownerUuid = ownerUuid;
         this.petTypeId = petTypeId;
@@ -37,6 +46,7 @@ public class PetInstance {
         this.obtainedAt = obtainedAt;
         this.status = status;
         this.appearanceVariant = appearanceVariant;
+        this.keepBabyAppearance = keepBabyAppearance;
     }
 
     /** Create a new pet instance (for first-time creation). */
@@ -70,6 +80,13 @@ public class PetInstance {
 
     public String getAppearanceVariant() { return appearanceVariant; }
     public void setAppearanceVariant(String appearanceVariant) { this.appearanceVariant = appearanceVariant; }
+
+    public boolean isKeepBabyAppearance() { return keepBabyAppearance; }
+    public void setKeepBabyAppearance(boolean keepBabyAppearance) { this.keepBabyAppearance = keepBabyAppearance; }
+
+    public boolean hasReachedAdultStage(int adultLevel) {
+        return level >= Math.max(1, adultLevel);
+    }
 
     public UUID getEntityUuid() { return entityUuid; }
     public void setEntityUuid(UUID entityUuid) { this.entityUuid = entityUuid; }

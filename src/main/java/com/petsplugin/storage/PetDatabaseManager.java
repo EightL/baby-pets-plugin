@@ -71,9 +71,12 @@ public class PetDatabaseManager {
                         is_selected BOOLEAN NOT NULL DEFAULT 0,
                         obtained_at BIGINT NOT NULL DEFAULT 0,
                         status VARCHAR(16) NOT NULL DEFAULT 'CONTENT',
-                        appearance_variant VARCHAR(64)
+                        appearance_variant VARCHAR(64),
+                        keep_baby_appearance BOOLEAN NOT NULL DEFAULT 1
                     )
                 """);
+                ensureColumn(stmt, "player_pets", "keep_baby_appearance",
+                        "BOOLEAN NOT NULL DEFAULT 1");
                 stmt.executeUpdate("""
                     CREATE INDEX IF NOT EXISTS idx_player_pets_uuid ON player_pets(uuid)
                 """);
@@ -112,6 +115,18 @@ public class PetDatabaseManager {
         }
     }
 
+    private void ensureColumn(Statement stmt, String table, String column, String definition) throws SQLException {
+        try (ResultSet columns = stmt.executeQuery("PRAGMA table_info(" + table + ")")) {
+            while (columns.next()) {
+                if (column.equalsIgnoreCase(columns.getString("name"))) {
+                    return;
+                }
+            }
+        }
+        stmt.executeUpdate("ALTER TABLE " + table + " ADD COLUMN " + column + " " + definition);
+        plugin.getLogger().info("Database migrated: added " + table + "." + column + ".");
+    }
+
     // ══════════════════════════════════════════════════════════
     //  Player Pets CRUD
     // ══════════════════════════════════════════════════════════
@@ -124,8 +139,8 @@ public class PetDatabaseManager {
 
         synchronized (dbLock) {
             String sql = """
-                INSERT INTO player_pets (uuid, pet_type, nickname, level, xp, is_selected, obtained_at, status, appearance_variant)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO player_pets (uuid, pet_type, nickname, level, xp, is_selected, obtained_at, status, appearance_variant, keep_baby_appearance)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """;
             try (PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
                 ps.setString(1, pet.getOwnerUuid().toString());
@@ -137,6 +152,7 @@ public class PetDatabaseManager {
                 ps.setLong(7, pet.getObtainedAt());
                 ps.setString(8, pet.getStatus().name());
                 ps.setString(9, pet.getAppearanceVariant());
+                ps.setBoolean(10, pet.isKeepBabyAppearance());
                 ps.executeUpdate();
                 ResultSet keys = ps.getGeneratedKeys();
                 if (keys.next()) {
@@ -159,7 +175,7 @@ public class PetDatabaseManager {
 
         synchronized (dbLock) {
             String sql = """
-                UPDATE player_pets SET nickname=?, level=?, xp=?, is_selected=?, status=?, appearance_variant=?
+                UPDATE player_pets SET nickname=?, level=?, xp=?, is_selected=?, status=?, appearance_variant=?, keep_baby_appearance=?
                 WHERE id=?
             """;
             try (PreparedStatement ps = connection.prepareStatement(sql)) {
@@ -169,7 +185,8 @@ public class PetDatabaseManager {
                 ps.setBoolean(4, pet.isSelected());
                 ps.setString(5, pet.getStatus().name());
                 ps.setString(6, pet.getAppearanceVariant());
-                ps.setInt(7, pet.getDatabaseId());
+                ps.setBoolean(7, pet.isKeepBabyAppearance());
+                ps.setInt(8, pet.getDatabaseId());
                 ps.executeUpdate();
             } catch (SQLException e) {
                 plugin.getLogger().log(Level.SEVERE, "Failed to update pet", e);
@@ -196,7 +213,8 @@ public class PetDatabaseManager {
                 pet.isSelected(),
                 pet.getObtainedAt(),
                 pet.getStatus(),
-                pet.getAppearanceVariant()
+                pet.getAppearanceVariant(),
+                pet.isKeepBabyAppearance()
         );
 
         Runnable task = () -> updatePet(snapshot);
@@ -253,7 +271,8 @@ public class PetDatabaseManager {
                         rs.getBoolean("is_selected"),
                         rs.getLong("obtained_at"),
                         status,
-                        rs.getString("appearance_variant")
+                        rs.getString("appearance_variant"),
+                        rs.getBoolean("keep_baby_appearance")
                     ));
                 }
             } catch (SQLException e) {

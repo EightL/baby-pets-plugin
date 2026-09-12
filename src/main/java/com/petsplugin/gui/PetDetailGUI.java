@@ -94,6 +94,7 @@ public class PetDetailGUI extends BaseGUI {
         inventory.setItem(30, createAbilityItem(type, maxLevel));
         inventory.setItem(31, createStatusItem());
         inventory.setItem(32, createMetadataItem(type));
+        inventory.setItem(40, createAppearanceToggleItem(type));
 
         inventory.setItem(45, createBackButton());
         inventory.setItem(49, createSelectButton());
@@ -157,6 +158,17 @@ public class PetDetailGUI extends BaseGUI {
         lore.add(Component.text(levelLabel + ": ").color(NamedTextColor.GRAY)
                 .decoration(TextDecoration.ITALIC, false)
                 .append(Component.text(pet.getLevel() + "/" + maxLevel).color(NamedTextColor.YELLOW)));
+        lore.add(plugin.getLanguageManager().getMessage("petdetailgui.stage", "Stage: ")
+                .color(NamedTextColor.GRAY)
+                .decoration(TextDecoration.ITALIC, false)
+                .append(plugin.getLanguageManager().getMessage(
+                                plugin.getPetManager().isAdultStage(pet)
+                                        ? "petdetailgui.adult_stage"
+                                        : "petdetailgui.baby_stage",
+                                plugin.getPetManager().isAdultStage(pet) ? "Adult" : "Baby")
+                        .color(plugin.getPetManager().isAdultStage(pet)
+                                ? NamedTextColor.GOLD
+                                : NamedTextColor.AQUA)));
 
         if (pet.getLevel() < maxLevel) {
             double nextXp = plugin.getPetManager().getXpForLevel(pet.getLevel() + 1);
@@ -274,7 +286,13 @@ public class PetDetailGUI extends BaseGUI {
                 lore.add(plugin.getLanguageManager().getMessage("petdetailgui.slots_unlock_as_the_pet", "Slots unlock as the pet levels up")
                         .color(NamedTextColor.DARK_GRAY)
                         .decoration(TextDecoration.ITALIC, false));
-                lore.add(plugin.getLanguageManager().getMessage("petdetailgui.rightclick_with_empty_hand_to", "Right-click with empty hand to open bag")
+                String storageHintKey = plugin.getPetManager().canRidePet(pet, type)
+                        ? "petdetailgui.sneak_rightclick_to_open_bag"
+                        : "petdetailgui.rightclick_with_empty_hand_to";
+                String storageHintFallback = plugin.getPetManager().canRidePet(pet, type)
+                        ? "Sneak-right-click with empty hand to open bag"
+                        : "Right-click with empty hand to open bag";
+                lore.add(plugin.getLanguageManager().getMessage(storageHintKey, storageHintFallback)
                         .color(NamedTextColor.DARK_GRAY)
                         .decoration(TextDecoration.ITALIC, false));
             }
@@ -342,6 +360,38 @@ public class PetDetailGUI extends BaseGUI {
                         .decoration(TextDecoration.ITALIC, false)
                         .append(plugin.getLanguageManager().getMessage("petdetailgui.underwater_night_vision", "Underwater Night Vision").color(NamedTextColor.AQUA)));
             }
+
+            if (type.hasAdultAbility()) {
+                if (!lore.isEmpty()) {
+                    lore.add(Component.empty());
+                }
+                lore.add(plugin.getLanguageManager().getMessage("petdetailgui.adult_ability", "Adult Ability: ")
+                        .color(NamedTextColor.GRAY)
+                        .decoration(TextDecoration.ITALIC, false)
+                        .append(plugin.getLanguageManager().getMessage("petdetailgui.riding", "Riding")
+                                .color(NamedTextColor.GOLD)));
+
+                if (!plugin.getPetManager().isAdultAbilityUnlocked(pet, type)) {
+                    lore.add(plugin.getLanguageManager().getMessage(
+                                    "petdetailgui.unlocks_at_level",
+                                    "Unlocks at level %level%",
+                                    "level", String.valueOf(plugin.getAdultLevel()))
+                            .color(NamedTextColor.DARK_GRAY)
+                            .decoration(TextDecoration.ITALIC, false));
+                } else if (plugin.getPetManager().canRidePet(pet, type)) {
+                    lore.add(plugin.getLanguageManager().getMessage(
+                                    "petdetailgui.riding_active",
+                                    "Active — right-click with empty hand to ride")
+                            .color(NamedTextColor.GREEN)
+                            .decoration(TextDecoration.ITALIC, false));
+                } else {
+                    lore.add(plugin.getLanguageManager().getMessage(
+                                    "petdetailgui.riding_needs_adult_model",
+                                    "Paused — switch off the baby appearance to ride")
+                            .color(NamedTextColor.YELLOW)
+                            .decoration(TextDecoration.ITALIC, false));
+                }
+            }
         } else {
             lore.add(plugin.getLanguageManager().getMessage("petdetailgui.pet_abilities_are_disabled_in", "Pet abilities are disabled in config.")
                     .color(NamedTextColor.GRAY)
@@ -349,6 +399,82 @@ public class PetDetailGUI extends BaseGUI {
             lore.add(plugin.getLanguageManager().getMessage("petdetailgui.this_pet_is_currently_vanityonly", "This pet is currently vanity-only.")
                     .color(NamedTextColor.GRAY)
                     .decoration(TextDecoration.ITALIC, false));
+        }
+
+        meta.lore(lore);
+        item.setItemMeta(meta);
+        return item;
+    }
+
+    private ItemStack createAppearanceToggleItem(PetType type) {
+        boolean supportsBabyModel = plugin.getPetManager().supportsBabyAppearance(type);
+        boolean adultStage = plugin.getPetManager().isAdultStage(pet);
+        boolean keepBaby = pet.isKeepBabyAppearance();
+
+        Material material;
+        if (!supportsBabyModel) {
+            material = Material.BARRIER;
+        } else if (!adultStage) {
+            material = Material.CLOCK;
+        } else {
+            material = keepBaby ? Material.LIME_DYE : Material.GRAY_DYE;
+        }
+
+        ItemStack item = new ItemStack(material);
+        ItemMeta meta = item.getItemMeta();
+        meta.displayName(plugin.getLanguageManager().getMessage(
+                        "petdetailgui.keep_baby_appearance",
+                        "Keep Baby Appearance: %state%",
+                        "state", plugin.getLanguageManager().getString(
+                                keepBaby ? "petdetailgui.on" : "petdetailgui.off",
+                                keepBaby ? "ON" : "OFF"))
+                .color(keepBaby ? NamedTextColor.GREEN : NamedTextColor.GOLD)
+                .decoration(TextDecoration.ITALIC, false)
+                .decoration(TextDecoration.BOLD, true));
+
+        List<Component> lore = new ArrayList<>();
+        if (!supportsBabyModel) {
+            lore.add(plugin.getLanguageManager().getMessage(
+                            "petdetailgui.no_baby_model",
+                            "This species has no separate baby model.")
+                    .color(NamedTextColor.DARK_GRAY)
+                    .decoration(TextDecoration.ITALIC, false));
+        } else if (!adultStage) {
+            lore.add(plugin.getLanguageManager().getMessage(
+                            "petdetailgui.appearance_unlocks_at_level",
+                            "Appearance choice unlocks at level %level%.",
+                            "level", String.valueOf(plugin.getAdultLevel()))
+                    .color(NamedTextColor.YELLOW)
+                    .decoration(TextDecoration.ITALIC, false));
+            lore.add(plugin.getLanguageManager().getMessage(
+                            "petdetailgui.currently_growing",
+                            "This pet is still growing.")
+                    .color(NamedTextColor.DARK_GRAY)
+                    .decoration(TextDecoration.ITALIC, false));
+        } else {
+            lore.add(plugin.getLanguageManager().getMessage(
+                            keepBaby ? "petdetailgui.showing_baby_model" : "petdetailgui.showing_adult_model",
+                            keepBaby ? "Currently showing the baby model." : "Currently showing the adult model.")
+                    .color(NamedTextColor.GRAY)
+                    .decoration(TextDecoration.ITALIC, false));
+            lore.add(plugin.getLanguageManager().getMessage(
+                            "petdetailgui.click_to_toggle",
+                            "Click to change appearance.")
+                    .color(NamedTextColor.AQUA)
+                    .decoration(TextDecoration.ITALIC, false));
+
+            if (type.getAdultAbility() == PetType.AdultAbility.RIDING) {
+                lore.add(Component.empty());
+                lore.add(plugin.getLanguageManager().getMessage(
+                                keepBaby
+                                        ? "petdetailgui.baby_model_disables_riding"
+                                        : "petdetailgui.adult_model_enables_riding",
+                                keepBaby
+                                        ? "Riding is unavailable with the baby model."
+                                        : "The adult model enables riding.")
+                        .color(keepBaby ? NamedTextColor.YELLOW : NamedTextColor.GREEN)
+                        .decoration(TextDecoration.ITALIC, false));
+            }
         }
 
         meta.lore(lore);
@@ -526,6 +652,27 @@ public class PetDetailGUI extends BaseGUI {
             plugin.getPetManager().refreshCache(player.getUniqueId());
             new PetCollectionGUI(plugin, player, returnPage, returnFilterMode, returnRarityFilters).open(player);
             player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, 1f);
+            return;
+        }
+
+        if (slot == 40) {
+            PetType type = plugin.getPetTypes().get(pet.getPetTypeId());
+            if (type == null || !plugin.getPetManager().supportsBabyAppearance(type)
+                    || !plugin.getPetManager().isAdultStage(pet)) {
+                player.playSound(player.getLocation(), Sound.BLOCK_NOTE_BLOCK_BASS, 0.8f, 0.8f);
+                return;
+            }
+
+            boolean keepBaby = !pet.isKeepBabyAppearance();
+            plugin.getPetManager().setKeepBabyAppearance(player, pet, keepBaby);
+            initializeItems();
+            player.playSound(player.getLocation(), Sound.UI_BUTTON_CLICK, 1f, keepBaby ? 1.2f : 0.9f);
+            plugin.getPetManager().sendPetNotification(player,
+                    keepBaby ? "messages.pet_baby_appearance_enabled" : "messages.pet_adult_appearance_enabled",
+                    keepBaby
+                            ? "&a%pet_name% &7will keep its baby appearance."
+                            : "&6%pet_name% &7is now showing its adult appearance.",
+                    Map.of("%pet_name%", pet.getLocalizedDisplayName(type, plugin.getLanguageManager())));
             return;
         }
 
